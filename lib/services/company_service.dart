@@ -439,6 +439,85 @@ class CompanyService {
     _clients.add(client);
     return client;
   }
+
+  /// Crée une commande dans un atelier et fait apparaître AUTOMATIQUEMENT son
+  /// client dans l'espace Clients : pas besoin de créer une fiche client à la
+  /// main, le nom saisi dans la commande devient (ou complète) le client de
+  /// l'atelier. Si un client du même nom (ou même téléphone) existe déjà, sa
+  /// fiche est mise à jour (nb de commandes + total dépensé) au lieu d'être
+  /// dupliquée.
+  CompanyOrder addOrder({
+    required String atelierId,
+    required String atelierName,
+    required String clientName,
+    required int price,
+    required String garment,
+    String clientPhone = '',
+    String status = 'pending',
+    String tailorName = 'Non assigné',
+    DateTime? date,
+  }) {
+    final order = CompanyOrder(
+      id: _nextId('ord'),
+      clientName: clientName.trim(),
+      garment: garment.trim(),
+      price: price,
+      status: status,
+      atelierId: atelierId,
+      atelierName: atelierName,
+      tailorName: tailorName.trim().isEmpty ? 'Non assigné' : tailorName.trim(),
+      date: date ?? DateTime.now(),
+    );
+    _orders.add(order);
+
+    _upsertClientFromOrder(
+      atelierId: atelierId,
+      atelierName: atelierName,
+      fullName: clientName,
+      phone: clientPhone,
+      orderPrice: price,
+    );
+
+    return order;
+  }
+
+  /// Crée ou met à jour la fiche client dérivée d'une commande.
+  void _upsertClientFromOrder({
+    required String atelierId,
+    required String atelierName,
+    required String fullName,
+    required String phone,
+    required int orderPrice,
+  }) {
+    final name = fullName.trim();
+    final normalizedName = name.toLowerCase();
+    final normalizedPhone = phone.trim();
+
+    final index = _clients.indexWhere((c) =>
+        c.atelierId == atelierId &&
+        (c.fullName.toLowerCase() == normalizedName ||
+            (normalizedPhone.isNotEmpty && c.phone == normalizedPhone)));
+
+    if (index == -1) {
+      _clients.add(Client(
+        id: _nextId('cli'),
+        fullName: name,
+        phone: normalizedPhone,
+        atelierId: atelierId,
+        atelierName: atelierName,
+        orderCount: 1,
+        totalSpent: orderPrice,
+        createdAt: DateTime.now(),
+      ));
+    } else {
+      final existing = _clients[index];
+      _clients[index] = existing.copyWith(
+        phone: existing.phone.isEmpty ? normalizedPhone : existing.phone,
+        orderCount: existing.orderCount + 1,
+        totalSpent: existing.totalSpent + orderPrice,
+      );
+    }
+  }
 }
 
 // ── Modèle commande interne à CompanyService ─────────────────────────────────
