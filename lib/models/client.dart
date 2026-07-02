@@ -31,6 +31,32 @@ class Client extends Equatable {
     return fullName.isNotEmpty ? fullName[0].toUpperCase() : '?';
   }
 
+  Client copyWith({
+    String? id,
+    String? fullName,
+    String? phone,
+    String? atelierId,
+    String? atelierName,
+    String? email,
+    String? notes,
+    int? orderCount,
+    int? totalSpent,
+    DateTime? createdAt,
+  }) {
+    return Client(
+      id: id ?? this.id,
+      fullName: fullName ?? this.fullName,
+      phone: phone ?? this.phone,
+      atelierId: atelierId ?? this.atelierId,
+      atelierName: atelierName ?? this.atelierName,
+      email: email ?? this.email,
+      notes: notes ?? this.notes,
+      orderCount: orderCount ?? this.orderCount,
+      totalSpent: totalSpent ?? this.totalSpent,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   @override
   List<Object?> get props => [id, fullName, atelierId];
 }

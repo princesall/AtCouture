@@ -210,6 +210,24 @@ abstract final class AdminDemoData {
   /// Vue en lecture pour l'UI — utilisez les méthodes ci-dessous pour modifier.
   static List<StylistEntry> get stylists => List.unmodifiable(_stylists);
 
+  /// Enregistre dans l'admin un compte styliste qui vient d'être créé (via
+  /// l'inscription publique). C'est ce qui garantit que TOUT compte créé
+  /// apparaît immédiatement dans l'admin ET dans la liste des comptes
+  /// stylistes. Sans effet si un compte du même id est déjà présent.
+  static void addStylistAccount(AppUser user) {
+    if (_stylists.any((s) => s.user.id == user.id)) return;
+    _stylists.insert(
+      0,
+      StylistEntry(
+        user: user,
+        tailorCount: 0,
+        orderCount: 0,
+        totalRevenue: 0,
+        isOnline: true,
+      ),
+    );
+  }
+
   static final List<AdminMessage> messages = [
     AdminMessage(
       id: 'msg_1',

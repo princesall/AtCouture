@@ -1,3 +1,4 @@
+import '../data/admin_demo_data.dart';
 import '../models/app_user.dart';
 import '../models/subscription_plan.dart';
 import '../models/user_role.dart';
@@ -103,6 +104,11 @@ class AuthService {
 
     _demoUsers.add(user);
     _demoPasswords[user.email] = password;
+
+    // Rend le nouveau compte visible côté Admin (liste des comptes stylistes) :
+    // tout compte créé doit apparaître immédiatement dans l'espace Admin.
+    AdminDemoData.addStylistAccount(user);
+
     _currentUser = user;
     return user;
   }
