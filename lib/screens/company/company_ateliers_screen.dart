@@ -7,6 +7,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
+import '../../services/order_service.dart';
 import '../admin/admin_dashboard.dart' show StylistAvatar;
 
 /// Liste des Ateliers de l'Entreprise + création de nouveaux Chefs d'atelier
@@ -53,7 +54,7 @@ class _CompanyAteliersScreenState extends State<CompanyAteliersScreen> {
         child: ListView.separated(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
           itemCount: ateliers.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
           itemBuilder: (_, i) => _AtelierCard(
             atelier: ateliers[i],
             index: i,
@@ -141,7 +142,11 @@ class _AtelierCardState extends State<_AtelierCard> {
   }
 
   Widget _buildExpanded(dynamic a) {
-    final tailors = CompanyService.instance.tailorsOfAtelier(a.id as String);
+    final atelierId = a.id as String;
+    final tailors = CompanyService.instance.tailorsOfAtelier(atelierId);
+    final clientCount = CompanyService.instance.clientsOfAtelier(atelierId).length;
+    final orderCount = CompanyService.instance.ordersOfAtelier(atelierId).length;
+    final revenue = OrderService.instance.atelierRevenue(atelierId);
     return Container(
       decoration: BoxDecoration(color: AppColors.surfaceContainerLow, border: Border(top: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.3)))),
       padding: const EdgeInsets.all(16),
@@ -149,9 +154,9 @@ class _AtelierCardState extends State<_AtelierCard> {
         Row(children: [
           _MiniStat(label: 'Couturiers', value: '${(a.tailorIds as List).length}', icon: Icons.content_cut_rounded),
           const SizedBox(width: 10),
-          _MiniStat(label: 'Clients', value: '${a.clientCount}', icon: Icons.people_rounded),
+          _MiniStat(label: 'Clients', value: '$clientCount', icon: Icons.people_rounded),
           const SizedBox(width: 10),
-          _MiniStat(label: 'Commandes', value: '${a.activeOrderCount}', icon: Icons.receipt_long_rounded),
+          _MiniStat(label: 'Commandes', value: '$orderCount', icon: Icons.receipt_long_rounded),
         ]),
         const SizedBox(height: 12),
         Container(
@@ -160,7 +165,7 @@ class _AtelierCardState extends State<_AtelierCard> {
           child: Row(children: [
             const Icon(Icons.payments_rounded, color: AppColors.onTertiary, size: 18),
             const SizedBox(width: 8),
-            Text('${Formatters.formatCurrency(a.totalRevenue as int)} FCFA générés', style: AppTextStyles.titleSm.copyWith(color: AppColors.onTertiary, fontSize: 13)),
+            Text('${Formatters.formatCurrency(revenue)} FCFA générés', style: AppTextStyles.titleSm.copyWith(color: AppColors.onTertiary, fontSize: 13)),
           ]),
         ),
         const SizedBox(height: 14),

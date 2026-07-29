@@ -68,35 +68,35 @@ class AppRouter {
       routes: [
         GoRoute(
           path: '/splash',
-          builder: (_, __) => const SplashScreen(),
+          builder: (_, _) => const SplashScreen(),
         ),
         GoRoute(
           path: '/auth/login',
-          builder: (_, __) => const LoginScreen(),
+          builder: (_, _) => const LoginScreen(),
         ),
         GoRoute(
           path: '/auth/register',
-          builder: (_, __) => const RegisterScreen(),
+          builder: (_, _) => const RegisterScreen(),
         ),
         GoRoute(
           path: '/auth/forgot-password',
-          builder: (_, __) => const ForgotPasswordScreen(),
+          builder: (_, _) => const ForgotPasswordScreen(),
         ),
         GoRoute(
           path: '/stylist',
-          builder: (_, __) => const StylistShell(),
+          builder: (_, _) => const StylistShell(),
         ),
         GoRoute(
           path: '/company',
-          builder: (_, __) => const CompanyShell(),
+          builder: (_, _) => const CompanyShell(),
         ),
         GoRoute(
           path: '/tailor',
-          builder: (_, __) => const TailorShell(),
+          builder: (_, _) => const TailorShell(),
         ),
         GoRoute(
           path: '/admin',
-          builder: (_, __) => const AdminShell(),
+          builder: (_, _) => const AdminShell(),
         ),
       ],
     );

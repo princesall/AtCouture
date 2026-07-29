@@ -4,7 +4,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/widgets/stitch_widgets.dart';
 import '../../data/admin_demo_data.dart';
 import '../../models/subscription_plan.dart';
 import '../../services/subscription_service.dart';
@@ -89,7 +88,7 @@ class _AdminStylistsScreenState extends State<AdminStylistsScreen> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: _filters.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
             itemBuilder: (_, i) {
               final active = i == _filterIndex;
               return GestureDetector(
@@ -122,7 +121,7 @@ class _AdminStylistsScreenState extends State<AdminStylistsScreen> {
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
                   itemCount: _filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (_, i) => _StylistCard(
                     entry: _filtered[i],
                     index: i,
@@ -274,12 +273,12 @@ class _StylistCardState extends State<_StylistCard> {
                   // Ministat couturiers
                   Icon(Icons.content_cut_rounded, size: 12, color: AppColors.onSurfaceVariant),
                   const SizedBox(width: 4),
-                  Text('${s.tailorCount}', style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
+                  Text('${AdminDemoData.getStylistTailorCount(s.user)}', style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
                   const SizedBox(width: 10),
                   // Ministat commandes
                   Icon(Icons.receipt_long_rounded, size: 12, color: AppColors.onSurfaceVariant),
                   const SizedBox(width: 4),
-                  Text('${s.orderCount}', style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
+                  Text('${AdminDemoData.getStylistOrderCount(s.user)}', style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
                 ]),
               ])),
               const SizedBox(width: 8),
@@ -310,11 +309,11 @@ class _StylistCardState extends State<_StylistCard> {
       child: Column(children: [
         // ── Stats revenus ──────────────────────────────────────────────
         Row(children: [
-          _StatMini(label: 'REVENUS', value: '${Formatters.formatCurrency(s.totalRevenue)} FCFA', icon: Icons.payments_outlined, color: AppColors.tertiary),
+          _StatMini(label: 'REVENUS', value: '${Formatters.formatCurrency(AdminDemoData.getStylistRevenue(s.user))} FCFA', icon: Icons.payments_outlined, color: AppColors.tertiary),
           const SizedBox(width: 12),
-          _StatMini(label: 'COMMANDES', value: s.orderCount.toString(), icon: Icons.receipt_long_outlined, color: AppColors.primary),
+          _StatMini(label: 'COMMANDES', value: AdminDemoData.getStylistOrderCount(s.user).toString(), icon: Icons.receipt_long_outlined, color: AppColors.primary),
           const SizedBox(width: 12),
-          _StatMini(label: 'COUTURIERS', value: s.tailorCount.toString(), icon: Icons.content_cut_outlined, color: AppColors.secondary),
+          _StatMini(label: 'COUTURIERS', value: AdminDemoData.getStylistTailorCount(s.user).toString(), icon: Icons.content_cut_outlined, color: AppColors.secondary),
         ]),
         const SizedBox(height: 14),
 

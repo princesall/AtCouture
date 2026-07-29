@@ -25,10 +25,12 @@ class _AdminMessagesScreenState extends State<AdminMessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_selected != null) return _MessageDetailScreen(
+    if (_selected != null) {
+      return _MessageDetailScreen(
       message: _selected!,
       onBack: () => setState(() { _readIds.add(_selected!.id); _selected = null; }),
     );
+    }
 
     return Column(children: [
       // ── Header ──────────────────────────────────────────────────────────
@@ -51,7 +53,7 @@ class _AdminMessagesScreenState extends State<AdminMessagesScreen> {
         child: ListView.separated(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
           itemCount: _messages.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
           itemBuilder: (_, i) => _MessageCard(
             message: _messages[i],
             index: i,

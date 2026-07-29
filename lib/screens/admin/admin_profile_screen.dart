@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../core/widgets/common_widgets.dart';
-import '../../core/widgets/stitch_widgets.dart';
+import '../../data/admin_demo_data.dart';
 import '../../providers/auth_provider.dart';
 
 class AdminProfileScreen extends StatelessWidget {
@@ -76,11 +74,11 @@ class AdminProfileScreen extends StatelessWidget {
         _SectionLabel('Statistiques globales'),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: _StatMiniCard(label: 'Stylistes', value: '127', icon: Icons.storefront_rounded, color: AppColors.secondary)),
+          Expanded(child: _StatMiniCard(label: 'Stylistes', value: AdminDemoData.totalStylists.toString(), icon: Icons.storefront_rounded, color: AppColors.secondary)),
           const SizedBox(width: 12),
-          Expanded(child: _StatMiniCard(label: 'Couturiers', value: '342', icon: Icons.content_cut_rounded, color: AppColors.primary)),
+          Expanded(child: _StatMiniCard(label: 'Couturiers', value: AdminDemoData.totalTailors.toString(), icon: Icons.content_cut_rounded, color: AppColors.primary)),
           const SizedBox(width: 12),
-          Expanded(child: _StatMiniCard(label: 'Commandes', value: '89', icon: Icons.receipt_long_rounded, color: AppColors.surfaceTint)),
+          Expanded(child: _StatMiniCard(label: 'Commandes', value: AdminDemoData.activeOrders.toString(), icon: Icons.receipt_long_rounded, color: AppColors.surfaceTint)),
         ]),
 
         const SizedBox(height: 28),

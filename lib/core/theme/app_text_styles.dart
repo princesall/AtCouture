@@ -27,6 +27,20 @@ abstract final class AppTextStyles {
     height: 32 / 24,
   );
 
+  /// 22px / 700 — Titres moyens
+  static TextStyle get headlineMd => GoogleFonts.manrope(
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    height: 30 / 22,
+  );
+
+  /// 18px / 700 — Titres petits
+  static TextStyle get headlineSm => GoogleFonts.manrope(
+    fontSize: 18,
+    fontWeight: FontWeight.w700,
+    height: 26 / 18,
+  );
+
   // ── Titles ───────────────────────────────────────────────────────────────
   /// 20px / 600 — Titres de section
   static TextStyle get titleMd => GoogleFonts.manrope(

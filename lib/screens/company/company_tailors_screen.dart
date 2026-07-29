@@ -43,10 +43,10 @@ class CompanyTailorsScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
           children: ateliers.asMap().entries.map((e) {
             final atelier = e.value;
-            final tailors = CompanyService.instance.tailorsOfAtelier(atelier.id as String);
-            final isOwnerAtelier = (atelier.headStylistId as String) == user.id;
+            final tailors = CompanyService.instance.tailorsOfAtelier(atelier.id);
+            final isOwnerAtelier = atelier.headStylistId == user.id;
             return _AtelierGroup(
-              atelierName: atelier.name as String,
+              atelierName: atelier.name,
               isOwnerAtelier: isOwnerAtelier,
               tailors: tailors,
               index: e.key,

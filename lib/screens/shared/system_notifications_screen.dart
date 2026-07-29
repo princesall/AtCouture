@@ -53,7 +53,7 @@ class _SystemNotificationsScreenState extends State<SystemNotificationsScreen> {
           : ListView.separated(
               padding: const EdgeInsets.all(20),
               itemCount: messages.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (_, i) {
                 final m = messages[i];
                 if (!m.isRead) {

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../models/order_status.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // StatusBadge — badge pill pour le statut d'une commande
 // ═══════════════════════════════════════════════════════════════════════════════
-
-enum OrderStatus { pending, inProgress, done, problem }
 
 class StatusBadge extends StatelessWidget {
   const StatusBadge(this.status, {super.key});
@@ -19,7 +18,7 @@ class StatusBadge extends StatelessWidget {
     final (label, bg, fg) = switch (status) {
       OrderStatus.pending    => ('EN ATTENTE', AppColors.statusPendingBg,    AppColors.statusPending),
       OrderStatus.inProgress => ('EN COURS',   AppColors.statusInProgressBg, AppColors.statusInProgress),
-      OrderStatus.done       => ('TERMINÉ',     AppColors.statusDoneBg,       AppColors.statusDone),
+      OrderStatus.completed  => ('TERMINÉ',     AppColors.statusDoneBg,       AppColors.statusDone),
       OrderStatus.problem    => ('PROBLÈME',    AppColors.statusProblemBg,    AppColors.statusProblem),
     };
 
@@ -188,14 +187,14 @@ class OrderListItem extends StatelessWidget {
   }
 
   Color get _avatarBg => switch (status) {
-    OrderStatus.done       => AppColors.secondaryFixed.withValues(alpha: 0.5),
+    OrderStatus.completed  => AppColors.secondaryFixed.withValues(alpha: 0.5),
     OrderStatus.inProgress => AppColors.primaryFixed.withValues(alpha: 0.5),
     OrderStatus.pending    => AppColors.surfaceContainerHigh,
     OrderStatus.problem    => AppColors.errorContainer.withValues(alpha: 0.5),
   };
 
   Color get _avatarFg => switch (status) {
-    OrderStatus.done       => AppColors.secondary,
+    OrderStatus.completed  => AppColors.secondary,
     OrderStatus.inProgress => AppColors.primary,
     OrderStatus.pending    => AppColors.onSurfaceVariant,
     OrderStatus.problem    => AppColors.error,

@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
 class FadeSlidePageRoute<T> extends PageRouteBuilder<T> {
-  FadeSlidePageRoute({required Widget page, RouteSettings? settings})
+  FadeSlidePageRoute({required Widget page, super.settings})
       : super(
-          settings: settings,
           pageBuilder: (context, animation, secondaryAnimation) => page,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             final curved = CurvedAnimation(

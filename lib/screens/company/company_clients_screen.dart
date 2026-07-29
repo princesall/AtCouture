@@ -89,9 +89,9 @@ class _CompanyClientsScreenState extends State<CompanyClientsScreen> {
             ...ateliers.map((a) => Padding(
               padding: const EdgeInsets.only(right: 8),
               child: _Chip(
-                label: (a.name as String).split('—').last.trim().toUpperCase(),
+                label: (a.name).split('—').last.trim().toUpperCase(),
                 active: _atelierFilter == a.id,
-                onTap: () => setState(() => _atelierFilter = a.id as String),
+                onTap: () => setState(() => _atelierFilter = a.id),
               ),
             )),
           ],
@@ -106,7 +106,7 @@ class _CompanyClientsScreenState extends State<CompanyClientsScreen> {
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
                 itemCount: clients.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (_, i) => _ClientCard(client: clients[i], index: i),
               ),
       ),
@@ -223,7 +223,8 @@ class _AddClientSheetState extends State<_AddClientSheet> {
 
   @override
   Widget build(BuildContext context) {
-    if (_added) return Padding(
+    if (_added) {
+      return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const Icon(Icons.check_circle_rounded, color: AppColors.statusDone, size: 56),
@@ -239,6 +240,7 @@ class _AddClientSheetState extends State<_AddClientSheet> {
         )),
       ]),
     );
+    }
 
     return Padding(
       padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),

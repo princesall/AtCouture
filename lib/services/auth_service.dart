@@ -1,4 +1,5 @@
 import '../models/app_user.dart';
+import '../data/admin_demo_data.dart';
 import '../models/subscription_plan.dart';
 import '../models/user_role.dart';
 import 'company_service.dart';
@@ -103,6 +104,8 @@ class AuthService {
 
     _demoUsers.add(user);
     _demoPasswords[user.email] = password;
+    // Mettre à jour la vue admin pour inclure ce styliste fraîchement créé
+    AdminDemoData.addStylist(user);
     _currentUser = user;
     return user;
   }
@@ -123,6 +126,19 @@ class AuthService {
     _currentUser = null;
   }
 
+  /// Met à jour un utilisateur existant dans _demoUsers (utilisé par AdminDemoData)
+  static void updateUser(AppUser updatedUser) {
+    final index = _demoUsers.indexWhere((u) => u.id == updatedUser.id);
+    if (index != -1) {
+      _demoUsers[index] = updatedUser;
+    }
+  }
+
+  /// Récupère un utilisateur par son ID (utilisé par AuthProvider pour rafraîchir)
+  AppUser? getUserById(String userId) {
+    return _demoUsers.where((u) => u.id == userId).firstOrNull;
+  }
+
   bool get isDemoMode => !FirebaseService.isAvailable;
 
   /// Évite de renvoyer plusieurs fois le même message système d'expiration
@@ -137,12 +153,10 @@ class AuthService {
 
   static final Map<String, String> _demoPasswords = {
     'admin@styleconnect.ml': 'admin123',
-    'styliste@demo.ml': 'demo123',
-    'couturier@demo.ml': 'demo123',
-    'entreprise@demo.ml': 'entreprise123',
   };
 
   static final List<AppUser> _demoUsers = [
+    // Uniquement l'admin pour les tests
     AppUser(
       id: 'admin_1',
       email: 'admin@styleconnect.ml',
@@ -150,41 +164,6 @@ class AuthService {
       phone: '+223 70 00 00 01',
       role: UserRole.admin,
       createdAt: DateTime(2026, 1, 1),
-    ),
-    AppUser(
-      id: 'stylist_1',
-      email: 'styliste@demo.ml',
-      fullName: 'Aminata Diallo',
-      phone: '+223 76 12 34 56',
-      role: UserRole.stylist,
-      atelierId: 'atelier_1',
-      atelierName: 'Atelier Élégance Bamako',
-      plan: SubscriptionPlan.starter,
-      planExpiresAt: DateTime(2026, 12, 31),
-      createdAt: DateTime(2026, 3, 15),
-    ),
-    AppUser(
-      id: 'tailor_1',
-      email: 'couturier@demo.ml',
-      fullName: 'Moussa Keita',
-      phone: '+223 65 98 76 54',
-      role: UserRole.tailor,
-      atelierId: 'atelier_1',
-      atelierName: 'Atelier Élégance Bamako',
-      createdAt: DateTime(2026, 4, 1),
-    ),
-    AppUser(
-      id: 'owner_1',
-      email: 'entreprise@demo.ml',
-      fullName: 'Moussa Keïta',
-      phone: '+223 70 33 44 55',
-      role: UserRole.companyOwner,
-      atelierId: 'atelier_owner_1',
-      atelierName: 'Keïta Prestige — Siège (Moussa Keïta)',
-      companyId: 'owner_1',
-      plan: SubscriptionPlan.enterprise,
-      planExpiresAt: DateTime(2026, 12, 31),
-      createdAt: DateTime(2026, 1, 5),
     ),
   ];
 }

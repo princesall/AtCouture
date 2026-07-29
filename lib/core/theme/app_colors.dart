@@ -72,6 +72,9 @@ abstract final class AppColors {
   static const Color statusProblem        = Color(0xFFBA1A1A);
   static const Color statusProblemBg      = Color(0xFFFFDAD6);
 
+  // ── Couleurs utilitaires ─────────────────────────────────────────────────
+  static const Color success              = Color(0xFF34C759); // Vert succès
+
   // ── Ombres premium ──────────────────────────────────────────────────────
   static const Color shadowPrimary        = Color(0x102B3674); // rgba(43,54,116,.06)
   static const Color shadowCard           = Color(0x0A2B3674); // rgba(43,54,116,.04)

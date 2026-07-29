@@ -41,11 +41,12 @@ class _AdminShellState extends State<AdminShell> {
               child: IndexedStack(
                 index: _index,
                 children: [
-                  AdminDashboard(onNavTap: _onNavTap),
-                  const AdminStylistsScreen(),
-                  const AdminSubscriptionsScreen(),
-                  const AdminMessagesScreen(),
-                  const AdminProfileScreen(),
+                  AdminDashboard(onNavTap: _onNavTap, onDataChanged: () => setState(() {})),
+                  // Pas de `const` : lit AdminDemoData/CompanyService directement dans build().
+                  AdminStylistsScreen(),
+                  AdminSubscriptionsScreen(),
+                  AdminMessagesScreen(),
+                  AdminProfileScreen(),
                 ],
               ),
             ),

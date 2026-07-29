@@ -1,8 +1,10 @@
 import '../models/app_user.dart';
 import '../models/atelier.dart';
 import '../models/client.dart';
+import '../models/order.dart';
 import '../models/subscription_plan.dart';
 import '../models/user_role.dart';
+import 'order_service.dart';
 
 /// Service simulant la base de données hiérarchique Entreprise → Ateliers → Couturiers.
 /// En mode démo (Firebase non connecté), tout vit en mémoire ici.
@@ -20,170 +22,25 @@ class CompanyService {
   static final CompanyService instance = CompanyService._();
 
   // ── Données démo en mémoire ──────────────────────────────────────────────
-  final List<Company> _companies = [
-    Company(
-      id: 'company_1',
-      name: 'Groupe Keïta Couture',
-      ownerId: 'owner_1',
-      ownerName: 'Moussa Keïta',
-      atelierIds: ['atelier_owner_1', 'atelier_ent_1', 'atelier_ent_2', 'atelier_ent_3'],
-      createdAt: DateTime(2026, 1, 5),
-    ),
-  ];
+  final List<Company> _companies = [];
 
-  final List<Atelier> _ateliers = [
-    // ── Atelier PERSONNEL du Chef d'Entreprise lui-même ─────────────────────
-    // Lui permet de continuer à avoir ses propres clients/commandes sans
-    // passer par un Chef d'atelier intermédiaire.
-    Atelier(
-      id: 'atelier_owner_1',
-      name: 'Keïta Prestige — Siège (Moussa Keïta)',
-      headStylistId: 'owner_1',
-      headStylistName: 'Moussa Keïta',
-      companyId: 'owner_1',
-      address: 'Hamdallaye ACI 2000, Bamako',
-      tailorIds: ['tailor_ent_7'],
-      clientCount: 15,
-      activeOrderCount: 6,
-      totalRevenue: 540000,
-      createdAt: DateTime(2026, 1, 5),
-    ),
-    // ── Ateliers délégués à des Chefs d'atelier ─────────────────────────────
-    Atelier(
-      id: 'atelier_ent_1',
-      name: 'Keïta Prestige — Bamako Centre',
-      headStylistId: 'chef_atelier_1',
-      headStylistName: 'Salif Touré',
-      companyId: 'owner_1',
-      address: 'ACI 2000, Bamako',
-      tailorIds: ['tailor_ent_1', 'tailor_ent_2', 'tailor_ent_3'],
-      clientCount: 48,
-      activeOrderCount: 12,
-      totalRevenue: 980000,
-      createdAt: DateTime(2026, 1, 10),
-    ),
-    Atelier(
-      id: 'atelier_ent_2',
-      name: 'Keïta Prestige — Sogoniko',
-      headStylistId: 'chef_atelier_2',
-      headStylistName: 'Mariam Sissoko',
-      companyId: 'owner_1',
-      address: 'Sogoniko, Bamako',
-      tailorIds: ['tailor_ent_4', 'tailor_ent_5'],
-      clientCount: 31,
-      activeOrderCount: 8,
-      totalRevenue: 620000,
-      createdAt: DateTime(2026, 2, 15),
-    ),
-    Atelier(
-      id: 'atelier_ent_3',
-      name: 'Keïta Prestige — Ségou',
-      headStylistId: 'chef_atelier_3',
-      headStylistName: 'Ousmane Diarra',
-      companyId: 'owner_1',
-      address: 'Centre-ville, Ségou',
-      tailorIds: ['tailor_ent_6'],
-      clientCount: 19,
-      activeOrderCount: 5,
-      totalRevenue: 340000,
-      createdAt: DateTime(2026, 5, 1),
-    ),
-
-    // ── Atelier indépendant (styliste solo Pro) ────────────────────────────
-    Atelier(
-      id: 'atelier_1',
-      name: 'Atelier Élégance Bamako',
-      headStylistId: 'stylist_1',
-      headStylistName: 'Aminata Diallo',
-      companyId: null,
-      tailorIds: ['tailor_1'],
-      clientCount: 22,
-      activeOrderCount: 14,
-      totalRevenue: 345000,
-      createdAt: DateTime(2026, 3, 15),
-    ),
-  ];
+  final List<Atelier> _ateliers = [];
 
   /// Comptes "Chef d'atelier" créés par le Chef d'Entreprise — visibles
   /// uniquement dans la hiérarchie de leur companyId.
-  final List<AppUser> _atelierHeads = [
-    AppUser(
-      id: 'chef_atelier_1',
-      email: 'salif.toure@keitaprestige.ml',
-      fullName: 'Salif Touré',
-      phone: '+223 76 11 22 33',
-      role: UserRole.stylist,
-      atelierId: 'atelier_ent_1',
-      atelierName: 'Keïta Prestige — Bamako Centre',
-      companyId: 'owner_1',
-      plan: SubscriptionPlan.enterprise,
-      createdAt: DateTime(2026, 1, 10),
-    ),
-    AppUser(
-      id: 'chef_atelier_2',
-      email: 'mariam.sissoko@keitaprestige.ml',
-      fullName: 'Mariam Sissoko',
-      phone: '+223 65 44 55 66',
-      role: UserRole.stylist,
-      atelierId: 'atelier_ent_2',
-      atelierName: 'Keïta Prestige — Sogoniko',
-      companyId: 'owner_1',
-      plan: SubscriptionPlan.enterprise,
-      createdAt: DateTime(2026, 2, 15),
-    ),
-    AppUser(
-      id: 'chef_atelier_3',
-      email: 'ousmane.diarra@keitaprestige.ml',
-      fullName: 'Ousmane Diarra',
-      phone: '+223 79 77 88 99',
-      role: UserRole.stylist,
-      atelierId: 'atelier_ent_3',
-      atelierName: 'Keïta Prestige — Ségou',
-      companyId: 'owner_1',
-      plan: SubscriptionPlan.enterprise,
-      createdAt: DateTime(2026, 5, 1),
-    ),
-  ];
+  final List<AppUser> _atelierHeads = [];
 
   /// Comptes "Couturier" créés par un Chef (d'atelier ou d'Entreprise),
   /// rattachés à un atelier précis via atelierId.
-  final List<AppUser> _tailors = [
-    AppUser(id: 'tailor_ent_1', email: 'boubacar.sangare@keitaprestige.ml', fullName: 'Boubacar Sangaré', phone: '+223 76 11 11 11', role: UserRole.tailor, atelierId: 'atelier_ent_1', atelierName: 'Keïta Prestige — Bamako Centre', createdAt: DateTime(2026, 1, 12)),
-    AppUser(id: 'tailor_ent_2', email: 'awa.traore@keitaprestige.ml',      fullName: 'Awa Traoré',       phone: '+223 76 22 22 22', role: UserRole.tailor, atelierId: 'atelier_ent_1', atelierName: 'Keïta Prestige — Bamako Centre', createdAt: DateTime(2026, 1, 15)),
-    AppUser(id: 'tailor_ent_3', email: 'daouda.konate@keitaprestige.ml',   fullName: 'Daouda Konaté',    phone: '+223 76 33 33 33', role: UserRole.tailor, atelierId: 'atelier_ent_1', atelierName: 'Keïta Prestige — Bamako Centre', createdAt: DateTime(2026, 2, 1)),
-    AppUser(id: 'tailor_ent_4', email: 'hawa.camara@keitaprestige.ml',     fullName: 'Hawa Camara',      phone: '+223 65 44 44 44', role: UserRole.tailor, atelierId: 'atelier_ent_2', atelierName: 'Keïta Prestige — Sogoniko',       createdAt: DateTime(2026, 2, 20)),
-    AppUser(id: 'tailor_ent_5', email: 'yacouba.diabate@keitaprestige.ml', fullName: 'Yacouba Diabaté',  phone: '+223 65 55 55 55', role: UserRole.tailor, atelierId: 'atelier_ent_2', atelierName: 'Keïta Prestige — Sogoniko',       createdAt: DateTime(2026, 3, 10)),
-    AppUser(id: 'tailor_ent_6', email: 'koro.coulibaly@keitaprestige.ml',  fullName: 'Korotoumou Coulibaly', phone: '+223 79 66 66 66', role: UserRole.tailor, atelierId: 'atelier_ent_3', atelierName: 'Keïta Prestige — Ségou', createdAt: DateTime(2026, 5, 5)),
-    AppUser(id: 'tailor_ent_7', email: 'youssouf.kante@keitaprestige.ml',  fullName: 'Youssouf Kanté',   phone: '+223 77 12 34 56', role: UserRole.tailor, atelierId: 'atelier_owner_1', atelierName: 'Keïta Prestige — Siège', createdAt: DateTime(2026, 1, 6)),
-  ];
+  final List<AppUser> _tailors = [];
 
-  /// Données clients démo par atelier — incluant l'atelier personnel du Chef
-  final List<Client> _clients = [
-    // Atelier personnel du Chef d'Entreprise
-    Client(id: 'cli_o1', fullName: 'Aminata Sidibé',  phone: '+223 70 10 10 10', atelierId: 'atelier_owner_1', atelierName: 'Keïta Prestige — Siège', orderCount: 3, totalSpent: 145000, createdAt: DateTime(2026, 1, 20)),
-    Client(id: 'cli_o2', fullName: 'Ibrahim Kouyaté', phone: '+223 70 20 20 20', atelierId: 'atelier_owner_1', atelierName: 'Keïta Prestige — Siège', orderCount: 2, totalSpent: 98000,  createdAt: DateTime(2026, 2, 5)),
-    // Atelier Bamako Centre
-    Client(id: 'cli_b1', fullName: 'Mariam Touré',    phone: '+223 76 30 30 30', atelierId: 'atelier_ent_1', atelierName: 'Keïta Prestige — Bamako Centre', orderCount: 5, totalSpent: 310000, createdAt: DateTime(2026, 1, 25)),
-    Client(id: 'cli_b2', fullName: 'Seydou Camara',   phone: '+223 76 40 40 40', atelierId: 'atelier_ent_1', atelierName: 'Keïta Prestige — Bamako Centre', orderCount: 2, totalSpent: 120000, createdAt: DateTime(2026, 2, 10)),
-    Client(id: 'cli_b3', fullName: 'Fatoumata Bah',   phone: '+223 76 50 50 50', atelierId: 'atelier_ent_1', atelierName: 'Keïta Prestige — Bamako Centre', orderCount: 4, totalSpent: 220000, createdAt: DateTime(2026, 3, 1)),
-    // Atelier Sogoniko
-    Client(id: 'cli_s1', fullName: 'Aminata Koné',    phone: '+223 65 60 60 60', atelierId: 'atelier_ent_2', atelierName: 'Keïta Prestige — Sogoniko', orderCount: 3, totalSpent: 175000, createdAt: DateTime(2026, 2, 28)),
-    Client(id: 'cli_s2', fullName: 'Modibo Sangaré',  phone: '+223 65 70 70 70', atelierId: 'atelier_ent_2', atelierName: 'Keïta Prestige — Sogoniko', orderCount: 1, totalSpent: 95000,  createdAt: DateTime(2026, 4, 3)),
-    // Atelier Ségou
-    Client(id: 'cli_sg1', fullName: 'Fanta Diarra',   phone: '+223 79 80 80 80', atelierId: 'atelier_ent_3', atelierName: 'Keïta Prestige — Ségou', orderCount: 2, totalSpent: 110000, createdAt: DateTime(2026, 5, 10)),
-  ];
-
-  /// Commandes démo consolidées (tous ateliers)
-  final List<CompanyOrder> _orders = [
-    CompanyOrder(id: 'ord_1', clientName: 'Mariam Touré',    garment: 'Boubou Brodé Or',       price: 85000,  status: 'inProgress', atelierId: 'atelier_ent_1',   atelierName: 'Bamako Centre',  tailorName: 'Boubacar Sangaré', date: DateTime(2026, 6, 20)),
-    CompanyOrder(id: 'ord_2', clientName: 'Seydou Camara',   garment: 'Costume Cérémonie',     price: 120000, status: 'pending',    atelierId: 'atelier_ent_1',   atelierName: 'Bamako Centre',  tailorName: 'Awa Traoré',       date: DateTime(2026, 6, 22)),
-    CompanyOrder(id: 'ord_3', clientName: 'Aminata Koné',    garment: 'Robe Wax Moderne',      price: 55000,  status: 'done',       atelierId: 'atelier_ent_2',   atelierName: 'Sogoniko',       tailorName: 'Hawa Camara',      date: DateTime(2026, 6, 18)),
-    CompanyOrder(id: 'ord_4', clientName: 'Modibo Sangaré',  garment: 'Grand Boubou',          price: 95000,  status: 'problem',    atelierId: 'atelier_ent_2',   atelierName: 'Sogoniko',       tailorName: 'Yacouba Diabaté',  date: DateTime(2026, 6, 15)),
-    CompanyOrder(id: 'ord_5', clientName: 'Fanta Diarra',    garment: 'Ensemble Bazin',        price: 60000,  status: 'inProgress', atelierId: 'atelier_ent_3',   atelierName: 'Ségou',          tailorName: 'Korotoumou Coulibaly', date: DateTime(2026, 6, 21)),
-    CompanyOrder(id: 'ord_6', clientName: 'Aminata Sidibé',  garment: 'Robe de Soirée Or',     price: 75000,  status: 'done',       atelierId: 'atelier_owner_1', atelierName: 'Siège (Moussa)', tailorName: 'Youssouf Kanté',   date: DateTime(2026, 6, 19)),
-    CompanyOrder(id: 'ord_7', clientName: 'Ibrahim Kouyaté', garment: 'Complet Wax 3 pièces',  price: 70000,  status: 'inProgress', atelierId: 'atelier_owner_1', atelierName: 'Siège (Moussa)', tailorName: 'Youssouf Kanté',   date: DateTime(2026, 6, 25)),
-    CompanyOrder(id: 'ord_8', clientName: 'Fatoumata Bah',   garment: 'Boubou Dentelle',       price: 90000,  status: 'pending',    atelierId: 'atelier_ent_1',   atelierName: 'Bamako Centre',  tailorName: 'Daouda Konaté',    date: DateTime(2026, 6, 26)),
-  ];
+  // NOTE : les clients et commandes ne sont PAS stockés ici. OrderService est
+  // l'UNIQUE source de vérité pour Client/Order (utilisée aussi bien par
+  // l'espace Styliste solo que par l'espace Entreprise) — voir clientsOfAtelier/
+  // ordersOfAtelier ci-dessous. Ça évite que les données d'un atelier
+  // deviennent invisibles quand son compte passe du plan solo au plan
+  // Entreprise (l'atelier personnel créé à cette occasion réutilise le MÊME
+  // atelierId, voir createCompanyForNewOwner).
 
   // ── Compteurs pour génération d'IDs démo ─────────────────────────────────
   int _idCounter = 9000;
@@ -226,37 +83,41 @@ class CompanyService {
 
   /// TOUS les clients de TOUS les ateliers de l'Entreprise
   List<Client> allClientsOfCompany(String companyId) {
-    final atelierIds = ateliersOfCompany(companyId).map((a) => a.id).toSet();
-    return _clients.where((c) => atelierIds.contains(c.atelierId)).toList();
+    final atelierIds = ateliersOfCompany(companyId).map((a) => a.id);
+    return atelierIds.expand(OrderService.instance.clientsOfAtelier).toList();
   }
 
   /// Clients d'un atelier précis uniquement
   List<Client> clientsOfAtelier(String atelierId) =>
-      _clients.where((c) => c.atelierId == atelierId).toList();
+      OrderService.instance.clientsOfAtelier(atelierId);
 
   /// TOUTES les commandes de TOUS les ateliers de l'Entreprise
-  List<CompanyOrder> allOrdersOfCompany(String companyId) {
-    final atelierIds = ateliersOfCompany(companyId).map((a) => a.id).toSet();
-    return _orders.where((o) => atelierIds.contains(o.atelierId)).toList();
+  List<Order> allOrdersOfCompany(String companyId) {
+    final atelierIds = ateliersOfCompany(companyId).map((a) => a.id);
+    return atelierIds.expand(OrderService.instance.ordersOfAtelier).toList();
   }
 
   /// Commandes d'un atelier précis uniquement
-  List<CompanyOrder> ordersOfAtelier(String atelierId) =>
-      _orders.where((o) => o.atelierId == atelierId).toList();
+  List<Order> ordersOfAtelier(String atelierId) =>
+      OrderService.instance.ordersOfAtelier(atelierId);
 
   /// KPIs consolidés de toute l'Entreprise (réels, depuis les données)
   ({int totalAteliers, int totalTailors, int totalClients, int totalOrders, int totalRevenue})
       companyStats(String companyId) {
     final atelierIds = ateliersOfCompany(companyId).map((a) => a.id).toSet();
-    final clients = _clients.where((c) => atelierIds.contains(c.atelierId)).toList();
-    final orders = _orders.where((o) => atelierIds.contains(o.atelierId)).toList();
-    final tailors = _tailors.where((t) => atelierIds.contains(t.atelierId)).toList();
+    final tailors = _tailors.where((t) => atelierIds.contains(t.atelierId));
+    final totalClients = atelierIds.fold<int>(
+        0, (sum, id) => sum + OrderService.instance.clientsOfAtelier(id).length);
+    final totalOrders = atelierIds.fold<int>(
+        0, (sum, id) => sum + OrderService.instance.ordersOfAtelier(id).length);
+    final totalRevenue = atelierIds.fold<int>(
+        0, (sum, id) => sum + OrderService.instance.atelierRevenue(id));
     return (
       totalAteliers: atelierIds.length,
       totalTailors: tailors.length,
-      totalClients: clients.length,
-      totalOrders: orders.length,
-      totalRevenue: orders.fold(0, (sum, o) => sum + o.price),
+      totalClients: totalClients,
+      totalOrders: totalOrders,
+      totalRevenue: totalRevenue,
     );
   }
 
@@ -267,19 +128,28 @@ class CompanyService {
   /// propriétaire quand son compte passe au plan Entreprise (appelé par
   /// SubscriptionService.approveSubscriptionRequest). Le Chef d'Entreprise
   /// garde ainsi IMMÉDIATEMENT un atelier à son nom pour ses propres clients.
+  ///
+  /// IMPORTANT : `personalAtelierId`/`personalAtelierName` doivent être
+  /// l'atelierId/atelierName QUE LE COMPTE UTILISAIT DÉJÀ avant de passer au
+  /// plan Entreprise (celui rattaché à son AppUser.atelierId). On réutilise
+  /// volontairement le MÊME id plutôt que d'en générer un nouveau : sinon les
+  /// clients/commandes déjà créés par ce compte (via OrderService, indexés
+  /// par cet atelierId) deviendraient invisibles dans le nouveau dashboard
+  /// Entreprise.
   Company createCompanyForNewOwner({
     required String ownerId,
     required String ownerName,
+    required String personalAtelierId,
+    required String personalAtelierName,
   }) {
     final existing = companyForOwner(ownerId);
     if (existing != null) return existing;
 
     final now = DateTime.now();
-    final personalAtelierId = _nextId('atelier_owner');
 
     final personalAtelier = Atelier(
       id: personalAtelierId,
-      name: '$ownerName — Atelier Principal',
+      name: personalAtelierName,
       headStylistId: ownerId,
       headStylistName: ownerName,
       companyId: ownerId,
@@ -408,6 +278,26 @@ class CompanyService {
     }
   }
 
+  /// Met à jour les informations d'un couturier existant
+  void updateTailor({
+    required String tailorId,
+    required String fullName,
+    required String phone,
+    String? email,
+  }) {
+    final index = _tailors.indexWhere((t) => t.id == tailorId);
+    if (index == -1) return;
+    
+    final tailor = _tailors[index];
+    final updatedTailor = tailor.copyWith(
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      email: email?.trim(),
+    );
+    
+    _tailors[index] = updatedTailor;
+  }
+
   /// Recherche un compte (Chef d'atelier OU Couturier) par email, pour le
   /// flux de connexion unique — voir AuthService.signIn.
   AppUser? findAccountByEmail(String email) {
@@ -415,6 +305,26 @@ class CompanyService {
     final inHeads = _atelierHeads.where((u) => u.email.toLowerCase() == normalized).firstOrNull;
     if (inHeads != null) return inHeads;
     return _tailors.where((u) => u.email.toLowerCase() == normalized).firstOrNull;
+  }
+
+  /// Met à jour un utilisateur existant dans _atelierHeads ou _tailors (utilisé par AdminDemoData)
+  void updateUser(AppUser updatedUser) {
+    final headsIndex = _atelierHeads.indexWhere((u) => u.id == updatedUser.id);
+    if (headsIndex != -1) {
+      _atelierHeads[headsIndex] = updatedUser;
+      return;
+    }
+
+    final tailorsIndex = _tailors.indexWhere((u) => u.id == updatedUser.id);
+    if (tailorsIndex != -1) {
+      _tailors[tailorsIndex] = updatedUser;
+    }
+  }
+
+  /// Le nom du couturier assigné à une commande, ou null si aucun/non trouvé.
+  String? tailorNameForOrder(Order order) {
+    if (order.tailorId == null) return null;
+    return _tailors.where((t) => t.id == order.tailorId).firstOrNull?.fullName;
   }
 
   /// Ajoute un client à un atelier
@@ -425,42 +335,13 @@ class CompanyService {
     required String phone,
     String? email,
     String? notes,
-  }) {
-    final client = Client(
-      id: _nextId('cli'),
-      fullName: fullName.trim(),
-      phone: phone.trim(),
-      atelierId: atelierId,
-      atelierName: atelierName,
-      email: email?.trim(),
-      notes: notes,
-      createdAt: DateTime.now(),
-    );
-    _clients.add(client);
-    return client;
-  }
-}
-
-// ── Modèle commande interne à CompanyService ─────────────────────────────────
-class CompanyOrder {
-  const CompanyOrder({
-    required this.id,
-    required this.clientName,
-    required this.garment,
-    required this.price,
-    required this.status,
-    required this.atelierId,
-    required this.atelierName,
-    required this.tailorName,
-    required this.date,
-  });
-  final String id;
-  final String clientName;
-  final String garment;
-  final int price;
-  final String status; // 'pending' | 'inProgress' | 'done' | 'problem'
-  final String atelierId;
-  final String atelierName;
-  final String tailorName;
-  final DateTime date;
+  }) =>
+      OrderService.instance.addClient(
+        atelierId: atelierId,
+        atelierName: atelierName,
+        fullName: fullName,
+        phone: phone,
+        email: email,
+        notes: notes,
+      );
 }

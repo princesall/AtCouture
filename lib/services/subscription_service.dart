@@ -15,20 +15,7 @@ enum PlanTransitionStatus { upgraded, downgraded, unchanged, newAccount }
 ///   3. Mettent à jour subscriptionRequests/{id}.status
 /// Le tout dans une seule transaction atomique pour garantir la cohérence.
 class SubscriptionService {
-  SubscriptionService._() {
-    // Pré-remplit l'historique avec les plans ACTUELS des comptes démo, pour
-    // que le badge de transition ne se déclenche que sur un VRAI changement
-    // effectué via approve/reject/renew après le démarrage de l'app.
-    _lastKnownPlan.addAll({
-      'stylist_1': SubscriptionPlan.starter,
-      'stylist_2': SubscriptionPlan.starter,
-      'stylist_3': SubscriptionPlan.pro,
-      'stylist_4_legacy': SubscriptionPlan.pro,
-      'stylist_5': SubscriptionPlan.free,
-      'stylist_6': SubscriptionPlan.free,
-      'owner_1': SubscriptionPlan.enterprise,
-    });
-  }
+  SubscriptionService._();
   static final SubscriptionService instance = SubscriptionService._();
 
   /// Messages système en mémoire, indexés par userId
@@ -77,11 +64,12 @@ class SubscriptionService {
   void approveSubscriptionRequest({
     required String userId,
     required String userFullName,
+    required String userAtelierId,
+    required String userAtelierName,
     required SubscriptionPlan requestedPlan,
     required DateTime newExpiryDate,
     required void Function(SubscriptionPlan plan, DateTime expiresAt) applyPlanToAccount,
   }) {
-    final previousPlan = _lastKnownPlan[userId];
     applyPlanToAccount(requestedPlan, newExpiryDate);
     _lastKnownPlan[userId] = requestedPlan;
 
@@ -93,11 +81,15 @@ class SubscriptionService {
 
     // Transition vers Entreprise : créer automatiquement la structure
     // Company pour que ce compte apparaisse dans l'onglet Entreprises admin.
+    // On réutilise le MÊME atelierId qu'avant l'upgrade pour que les clients/
+    // commandes déjà créés restent visibles (voir createCompanyForNewOwner).
     if (requestedPlan == SubscriptionPlan.enterprise &&
         CompanyService.instance.companyForOwner(userId) == null) {
       CompanyService.instance.createCompanyForNewOwner(
         ownerId: userId,
         ownerName: userFullName,
+        personalAtelierId: userAtelierId,
+        personalAtelierName: userAtelierName,
       );
     }
 

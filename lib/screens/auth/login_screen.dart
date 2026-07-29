@@ -1,10 +1,17 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/widgets/auth_backdrop.dart';
+import '../../core/widgets/premium_button.dart';
+import '../../core/widgets/premium_text_field.dart';
 import '../../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -18,7 +25,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey  = GlobalKey<FormState>();
   final _email    = TextEditingController();
   final _password = TextEditingController();
-  bool _obscure   = true;
 
   @override
   void dispose() {
@@ -31,10 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final auth = context.read<AuthProvider>();
-    final success = await auth.signIn(
-      _email.text.trim(),
-      _password.text,
-    );
+    final success = await auth.signIn(_email.text.trim(), _password.text);
 
     if (!mounted) return;
     if (!success && auth.errorMessage != null) {
@@ -51,195 +54,296 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.primary,
       body: Stack(
         children: [
-          // ── Header gradient Indigo ───────────────────────────────────────
-          Positioned(
-            top: 0, left: 0, right: 0,
-            height: MediaQuery.of(context).size.height * 0.40,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: AppColors.heroGradient,
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Spacer(),
-                      Text(
-                        'BIENVENUE',
-                        style: AppTextStyles.labelCaps.copyWith(
-                          color: AppColors.tertiaryFixedDim,
-                          letterSpacing: 2,
-                        ),
-                      ).animate().fadeIn(delay: 100.ms),
-                      const SizedBox(height: 6),
-                      Text(
-                        'StyleConnect',
-                        style: AppTextStyles.displayLg.copyWith(
-                          color: Colors.white,
-                          fontSize: 34,
-                        ),
-                      ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Gérez votre atelier avec élégance',
-                        style: AppTextStyles.bodyLg.copyWith(
-                          color: Colors.white.withValues(alpha: 0.65),
-                        ),
-                      ).animate().fadeIn(delay: 300.ms),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // ── Formulaire ───────────────────────────────────────────────────
-          Positioned.fill(
-            top: MediaQuery.of(context).size.height * 0.33,
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(24, 0, 24, 24 + bottom),
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: AppColors.premiumShadow,
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        'Connexion',
-                        style: AppTextStyles.titleMd.copyWith(color: AppColors.primary),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Accédez à votre espace de travail',
-                        style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                      ),
-                      const SizedBox(height: 28),
-
-                      // Email
-                      TextFormField(
-                        controller: _email,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          labelText: 'ADRESSE EMAIL',
-                          hintText: 'votre@email.com',
-                          prefixIcon: Icon(Icons.mail_outline_rounded, color: AppColors.onSurfaceVariant, size: 20),
-                        ),
-                        validator: (v) =>
-                            v == null || !v.contains('@') ? 'Email invalide' : null,
-                      ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0),
-                      const SizedBox(height: 16),
-
-                      // Mot de passe
-                      TextFormField(
-                        controller: _password,
-                        obscureText: _obscure,
-                        decoration: InputDecoration(
-                          labelText: 'MOT DE PASSE',
-                          hintText: '••••••••',
-                          prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.onSurfaceVariant, size: 20),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                              color: AppColors.onSurfaceVariant,
-                              size: 20,
-                            ),
-                            onPressed: () => setState(() => _obscure = !_obscure),
-                          ),
-                        ),
-                        validator: (v) =>
-                            v == null || v.length < 6 ? 'Minimum 6 caractères' : null,
-                      ).animate().fadeIn(delay: 380.ms).slideY(begin: 0.1, end: 0),
-
-                      // Mot de passe oublié
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () => context.push('/auth/forgot-password'),
-                          child: Text(
-                            'Mot de passe oublié ?',
-                            style: AppTextStyles.bodySm.copyWith(color: AppColors.primary),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Bouton connexion
-                      SizedBox(
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: auth.isLoading ? null : _submit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.onPrimary,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: auth.isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.onPrimary,
-                                  ),
-                                )
-                              : Text(
-                                  'SE CONNECTER',
-                                  style: AppTextStyles.labelCaps.copyWith(
-                                    color: AppColors.onPrimary,
-                                    fontSize: 13,
-                                    letterSpacing: 1.4,
-                                  ),
-                                ),
-                        ),
-                      ).animate().fadeIn(delay: 450.ms).scale(begin: const Offset(0.95, 0.95)),
-
-                      const SizedBox(height: 20),
-
-                      // Lien inscription
-                      Center(
-                        child: Text.rich(
-                          TextSpan(
-                            text: 'Pas encore de compte ? ',
-                            style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                            children: [
-                              WidgetSpan(
-                                child: GestureDetector(
-                                  onTap: () => context.push('/auth/register'),
-                                  child: Text(
-                                    'Créer un compte',
-                                    style: AppTextStyles.bodySm.copyWith(
-                                      color: AppColors.secondary,
-                                      fontWeight: FontWeight.w700,
+          const Positioned.fill(child: AuthBackdrop()),
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth > 760;
+                return Center(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      24, isWide ? 48 : 32, 24, 24 + bottomInset,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: isWide ? 940 : 440),
+                      child: isWide
+                          ? IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(child: _BrandPanel(isWide: true)),
+                                  const SizedBox(width: 56),
+                                  SizedBox(
+                                    width: 420,
+                                    child: Center(
+                                      child: _LoginCard(
+                                        formKey: _formKey,
+                                        email: _email,
+                                        password: _password,
+                                        auth: auth,
+                                        onSubmit: _submit,
+                                      ),
                                     ),
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                _BrandPanel(isWide: false),
+                                const SizedBox(height: 28),
+                                _LoginCard(
+                                  formKey: _formKey,
+                                  email: _email,
+                                  password: _password,
+                                  auth: auth,
+                                  onSubmit: _submit,
+                                ),
+                              ],
+                            ),
+                    ),
                   ),
-                ),
-              ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.08, end: 0),
+                );
+              },
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Bloc marque (monogramme + wordmark + tagline) ───────────────────────────
+class _BrandPanel extends StatelessWidget {
+  const _BrandPanel({required this.isWide});
+  final bool isWide;
+
+  @override
+  Widget build(BuildContext context) {
+    final crossAxis = isWide ? CrossAxisAlignment.start : CrossAxisAlignment.center;
+    final textAlign = isWide ? TextAlign.left : TextAlign.center;
+
+    final content = Column(
+      crossAxisAlignment: crossAxis,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const BrandMonogram(size: 60).animate().scale(
+              duration: AppConstants.animationSlow,
+              curve: Curves.easeOutBack,
+              begin: const Offset(0.6, 0.6),
+            ),
+        const SizedBox(height: 20),
+        Text(
+          'BIENVENUE',
+          textAlign: textAlign,
+          style: AppTextStyles.labelCaps.copyWith(
+            color: AppColors.tertiaryFixedDim,
+            letterSpacing: 3,
+          ),
+        ).animate().fadeIn(delay: 100.ms),
+        const SizedBox(height: 8),
+        Text(
+          'StyleConnect',
+          textAlign: textAlign,
+          style: AppTextStyles.displayLg.copyWith(
+            color: Colors.white,
+            fontSize: isWide ? 42 : 32,
+          ),
+        ).animate().fadeIn(delay: 180.ms).slideY(begin: 0.2, end: 0),
+        const SizedBox(height: 8),
+        Text(
+          AppConstants.appTagline,
+          textAlign: textAlign,
+          style: AppTextStyles.bodyLg.copyWith(
+            color: Colors.white.withValues(alpha: 0.68),
+          ),
+        ).animate().fadeIn(delay: 260.ms),
+      ],
+    );
+
+    if (!isWide) return content;
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          content,
+          const SizedBox(height: 40),
+          ..._features.asMap().entries.map((e) => Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _FeatureRow(icon: e.value.$1, label: e.value.$2)
+                    .animate()
+                    .fadeIn(delay: (400 + e.key * 100).ms)
+                    .slideX(begin: -0.06, end: 0),
+              )),
+        ],
+      ),
+    );
+  }
+
+  static const _features = [
+    (Icons.receipt_long_rounded, 'Suivi des commandes en temps réel'),
+    (Icons.straighten_rounded, 'Mesures et fiches clients centralisées'),
+    (Icons.workspace_premium_rounded, 'De l\'atelier solo à l\'entreprise multi-sites'),
+  ];
+}
+
+class _FeatureRow extends StatelessWidget {
+  const _FeatureRow({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 32, height: 32,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 16, color: AppColors.tertiaryFixedDim),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: AppTextStyles.bodySm.copyWith(color: Colors.white.withValues(alpha: 0.8)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Carte verre dépoli — formulaire ─────────────────────────────────────────
+class _LoginCard extends StatelessWidget {
+  const _LoginCard({
+    required this.formKey,
+    required this.email,
+    required this.password,
+    required this.auth,
+    required this.onSubmit,
+  });
+
+  final GlobalKey<FormState> formKey;
+  final TextEditingController email;
+  final TextEditingController password;
+  final AuthProvider auth;
+  final Future<void> Function() onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+            boxShadow: AppColors.premiumShadow,
+          ),
+          child: Form(
+            key: formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Connexion',
+                  style: AppTextStyles.titleMd.copyWith(color: AppColors.primary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Accédez à votre espace de travail',
+                  style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                ),
+                const SizedBox(height: 26),
+
+                PremiumTextField(
+                  controller: email,
+                  label: 'Adresse email',
+                  hint: 'votre@email.com',
+                  prefixIcon: Icons.mail_outline_rounded,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  validator: (v) =>
+                      v == null || !v.contains('@') ? 'Email invalide' : null,
+                ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0),
+                const SizedBox(height: AppSpacing.md),
+
+                PremiumTextField(
+                  controller: password,
+                  label: 'Mot de passe',
+                  hint: '••••••••',
+                  obscureText: true,
+                  prefixIcon: Icons.lock_outline_rounded,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => onSubmit(),
+                  validator: (v) =>
+                      v == null || v.length < 6 ? 'Minimum 6 caractères' : null,
+                ).animate().fadeIn(delay: 380.ms).slideY(begin: 0.1, end: 0),
+
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => context.push('/auth/forgot-password'),
+                    child: Text(
+                      'Mot de passe oublié ?',
+                      style: AppTextStyles.bodySm.copyWith(color: AppColors.primary),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+
+                PremiumButton(
+                  label: 'Se connecter',
+                  variant: PremiumButtonVariant.dark,
+                  isLoading: auth.isLoading,
+                  onPressed: auth.isLoading ? null : onSubmit,
+                ).animate().fadeIn(delay: 450.ms).scale(begin: const Offset(0.95, 0.95)),
+
+                const SizedBox(height: 20),
+
+                Center(
+                  child: Text.rich(
+                    TextSpan(
+                      text: 'Pas encore de compte ? ',
+                      style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                      children: [
+                        WidgetSpan(
+                          child: GestureDetector(
+                            onTap: () => context.push('/auth/register'),
+                            child: Text(
+                              'Créer un compte',
+                              style: AppTextStyles.bodySm.copyWith(
+                                color: AppColors.secondary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.06, end: 0),
       ),
     );
   }

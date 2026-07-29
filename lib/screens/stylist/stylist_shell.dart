@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_spacing.dart';
-import '../../core/theme/app_text_styles.dart';
-import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/subscription_service.dart';
 import '../shared/system_notifications_screen.dart';
 import 'profile_tab_content.dart';
+import 'stylist_clients_screen.dart';
 import 'stylist_dashboard.dart';
+import 'stylist_orders_screen.dart';
+import 'stylist_tailors_screen.dart';
 
 class StylistShell extends StatefulWidget {
   const StylistShell({super.key});
@@ -21,6 +21,16 @@ class StylistShell extends StatefulWidget {
 
 class _StylistShellState extends State<StylistShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Récupère les éventuels changements de plan effectués côté admin
+    // (approbation, renouvellement) depuis la dernière connexion.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<AuthProvider>().refreshUser();
+    });
+  }
 
   void _onNavTap(int i) => setState(() => _index = i);
 
@@ -55,39 +65,22 @@ class _StylistShellState extends State<StylistShell> {
                     index: _index,
                     children: [
                       StylistDashboard(onNavTap: _onNavTap),
-                      _PlaceholderTab(
-                        title: 'Clients',
-                        subtitle: 'Gérez vos fiches clients et mesures',
-                        icon: Icons.people_outline,
-                      ),
-                      _PlaceholderTab(
-                        title: 'Commandes',
-                        subtitle: 'Créez et suivez vos commandes',
-                        icon: Icons.receipt_long_outlined,
-                      ),
-                      _PlaceholderTab(
-                        title: 'Couturiers',
-                        subtitle: 'Gérez votre équipe de couture',
-                        icon: Icons.content_cut_outlined,
-                      ),
-                      const ProfileTabContent(),
+                      // Pas de `const` : ces écrans lisent OrderService/
+                      // CompanyService (de simples singletons, pas des
+                      // ChangeNotifier) directement dans build(). Avec un
+                      // widget `const`, Flutter réutilise l'instance et ne
+                      // rappelle jamais build() en changeant d'onglet, donc
+                      // les données restent figées après le tout premier
+                      // affichage (ex: un client ajouté via l'onglet
+                      // Commandes n'apparaissait jamais dans l'onglet
+                      // Clients). Sans `const`, chaque changement d'onglet
+                      // reconstruit l'écran et relit les données à jour.
+                      StylistClientsScreen(),
+                      StylistOrdersScreen(),
+                      StylistTailorsScreen(),
+                      ProfileTabContent(),
                     ],
                   ),
-
-                  // ── FAB Nouvelle commande (onglet Commandes) ─────────────
-                  if (_index == 2)
-                    Positioned(
-                      bottom: 92,
-                      right: 20,
-                      child: FloatingActionButton.extended(
-                        onPressed: () {},
-                        backgroundColor: AppColors.secondary,
-                        foregroundColor: AppColors.onSecondary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        icon: const Icon(Icons.add),
-                        label: Text('Commande', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSecondary)),
-                      ),
-                    ),
 
                   // ── FAB mesures (onglet Accueil) ─────────────────────────
                   if (_index == 0)
@@ -131,31 +124,4 @@ class _StylistShellState extends State<StylistShell> {
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Onglet placeholder (Clients, Commandes, Couturiers)
-// ─────────────────────────────────────────────────────────────────────────────
-class _PlaceholderTab extends StatelessWidget {
-  const _PlaceholderTab({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: EmptyState(
-        title: title,
-        subtitle: '$subtitle\n\nBientôt disponible',
-        icon: icon,
-      ),
-    );
-  }
-}
-
 

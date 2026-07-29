@@ -7,7 +7,11 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/subscription_service.dart';
+import '../shared/system_notifications_screen.dart';
 import 'tailor_dashboard.dart';
+import 'tailor_measurements_screen.dart';
+import 'tailor_photos_screen.dart';
 
 class TailorShell extends StatefulWidget {
   const TailorShell({super.key});
@@ -18,6 +22,14 @@ class TailorShell extends StatefulWidget {
 
 class _TailorShellState extends State<TailorShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<AuthProvider>().refreshUser();
+    });
+  }
 
   void _onNavTap(int i) => setState(() => _index = i);
 
@@ -30,62 +42,58 @@ class _TailorShellState extends State<TailorShell> {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user!;
+    final unread = SubscriptionService.instance.unreadSystemMessagesCount(user.id);
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // ── Contenu de l'onglet actif ────────────────────────────────────
-          IndexedStack(
-            index: _index,
-            children: [
-              TailorDashboard(onNavTap: _onNavTap),
-              _PlaceholderTab(
-                title: 'Mesures',
-                subtitle: 'Consultez les mesures de vos clients',
-                icon: Icons.straighten_outlined,
+      body: SafeArea(
+        bottom: false,
+        child: Stack(
+          children: [
+            Column(children: [
+              StitchAppBar(
+                title: 'StyleConnect',
+                onNotificationTap: () => SystemNotificationsScreen.show(context),
               ),
-              _PlaceholderTab(
-                title: 'Photos',
-                subtitle: 'Galerie des modèles et avancement',
-                icon: Icons.photo_library_outlined,
+              Expanded(
+                child: Stack(children: [
+                  // ── Contenu de l'onglet actif ────────────────────────────
+                  IndexedStack(
+                    index: _index,
+                    children: [
+                      TailorDashboard(onNavTap: _onNavTap),
+                      // Pas de `const` : lit OrderService directement dans build().
+                      TailorMeasurementsScreen(),
+                      TailorPhotosScreen(),
+                      _TailorProfile(),
+                    ],
+                  ),
+                ]),
               ),
-              _TailorProfile(),
-            ],
-          ),
+            ]),
 
-          // ── GlassNavBar flottante ────────────────────────────────────────
-          GlassNavBar(
-            items: _navItems,
-            currentIndex: _index,
-            onTap: _onNavTap,
-          ),
-        ],
-      ),
-    );
-  }
-}
+            // ── GlassNavBar flottante ──────────────────────────────────────
+            GlassNavBar(
+              items: _navItems,
+              currentIndex: _index,
+              onTap: _onNavTap,
+            ),
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Onglet placeholder
-// ─────────────────────────────────────────────────────────────────────────────
-class _PlaceholderTab extends StatelessWidget {
-  const _PlaceholderTab({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: EmptyState(
-        title: title,
-        subtitle: '$subtitle\n\nBientôt disponible',
-        icon: icon,
+            // ── Badge rouge de notifications non lues ───────────────────────
+            if (unread > 0)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 12,
+                right: 56,
+                child: Container(
+                  width: 18, height: 18,
+                  decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                  alignment: Alignment.center,
+                  child: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -117,6 +125,20 @@ class _TailorProfile extends StatelessWidget {
               style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.xl),
+            Container(
+              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
+                boxShadow: AppColors.softShadow,
+              ),
+              child: ListTile(
+                leading: Icon(Icons.storefront_outlined, color: AppColors.secondary, size: 22),
+                title: Text('Atelier', style: AppTextStyles.labelCaps),
+                subtitle: Text(user.atelierName ?? '—', style: AppTextStyles.bodyLg),
+              ),
+            ),
             Container(
               decoration: BoxDecoration(
                 color: AppColors.surfaceContainerLowest,

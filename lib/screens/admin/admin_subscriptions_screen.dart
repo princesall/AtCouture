@@ -107,23 +107,9 @@ class _OverviewTab extends StatelessWidget {
           ).animate().fadeIn(delay: Duration(milliseconds: 80 * SubscriptionPlan.values.indexOf(plan)));
         }),
 
-        const SizedBox(height: 32),
-        Text('Historique des paiements (Démo)', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
-        const SizedBox(height: 16),
-        ..._demoPayments.map((p) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _PaymentRow(payment: p),
-        )),
       ],
     );
   }
-
-  static const _demoPayments = [
-    (name: 'Moussa Keïta',         plan: 'Entreprise', amount: 25000, date: '25 Juin 2026',    ok: true),
-    (name: 'Fatoumata Coulibaly',  plan: 'Pro',        amount: 12000, date: '20 Juin 2026',    ok: true),
-    (name: 'Aminata Diallo',       plan: 'Starter',    amount: 5000,  date: '15 Juin 2026',    ok: true),
-    (name: 'Ibrahim Touré',        plan: 'Starter',    amount: 5000,  date: '05 Juin 2026',    ok: false),
-  ];
 }
 
 class _PlanStatCard extends StatelessWidget {
@@ -175,38 +161,6 @@ class _PlanStatCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(plan.priceLabel, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
         ],
-      ]),
-    );
-  }
-}
-
-class _PaymentRow extends StatelessWidget {
-  const _PaymentRow({required this.payment});
-  final ({String name, String plan, int amount, String date, bool ok}) payment;
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
-      ),
-      child: Row(children: [
-        Container(
-          width: 36, height: 36,
-          decoration: BoxDecoration(
-            color: payment.ok ? AppColors.statusDoneBg : AppColors.errorContainer.withValues(alpha: 0.3),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(payment.ok ? Icons.check_rounded : Icons.close_rounded, color: payment.ok ? AppColors.statusDone : AppColors.error, size: 18),
-        ),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(payment.name, style: AppTextStyles.titleSm.copyWith(fontSize: 14)),
-          Text('${payment.plan} — ${payment.date}', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
-        ])),
-        Text('${Formatters.formatCurrency(payment.amount)} FCFA', style: AppTextStyles.titleSm.copyWith(color: payment.ok ? AppColors.primary : AppColors.error, fontSize: 13)),
       ]),
     );
   }

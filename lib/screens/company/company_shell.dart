@@ -34,6 +34,15 @@ class CompanyShell extends StatefulWidget {
 
 class _CompanyShellState extends State<CompanyShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<AuthProvider>().refreshUser();
+    });
+  }
+
   void _onNavTap(int i) => setState(() => _index = i);
 
   static const _navItems = [
@@ -78,11 +87,15 @@ class _CompanyShellState extends State<CompanyShell> {
                 index: _index,
                 children: [
                   CompanyDashboard(onNavTap: _onNavTap),
-                  const CompanyAteliersScreen(),
-                  const CompanyClientsScreen(),
-                  const CompanyTailorsScreen(),
-                  const CompanyOrdersScreen(),
-                  const ProfileTabContent(),
+                  // Pas de `const` : ces écrans lisent CompanyService/
+                  // OrderService directement dans build() ; un widget
+                  // `const` ne serait jamais reconstruit en changeant
+                  // d'onglet et afficherait des données figées.
+                  CompanyAteliersScreen(),
+                  CompanyClientsScreen(),
+                  CompanyTailorsScreen(),
+                  CompanyOrdersScreen(),
+                  ProfileTabContent(),
                 ],
               ),
             ),

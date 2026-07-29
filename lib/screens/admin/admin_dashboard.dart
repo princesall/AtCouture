@@ -8,8 +8,9 @@ import '../../core/widgets/stitch_widgets.dart';
 import '../../data/admin_demo_data.dart';
 
 class AdminDashboard extends StatelessWidget {
-  const AdminDashboard({super.key, this.onNavTap});
+  const AdminDashboard({super.key, this.onNavTap, this.onDataChanged});
   final ValueChanged<int>? onNavTap;
+  final VoidCallback? onDataChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +121,7 @@ class AdminDashboard extends StatelessWidget {
     return Column(
       children: requests.map((s) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
-        child: _SubscriptionRequestCard(entry: s),
+        child: _SubscriptionRequestCard(entry: s, onDataChanged: onDataChanged),
       )).toList(),
     ).animate().fadeIn(delay: 300.ms);
   }
@@ -143,6 +144,7 @@ class AdminDashboard extends StatelessWidget {
       child: Column(
         children: top.asMap().entries.map((e) {
           final i = e.key; final s = e.value;
+          final realRevenue = AdminDemoData.getStylistRevenue(s.user);
           return Column(children: [
             if (i > 0) Divider(height: 1, color: AppColors.outlineVariant.withValues(alpha: 0.3), indent: 16, endIndent: 16),
             ListTile(
@@ -152,7 +154,7 @@ class AdminDashboard extends StatelessWidget {
               title: Text(s.user.fullName, style: AppTextStyles.titleSm),
               subtitle: Text(s.user.atelierName ?? '', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
               trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text(Formatters.formatCurrency(s.totalRevenue), style: AppTextStyles.titleSm.copyWith(color: AppColors.primary, fontSize: 13)),
+                Text(Formatters.formatCurrency(realRevenue), style: AppTextStyles.titleSm.copyWith(color: AppColors.primary, fontSize: 13)),
                 Text('FCFA', style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
               ]),
             ),
@@ -186,8 +188,9 @@ class _RevenueCard extends StatelessWidget {
 
 // ── Carte demande abonnement ─────────────────────────────────────────────────
 class _SubscriptionRequestCard extends StatefulWidget {
-  const _SubscriptionRequestCard({required this.entry});
+  const _SubscriptionRequestCard({required this.entry, this.onDataChanged});
   final StylistEntry entry;
+  final VoidCallback? onDataChanged;
   @override
   State<_SubscriptionRequestCard> createState() => _SubscriptionRequestCardState();
 }
@@ -262,6 +265,8 @@ class _SubscriptionRequestCardState extends State<_SubscriptionRequestCard> {
           Expanded(child: ElevatedButton(
             onPressed: () {
               AdminDemoData.approveRequest(widget.entry.user.id);
+              // Rafraîchit les KPIs de l'écran parent (totalTailors, revenus…)
+              widget.onDataChanged?.call();
               setState(() => _approved = true);
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 12), elevation: 0),

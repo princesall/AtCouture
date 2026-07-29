@@ -5,7 +5,11 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/order_pdf.dart';
+import '../../core/utils/plan_guard.dart';
 import '../../core/widgets/stitch_widgets.dart';
+import '../../models/order.dart';
+import '../../models/order_status.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
 
@@ -24,13 +28,6 @@ class _CompanyOrdersScreenState extends State<CompanyOrdersScreen> {
 
   static const _statusLabels = ['TOUT', 'EN COURS', 'TERMINÉ', 'PROBLÈME'];
 
-  OrderStatus _toStatus(String s) => switch (s) {
-    'done'       => OrderStatus.done,
-    'inProgress' => OrderStatus.inProgress,
-    'problem'    => OrderStatus.problem,
-    _            => OrderStatus.pending,
-  };
-
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
@@ -41,11 +38,15 @@ class _CompanyOrdersScreenState extends State<CompanyOrdersScreen> {
       orders = orders.where((o) => o.atelierId == _atelierFilter).toList();
     }
     if (_statusFilter > 0) {
-      final statusStr = switch (_statusFilter) { 2 => 'done', 3 => 'problem', _ => 'inProgress' };
-      orders = orders.where((o) => o.status == statusStr).toList();
+      final status = switch (_statusFilter) {
+        2 => OrderStatus.completed,
+        3 => OrderStatus.problem,
+        _ => OrderStatus.inProgress,
+      };
+      orders = orders.where((o) => o.status == status).toList();
     }
 
-    final totalRevenue = orders.fold(0, (sum, o) => sum + o.price);
+    final totalRevenue = orders.fold(0, (sum, o) => sum + (o.price ?? 0));
 
     return Column(children: [
       Padding(
@@ -65,7 +66,7 @@ class _CompanyOrdersScreenState extends State<CompanyOrdersScreen> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           itemCount: _statusLabels.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          separatorBuilder: (_, _) => const SizedBox(width: 8),
           itemBuilder: (_, i) {
             final active = i == _statusFilter;
             return GestureDetector(
@@ -97,9 +98,9 @@ class _CompanyOrdersScreenState extends State<CompanyOrdersScreen> {
             ...ateliers.map((a) => Padding(
               padding: const EdgeInsets.only(right: 6),
               child: _AtelierChip(
-                label: (a.name as String).split('—').last.trim(),
+                label: (a.name).split('—').last.trim(),
                 active: _atelierFilter == a.id,
-                onTap: () => setState(() => _atelierFilter = a.id as String),
+                onTap: () => setState(() => _atelierFilter = a.id),
               ),
             )),
           ],
@@ -114,8 +115,8 @@ class _CompanyOrdersScreenState extends State<CompanyOrdersScreen> {
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
                 itemCount: orders.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (_, i) => _OrderCard(order: orders[i], index: i, toStatus: _toStatus),
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (_, i) => _OrderCard(order: orders[i], index: i),
               ),
       ),
     ]);
@@ -123,13 +124,13 @@ class _CompanyOrdersScreenState extends State<CompanyOrdersScreen> {
 }
 
 class _OrderCard extends StatelessWidget {
-  const _OrderCard({required this.order, required this.index, required this.toStatus});
-  final CompanyOrder order; final int index;
-  final OrderStatus Function(String) toStatus;
+  const _OrderCard({required this.order, required this.index});
+  final Order order; final int index;
 
   @override
   Widget build(BuildContext context) {
-    final status = toStatus(order.status);
+    final status = order.status;
+    final tailorName = CompanyService.instance.tailorNameForOrder(order) ?? 'Non assigné';
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
@@ -154,13 +155,21 @@ class _OrderCard extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(order.clientName, style: AppTextStyles.titleSm),
-              Text(order.garment, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+              Text(order.description ?? 'Vêtement non précisé', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('${Formatters.formatCurrency(order.price)} F', style: AppTextStyles.titleSm.copyWith(color: AppColors.primary, fontSize: 13)),
+              Text('${Formatters.formatCurrency(order.price ?? 0)} F', style: AppTextStyles.titleSm.copyWith(color: AppColors.primary, fontSize: 13)),
               const SizedBox(height: 4),
               StatusBadge(status),
             ]),
+            PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert_rounded, color: AppColors.onSurfaceVariant, size: 18),
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'pdf', child: Text('Exporter en PDF')),
+                PopupMenuItem(value: 'quote', child: Text('Créer un devis')),
+              ],
+              onSelected: (value) => _handleDocumentAction(context, value, order),
+            ),
           ]),
         ),
         // Footer : atelier + couturier
@@ -177,13 +186,35 @@ class _OrderCard extends StatelessWidget {
             const SizedBox(width: 12),
             const Icon(Icons.content_cut_outlined, size: 12, color: AppColors.onSurfaceVariant),
             const SizedBox(width: 4),
-            Text(order.tailorName, style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
+            Text(tailorName, style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
             const Spacer(),
-            Text(Formatters.date.format(order.date), style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant.withValues(alpha: 0.6))),
+            if (order.createdAt != null)
+              Text(Formatters.date.format(order.createdAt!), style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant.withValues(alpha: 0.6))),
           ]),
         ),
       ]),
     ).animate().fadeIn(delay: Duration(milliseconds: 50 * index), duration: 350.ms).slideY(begin: 0.04, end: 0);
+  }
+
+  void _handleDocumentAction(BuildContext context, String action, Order order) {
+    final user = context.read<AuthProvider>().user!;
+    final permissions = user.permissions;
+    final isAllowed = action == 'pdf' ? permissions.hasPdfExport : permissions.hasQuotes;
+    final lockedMessage = action == 'pdf' ? permissions.pdfExportLockedMessage : permissions.quotesLockedMessage;
+
+    if (!PlanGuard.requireFeature(
+      context: context,
+      isAllowed: isAllowed,
+      featureName: 'Documents PDF',
+      lockedMessage: lockedMessage,
+    )) {
+      return;
+    }
+    if (action == 'pdf') {
+      OrderPdf.shareInvoice(order, companyId: user.companyId);
+    } else {
+      OrderPdf.shareQuote(order, companyId: user.companyId);
+    }
   }
 }
 

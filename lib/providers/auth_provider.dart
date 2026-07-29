@@ -126,4 +126,16 @@ class AuthProvider extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  /// Rafraîchit l'utilisateur connecté depuis les données AuthService (après mise à jour admin)
+  void refreshUser() {
+    if (_user != null) {
+      // Récupérer l'utilisateur mis à jour depuis AuthService._demoUsers
+      final updatedUser = _authService.getUserById(_user!.id);
+      if (updatedUser != null) {
+        _user = updatedUser;
+        notifyListeners();
+      }
+    }
+  }
 }

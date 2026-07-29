@@ -2,15 +2,24 @@ import '../core/utils/formatters.dart';
 
 enum SubscriptionPlan {
   free(
-    name: 'Gratuit',
+    name: 'Découverte',
     price: 0,
     maxTailors: 1,
-    maxClients: 20,
+    maxClients: 10,
+    maxOrders: 5,
+    maxPhotosPerOrder: 0,
     historyMonths: 0,
+    hasSavedMeasurements: false,
     hasMessaging: false,
     hasStatistics: false,
-    hasMultiplePhotos: false,
     hasPushNotifications: false,
+    hasCalendar: false,
+    hasPdfExport: false,
+    hasReminders: false,
+    hasQuotes: false,
+    hasApiExport: false,
+    hasDedicatedManager: false,
+    hasCustomization: false,
     hasMultipleBranches: false,
     hasPrioritySupport: false,
   ),
@@ -18,38 +27,65 @@ enum SubscriptionPlan {
     name: 'Starter',
     price: 5000,
     maxTailors: 3,
-    maxClients: 100,
+    maxClients: 50,
+    maxOrders: -1,
+    maxPhotosPerOrder: 1,
     historyMonths: 3,
+    hasSavedMeasurements: true,
     hasMessaging: false,
-    hasStatistics: false,
-    hasMultiplePhotos: true,
+    hasStatistics: true, // basiques
     hasPushNotifications: true,
+    hasCalendar: false,
+    hasPdfExport: false,
+    hasReminders: false,
+    hasQuotes: false,
+    hasApiExport: false,
+    hasDedicatedManager: false,
+    hasCustomization: false,
     hasMultipleBranches: false,
     hasPrioritySupport: false,
   ),
   pro(
     name: 'Pro',
     price: 12000,
-    maxTailors: -1,
+    maxTailors: 10,
     maxClients: -1,
-    historyMonths: -1,
+    maxOrders: -1,
+    maxPhotosPerOrder: 5,
+    historyMonths: 12,
+    hasSavedMeasurements: true,
     hasMessaging: true,
-    hasStatistics: true,
-    hasMultiplePhotos: true,
+    hasStatistics: true, // avancées
     hasPushNotifications: true,
+    hasCalendar: true,
+    hasPdfExport: true,
+    hasReminders: true,
+    hasQuotes: true,
+    hasApiExport: false,
+    hasDedicatedManager: false,
+    hasCustomization: false,
     hasMultipleBranches: false,
-    hasPrioritySupport: false,
+    hasPrioritySupport: true,
   ),
   enterprise(
     name: 'Entreprise',
     price: 25000,
     maxTailors: -1,
     maxClients: -1,
+    maxOrders: -1,
+    maxPhotosPerOrder: -1,
     historyMonths: -1,
+    hasSavedMeasurements: true,
     hasMessaging: true,
-    hasStatistics: true,
-    hasMultiplePhotos: true,
+    hasStatistics: true, // avancées + par atelier
     hasPushNotifications: true,
+    hasCalendar: true,
+    hasPdfExport: true,
+    hasReminders: true,
+    hasQuotes: true,
+    hasApiExport: true,
+    hasDedicatedManager: true,
+    hasCustomization: true,
     hasMultipleBranches: true,
     hasPrioritySupport: true,
   );
@@ -59,11 +95,20 @@ enum SubscriptionPlan {
     required this.price,
     required this.maxTailors,
     required this.maxClients,
+    required this.maxOrders,
+    required this.maxPhotosPerOrder,
     required this.historyMonths,
+    required this.hasSavedMeasurements,
     required this.hasMessaging,
     required this.hasStatistics,
-    required this.hasMultiplePhotos,
     required this.hasPushNotifications,
+    required this.hasCalendar,
+    required this.hasPdfExport,
+    required this.hasReminders,
+    required this.hasQuotes,
+    required this.hasApiExport,
+    required this.hasDedicatedManager,
+    required this.hasCustomization,
     required this.hasMultipleBranches,
     required this.hasPrioritySupport,
   });
@@ -72,16 +117,27 @@ enum SubscriptionPlan {
   final int price;
   final int maxTailors;
   final int maxClients;
+  final int maxOrders;
+  final int maxPhotosPerOrder;
   final int historyMonths;
+  final bool hasSavedMeasurements;
   final bool hasMessaging;
   final bool hasStatistics;
-  final bool hasMultiplePhotos;
   final bool hasPushNotifications;
+  final bool hasCalendar;
+  final bool hasPdfExport;
+  final bool hasReminders;
+  final bool hasQuotes;
+  final bool hasApiExport;
+  final bool hasDedicatedManager;
+  final bool hasCustomization;
   final bool hasMultipleBranches;
   final bool hasPrioritySupport;
 
   bool get isUnlimitedTailors => maxTailors < 0;
   bool get isUnlimitedClients => maxClients < 0;
+  bool get isUnlimitedOrders => maxOrders < 0;
+  bool get isUnlimitedPhotos => maxPhotosPerOrder < 0;
 
   String get priceLabel {
     if (price == 0) return 'Gratuit';
@@ -93,4 +149,13 @@ enum SubscriptionPlan {
 
   String get clientsLabel =>
       isUnlimitedClients ? 'Illimité' : '$maxClients clients max';
+
+  String get ordersLabel =>
+      isUnlimitedOrders ? 'Illimitées' : '$maxOrders commandes max';
+
+  String get photosLabel =>
+      isUnlimitedPhotos ? 'Illimitées' : '$maxPhotosPerOrder photo${maxPhotosPerOrder > 1 ? 's' : ''}';
+
+  String get historyLabel =>
+      historyMonths < 0 ? 'Illimité' : '$historyMonths mois';
 }

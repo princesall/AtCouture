@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/formatters.dart';
 import '../../core/widgets/stitch_widgets.dart';
+import '../../models/order.dart';
+import '../../models/order_status.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/order_service.dart';
 
 class TailorDashboard extends StatefulWidget {
   const TailorDashboard({super.key, this.onNavTap});
@@ -16,45 +22,126 @@ class TailorDashboard extends StatefulWidget {
 
 class _TailorDashboardState extends State<TailorDashboard> {
   int _filterIndex = 0;
-  final Set<int> _expanded = {};
-
-  final _filters = ['TOUT (8)', 'EN COURS (3)', 'URGENT (2)', 'TERMINÉ (3)'];
-
-  final _orders = [
-    _OrderData(id: 0, clientName: 'Amadou Konaté', garment: 'Bazin Riche - 3 pièces',  status: OrderStatus.inProgress, deadline: '15 Oct.'),
-    _OrderData(id: 1, clientName: 'Fatou Sylla',   garment: 'Robe Bogolan Moderne',    status: OrderStatus.pending,    deadline: '20 Oct.'),
-    _OrderData(id: 2, clientName: 'Ibrahima Diallo',garment: 'Costume 2 pièces Wax',   status: OrderStatus.problem,    deadline: '10 Oct.'),
-    _OrderData(id: 3, clientName: 'Aïssatou Bah',  garment: 'Boubou Grand Boubou',     status: OrderStatus.done,       deadline: '05 Oct.'),
-  ];
+  final Set<String> _expanded = {};
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user!;
+    final orders = OrderService.instance.ordersOfAtelier(user.atelierId!)
+      ..sort((a, b) => (a.dueDate ?? DateTime(9999)).compareTo(b.dueDate ?? DateTime(9999)));
+
+    final inProgress = orders.where((o) => o.status == OrderStatus.inProgress).toList();
+    final urgent = orders.where((o) => o.status == OrderStatus.problem).toList();
+    final done = orders.where((o) => o.status == OrderStatus.completed).toList();
+
+    final filtered = switch (_filterIndex) {
+      1 => inProgress,
+      2 => urgent,
+      3 => done,
+      _ => orders,
+    };
+
     return Column(
       children: [
-        // ── Filtres pill ───────────────────────────────────────────────────
-        _buildFilterChips(),
-
-        // ── Liste commandes ────────────────────────────────────────────────
+        _buildGreeting(user.firstName, user.atelierName),
+        _buildStatRow(orders.length, inProgress.length, urgent.length),
+        _buildFilterChips(orders.length, inProgress.length, urgent.length, done.length),
         Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
-            itemCount: _orders.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (ctx, i) => _buildOrderCard(_orders[i], i),
-          ),
+          child: filtered.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.checkroom_outlined, size: 40, color: AppColors.onSurfaceVariant.withValues(alpha: 0.5)),
+                      const SizedBox(height: 12),
+                      Text(
+                        orders.isEmpty ? 'Aucune commande pour le moment' : 'Aucune commande dans cette catégorie',
+                        style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (ctx, i) => _buildOrderCard(filtered[i], i),
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildFilterChips() {
+  Widget _buildGreeting(String firstName, String? atelierName) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Bonjour, $firstName',
+            style: AppTextStyles.headlineLgMobile.copyWith(color: AppColors.primary),
+          ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.15, end: 0),
+          const SizedBox(height: 2),
+          Text(
+            atelierName ?? 'Vos tâches de couture',
+            style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+          ).animate().fadeIn(delay: 80.ms),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatRow(int total, int inProgress, int urgent) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 92,
+              child: StatCard(label: 'À FAIRE', value: '$total', icon: Icons.checklist_rounded),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: SizedBox(
+              height: 92,
+              child: StatCard(
+                label: 'EN COURS', value: '$inProgress', icon: Icons.pending_actions_rounded,
+                valueColor: AppColors.statusInProgress,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: SizedBox(
+              height: 92,
+              child: StatCard(
+                label: 'URGENT', value: '$urgent', icon: Icons.priority_high_rounded,
+                valueColor: AppColors.error, isAlert: urgent > 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(delay: 120.ms, duration: 400.ms);
+  }
+
+  Widget _buildFilterChips(int total, int inProgress, int urgent, int done) {
+    final filters = [
+      'TOUT ($total)',
+      'EN COURS ($inProgress)',
+      'URGENT ($urgent)',
+      'TERMINÉ ($done)',
+    ];
     return SizedBox(
       height: 56,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        itemCount: _filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemCount: filters.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
           final active = i == _filterIndex;
           return GestureDetector(
@@ -67,7 +154,7 @@ class _TailorDashboardState extends State<TailorDashboard> {
                 boxShadow: active ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 3))] : null,
               ),
               child: Text(
-                _filters[i],
+                filters[i],
                 style: AppTextStyles.labelCaps.copyWith(
                   color: active ? AppColors.onPrimary : AppColors.onSurfaceVariant,
                 ),
@@ -76,10 +163,10 @@ class _TailorDashboardState extends State<TailorDashboard> {
           );
         },
       ),
-    ).animate().fadeIn(duration: 400.ms);
+    ).animate().fadeIn(delay: 160.ms, duration: 400.ms);
   }
 
-  Widget _buildOrderCard(_OrderData order, int index) {
+  Widget _buildOrderCard(Order order, int index) {
     final isExpanded = _expanded.contains(order.id);
 
     return Container(
@@ -94,20 +181,27 @@ class _TailorDashboardState extends State<TailorDashboard> {
         children: [
           GestureDetector(
             onTap: () => setState(() {
-              if (isExpanded) _expanded.remove(order.id);
-              else _expanded.add(order.id);
+              if (isExpanded) {
+                _expanded.remove(order.id);
+              } else {
+                _expanded.add(order.id);
+              }
             }),
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Row(
                 children: [
                   Container(
-                    width: 64, height: 64,
+                    width: 56, height: 56,
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(12),
+                      color: AppColors.primaryFixed.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(Icons.checkroom_rounded, color: AppColors.secondary, size: 28),
+                    alignment: Alignment.center,
+                    child: Text(
+                      order.clientName.isNotEmpty ? order.clientName[0].toUpperCase() : '?',
+                      style: AppTextStyles.titleMd.copyWith(color: AppColors.primary),
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -123,21 +217,25 @@ class _TailorDashboardState extends State<TailorDashboard> {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(order.garment, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+                        Text(
+                          order.description ?? 'Sans description',
+                          style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.onSurfaceVariant),
+                            Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.onSurfaceVariant),
                             const SizedBox(width: 4),
-                            Text(order.deadline, style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurfaceVariant)),
+                            Text(
+                              order.dueDate != null ? Formatters.date.format(order.dueDate!) : 'Sans échéance',
+                              style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurfaceVariant),
+                            ),
                             const Spacer(),
-                            Container(
-                              width: 34, height: 34,
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceContainerLow,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: AppColors.primary),
+                            Icon(
+                              isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                              color: AppColors.onSurfaceVariant,
                             ),
                           ],
                         ),
@@ -158,10 +256,15 @@ class _TailorDashboardState extends State<TailorDashboard> {
           ),
         ],
       ),
-    ).animate().fadeIn(delay: Duration(milliseconds: 80 * index), duration: 400.ms).slideY(begin: 0.05, end: 0);
+    ).animate().fadeIn(delay: Duration(milliseconds: 60 * index), duration: 400.ms).slideY(begin: 0.05, end: 0);
   }
 
-  Widget _buildExpandedPanel(_OrderData order) {
+  void _updateStatus(Order order, OrderStatus status) {
+    OrderService.instance.updateOrderStatus(order.id, status);
+    setState(() {});
+  }
+
+  Widget _buildExpandedPanel(Order order) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLow,
@@ -206,20 +309,27 @@ class _TailorDashboardState extends State<TailorDashboard> {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: order.status == OrderStatus.completed
+                      ? null
+                      : () => _updateStatus(order, OrderStatus.completed),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.onPrimary,
+                    disabledBackgroundColor: AppColors.surfaceContainerHigh,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: Text('TERMINÉ', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary)),
+                  child: Text('TERMINÉ', style: AppTextStyles.labelCaps.copyWith(
+                    color: order.status == OrderStatus.completed ? AppColors.onSurfaceVariant : AppColors.onPrimary,
+                  )),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () {},
+                  onPressed: order.status == OrderStatus.problem
+                      ? null
+                      : () => _updateStatus(order, OrderStatus.problem),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.error,
                     side: BorderSide(color: AppColors.error.withValues(alpha: 0.3)),
@@ -235,13 +345,4 @@ class _TailorDashboardState extends State<TailorDashboard> {
       ),
     );
   }
-}
-
-class _OrderData {
-  const _OrderData({required this.id, required this.clientName, required this.garment, required this.status, required this.deadline});
-  final int id;
-  final String clientName;
-  final String garment;
-  final OrderStatus status;
-  final String deadline;
 }

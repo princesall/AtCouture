@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import 'plan_permissions.dart';
 
 /// Source de vérité UNIQUE pour "cet utilisateur a-t-il le droit de faire X ?".
 ///

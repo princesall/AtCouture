@@ -7,6 +7,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../models/atelier.dart';
+import '../../models/order.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/client.dart';
 import '../../services/company_service.dart';
@@ -24,7 +25,7 @@ class CompanyDashboard extends StatelessWidget {
     final ateliers = CompanyService.instance.ateliersOfCompany(user.id);
     final stats = CompanyService.instance.companyStats(user.id);
     final recentOrders = CompanyService.instance.allOrdersOfCompany(user.id)
-      ..sort((a, b) => b.date.compareTo(a.date));
+      ..sort((a, b) => (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
     final clients = CompanyService.instance.allClientsOfCompany(user.id);
 
     return ListView(
@@ -162,12 +163,12 @@ class CompanyDashboard extends StatelessWidget {
                     style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 12)),
                 ])),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text('${a.activeOrderCount}', style: AppTextStyles.titleSm.copyWith(color: AppColors.primary)),
+                  Text('${CompanyService.instance.ordersOfAtelier(a.id).length}', style: AppTextStyles.titleSm.copyWith(color: AppColors.primary)),
                   Text('commandes', style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
                 ]),
               ]),
             ),
-          ).animate().fadeIn(delay: Duration(milliseconds: 80 * e.key as int), duration: 400.ms),
+          ).animate().fadeIn(delay: Duration(milliseconds: 80 * e.key), duration: 400.ms),
         );
       }).toList(),
     );
@@ -208,7 +209,7 @@ class CompanyDashboard extends StatelessWidget {
   }
 
   // ── Commandes récentes ────────────────────────────────────────────────────
-  Widget _buildRecentOrders(List<CompanyOrder> orders) {
+  Widget _buildRecentOrders(List<Order> orders) {
     if (orders.isEmpty) return _EmptyHint(label: 'Aucune commande pour le moment');
 
     return Container(
@@ -217,7 +218,6 @@ class CompanyDashboard extends StatelessWidget {
       child: Column(
         children: orders.asMap().entries.map((e) {
           final o = e.value;
-          final status = _toStatus(o.status);
           return Column(children: [
             if (e.key > 0) Divider(height: 1, color: AppColors.outlineVariant.withValues(alpha: 0.3), indent: 16, endIndent: 16),
             Padding(
@@ -225,12 +225,12 @@ class CompanyDashboard extends StatelessWidget {
               child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(o.clientName, style: AppTextStyles.titleSm.copyWith(fontSize: 13)),
-                  Text('${o.garment} · ${o.atelierName}', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 12)),
+                  Text('${o.description ?? 'Vêtement non précisé'} · ${o.atelierName}', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 12)),
                 ])),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text('${Formatters.formatCurrency(o.price)} F', style: AppTextStyles.titleSm.copyWith(color: AppColors.primary, fontSize: 12)),
+                  Text('${Formatters.formatCurrency(o.price ?? 0)} F', style: AppTextStyles.titleSm.copyWith(color: AppColors.primary, fontSize: 12)),
                   const SizedBox(height: 4),
-                  StatusBadge(status),
+                  StatusBadge(o.status),
                 ]),
               ]),
             ),
@@ -239,13 +239,6 @@ class CompanyDashboard extends StatelessWidget {
       ),
     ).animate().fadeIn(delay: 450.ms);
   }
-
-  OrderStatus _toStatus(String s) => switch (s) {
-    'done'       => OrderStatus.done,
-    'inProgress' => OrderStatus.inProgress,
-    'problem'    => OrderStatus.problem,
-    _            => OrderStatus.pending,
-  };
 
   // ── Actions rapides ───────────────────────────────────────────────────────
   Widget _buildQuickActions(ValueChanged<int>? onNavTap) {
