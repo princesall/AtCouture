@@ -172,6 +172,7 @@ class OrderListItem extends StatelessWidget {
     required this.price,
     required this.status,
     this.onTap,
+    this.trailing,
   });
 
   final String clientName;
@@ -179,6 +180,7 @@ class OrderListItem extends StatelessWidget {
   final String price;
   final OrderStatus status;
   final VoidCallback? onTap;
+  final Widget? trailing;
 
   String get _initials {
     final parts = clientName.trim().split(' ');
@@ -257,6 +259,10 @@ class OrderListItem extends StatelessWidget {
                 StatusBadge(status),
               ],
             ),
+            if (trailing != null) ...[
+              const SizedBox(width: 4),
+              trailing!,
+            ],
           ],
         ),
       ),

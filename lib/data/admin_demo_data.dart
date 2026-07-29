@@ -77,13 +77,17 @@ abstract final class AdminDemoData {
   static final List<StylistEntry> _stylists = [];
 
   /// Ajoute un styliste à la liste admin (utilisé par le flux d'inscription)
-  static void addStylist(AppUser user) {
+  static Future<void> addStylist(AppUser user) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
     final entry = StylistEntry(user: user, isOnline: false);
     _stylists.add(entry);
   }
 
   /// Crée une demande d'abonnement pour un styliste
-  static void requestSubscription(String userId, SubscriptionPlan requestedPlan) {
+  static Future<void> requestSubscription(String userId, SubscriptionPlan requestedPlan) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
     final index = _stylists.indexWhere((s) => s.user.id == userId);
     if (index == -1) return;
     final entry = _stylists[index];
@@ -163,7 +167,7 @@ abstract final class AdminDemoData {
   /// structure Company) quand le nouveau plan est Entreprise. Partagé par
   /// approveRequest ET applyManualPlanChange pour que les deux chemins aient
   /// EXACTEMENT le même comportement de promotion.
-  static AppUser _applyPlan(AppUser user, SubscriptionPlan plan, DateTime expiresAt) {
+  static Future<AppUser> _applyPlan(AppUser user, SubscriptionPlan plan, DateTime expiresAt) async {
     final becomesEnterprise = plan == SubscriptionPlan.enterprise;
     final updatedUser = user.copyWith(
       plan: plan,
@@ -173,7 +177,7 @@ abstract final class AdminDemoData {
     );
 
     if (becomesEnterprise && CompanyService.instance.companyForOwner(user.id) == null) {
-      CompanyService.instance.createCompanyForNewOwner(
+      await CompanyService.instance.createCompanyForNewOwner(
         ownerId: user.id,
         ownerName: user.fullName,
         personalAtelierId: user.atelierId!,
@@ -190,7 +194,7 @@ abstract final class AdminDemoData {
   /// plan (+ date d'expiration à +30 jours), envoie le message système, et
   /// si le nouveau plan est Entreprise, fait apparaître ce compte dans la
   /// liste "Entreprises" de l'admin.
-  static void approveRequest(String userId) {
+  static Future<void> approveRequest(String userId) async {
     final index = _stylists.indexWhere((s) => s.user.id == userId);
     if (index == -1) return;
     final entry = _stylists[index];
@@ -199,15 +203,15 @@ abstract final class AdminDemoData {
 
     final newExpiry = DateTime.now().add(const Duration(days: 30));
 
-    SubscriptionService.instance.approveSubscriptionRequest(
+    await SubscriptionService.instance.approveSubscriptionRequest(
       userId: entry.user.id,
       userFullName: entry.user.fullName,
       userAtelierId: entry.user.atelierId!,
       userAtelierName: entry.user.atelierName!,
       requestedPlan: request.requestedPlan,
       newExpiryDate: newExpiry,
-      applyPlanToAccount: (plan, expiresAt) {
-        final updatedUser = _applyPlan(entry.user, plan, expiresAt);
+      applyPlanToAccount: (plan, expiresAt) async {
+        final updatedUser = await _applyPlan(entry.user, plan, expiresAt);
         _stylists[index] = entry.copyWith(user: updatedUser, clearRequest: true);
       },
     );
@@ -215,14 +219,14 @@ abstract final class AdminDemoData {
 
   /// Refuse la demande : le plan reste inchangé, mais un message système
   /// explicite est envoyé au compte concerné.
-  static void rejectRequest(String userId) {
+  static Future<void> rejectRequest(String userId) async {
     final index = _stylists.indexWhere((s) => s.user.id == userId);
     if (index == -1) return;
     final entry = _stylists[index];
     final request = entry.subscriptionRequest;
     if (request == null) return;
 
-    SubscriptionService.instance.rejectSubscriptionRequest(
+    await SubscriptionService.instance.rejectSubscriptionRequest(
       userId: entry.user.id,
       requestedPlan: request.requestedPlan,
     );
@@ -232,13 +236,13 @@ abstract final class AdminDemoData {
 
   /// Renouvelle l'abonnement d'un compte (prolonge planExpiresAt), utilisé
   /// depuis l'onglet "Expirant" de la gestion des abonnements.
-  static void renewSubscription(String userId, {int days = 365}) {
+  static Future<void> renewSubscription(String userId, {int days = 365}) async {
     final index = _stylists.indexWhere((s) => s.user.id == userId);
     if (index == -1) return;
     final entry = _stylists[index];
     final newExpiry = DateTime.now().add(Duration(days: days));
 
-    SubscriptionService.instance.renewSubscription(
+    await SubscriptionService.instance.renewSubscription(
       userId: entry.user.id,
       plan: entry.user.plan,
       newExpiryDate: newExpiry,
@@ -250,7 +254,9 @@ abstract final class AdminDemoData {
   }
 
   /// Bascule actif/inactif un compte (suspension admin).
-  static void toggleActive(String userId) {
+  static Future<void> toggleActive(String userId) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
     final index = _stylists.indexWhere((s) => s.user.id == userId);
     if (index == -1) return;
     final entry = _stylists[index];
@@ -261,21 +267,21 @@ abstract final class AdminDemoData {
   /// Changement de plan manuel par l'admin (hors workflow de demande),
   /// utilisé depuis la fiche détaillée d'un styliste. Applique réellement
   /// le nouveau plan + envoie un message système, comme pour une approbation.
-  static void applyManualPlanChange(String userId, SubscriptionPlan newPlan) {
+  static Future<void> applyManualPlanChange(String userId, SubscriptionPlan newPlan) async {
     final index = _stylists.indexWhere((s) => s.user.id == userId);
     if (index == -1) return;
     final entry = _stylists[index];
     final newExpiry = DateTime.now().add(const Duration(days: 30));
 
-    SubscriptionService.instance.approveSubscriptionRequest(
+    await SubscriptionService.instance.approveSubscriptionRequest(
       userId: entry.user.id,
       userFullName: entry.user.fullName,
       userAtelierId: entry.user.atelierId!,
       userAtelierName: entry.user.atelierName!,
       requestedPlan: newPlan,
       newExpiryDate: newExpiry,
-      applyPlanToAccount: (plan, expiresAt) {
-        final updatedUser = _applyPlan(entry.user, plan, expiresAt);
+      applyPlanToAccount: (plan, expiresAt) async {
+        final updatedUser = await _applyPlan(entry.user, plan, expiresAt);
         _stylists[index] = entry.copyWith(user: updatedUser);
       },
     );

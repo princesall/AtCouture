@@ -58,7 +58,7 @@ class AuthService {
     // et se recalcule à chaque accès, pas seulement à la connexion).
     final permissions = user.permissions;
     if (permissions.isExpired && !_expirationNotified.contains(user.id)) {
-      SubscriptionService.instance.notifyExpiration(
+      await SubscriptionService.instance.notifyExpiration(
         userId: user.id,
         expiredPlan: permissions.originalPlan ?? user.plan,
       );
@@ -105,7 +105,7 @@ class AuthService {
     _demoUsers.add(user);
     _demoPasswords[user.email] = password;
     // Mettre à jour la vue admin pour inclure ce styliste fraîchement créé
-    AdminDemoData.addStylist(user);
+    await AdminDemoData.addStylist(user);
     _currentUser = user;
     return user;
   }

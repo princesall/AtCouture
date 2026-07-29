@@ -5,6 +5,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/order_messages.dart';
+import '../../core/utils/whatsapp_launcher.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../models/app_user.dart';
@@ -105,6 +107,15 @@ class RemindersScreen extends StatelessWidget {
                             garmentType: '${o.description ?? 'Sans description'} · ${Formatters.date.format(o.dueDate!)}',
                             price: (o.price ?? 0).toString(),
                             status: o.status,
+                            trailing: IconButton(
+                              icon: const Icon(Icons.notifications_active_outlined),
+                              color: AppColors.primary,
+                              tooltip: 'Envoyer un rappel WhatsApp',
+                              onPressed: () => WhatsAppLauncher.sendMessage(
+                                phone: o.clientPhone,
+                                message: OrderMessages.reminder(o),
+                              ),
+                            ),
                           ),
                         )),
                     const SizedBox(height: AppSpacing.md),

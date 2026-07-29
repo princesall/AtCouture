@@ -9,8 +9,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/order_messages.dart';
 import '../../core/utils/order_pdf.dart';
 import '../../core/utils/plan_guard.dart';
+import '../../core/utils/whatsapp_launcher.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../models/app_user.dart';
 import '../../models/order.dart';
@@ -124,9 +126,43 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                   const SizedBox(height: AppSpacing.sm),
                   TextField(
                     controller: phoneController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Téléphone *',
-                      prefixIcon: Icon(Icons.phone),
+                      prefixIcon: const Icon(Icons.phone),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.search),
+                        tooltip: 'Rechercher un client existant',
+                        onPressed: () {
+                          final phone = phoneController.text.trim();
+                          if (phone.isEmpty) return;
+                          final existing = OrderService.instance.findClientByPhone(
+                            phone,
+                            user.atelierId!,
+                          );
+                          if (existing == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Aucun client trouvé avec ce numéro')),
+                            );
+                            return;
+                          }
+                          final saved = existing.savedMeasurements;
+                          final prefilledMeasurements = permissions.hasSavedMeasurements && saved != null && saved.isNotEmpty;
+                          setDialogState(() {
+                            nameController.text = existing.fullName;
+                            if (existing.email != null) emailController.text = existing.email!;
+                            if (prefilledMeasurements) {
+                              if (saved['epaule'] != null) epauleController.text = saved['epaule'].toString();
+                              if (saved['poitrine'] != null) poitrineController.text = saved['poitrine'].toString();
+                              if (saved['taille'] != null) tailleController.text = saved['taille'].toString();
+                              if (saved['hanche'] != null) hancheController.text = saved['hanche'].toString();
+                              if (saved['longueur'] != null) longueurController.text = saved['longueur'].toString();
+                            }
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Client trouvé : ${existing.fullName}${prefilledMeasurements ? ' — mesures pré-remplies' : ''}')),
+                          );
+                        },
+                      ),
                     ),
                     keyboardType: TextInputType.phone,
                   ),
@@ -381,7 +417,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: () async {
                             if (nameController.text.trim().isEmpty ||
                                 phoneController.text.trim().isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -436,11 +472,11 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                               }
                             }
                             
-                            final result = OrderService.instance.createOrder(
+                            final result = await OrderService.instance.createOrder(
                               clientName: nameController.text.trim(),
                               clientPhone: phoneController.text.trim(),
-                              clientEmail: emailController.text.trim().isEmpty 
-                                  ? null 
+                              clientEmail: emailController.text.trim().isEmpty
+                                  ? null
                                   : emailController.text.trim(),
                               tailorId: _selectedTailor?.id,
                               atelierId: user.atelierId!,
@@ -460,6 +496,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                               dueDate: dueDate,
                             );
 
+                            if (!context.mounted) return;
                             Navigator.pop(context);
 
                             // Réinitialiser le couturier sélectionné et les photos
@@ -468,8 +505,10 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                               _modelPhotos.clear();
                               _fabricPhotos.clear();
                             });
-                            
-                            // Afficher un message selon si le client existait déjà
+
+                            // Afficher un message selon si le client existait déjà,
+                            // avec un raccourci pour envoyer tout de suite le
+                            // numéro de suivi au client par WhatsApp.
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
@@ -478,6 +517,14 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                                       : 'Commande créée - Client existant réutilisé',
                                 ),
                                 backgroundColor: AppColors.success,
+                                action: SnackBarAction(
+                                  label: 'Envoyer via WhatsApp',
+                                  textColor: Colors.white,
+                                  onPressed: () => WhatsAppLauncher.sendMessage(
+                                    phone: result.order.clientPhone,
+                                    message: OrderMessages.tracking(result.order),
+                                  ),
+                                ),
                               ),
                             );
                             
@@ -595,9 +642,10 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                                 child: Text(status.label),
                               );
                             }).toList(),
-                            onChanged: (newStatus) {
+                            onChanged: (newStatus) async {
                               if (newStatus != null) {
-                                OrderService.instance.updateOrderStatus(order.id, newStatus);
+                                await OrderService.instance.updateOrderStatus(order.id, newStatus);
+                                if (!context.mounted) return;
                                 Navigator.pop(context);
                                 setState(() {});
                               }
@@ -678,6 +726,49 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                         title: 'Créée le',
                         child: Text(Formatters.date.format(order.createdAt!)),
                       ),
+
+                    // Contacter le client via WhatsApp — rappel de livraison
+                    // (plan Pro et plus, même accès que l'écran Rappels) et
+                    // partage du numéro de suivi (libre d'accès).
+                    _Section(
+                      title: 'Contacter le client',
+                      child: Builder(builder: (context) {
+                        final permissions = context.read<AuthProvider>().user!.permissions;
+                        return Row(children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                if (!PlanGuard.requireFeature(
+                                  context: context,
+                                  isAllowed: permissions.hasReminders,
+                                  featureName: 'Rappels WhatsApp',
+                                  lockedMessage: permissions.remindersLockedMessage,
+                                )) {
+                                  return;
+                                }
+                                WhatsAppLauncher.sendMessage(
+                                  phone: order.clientPhone,
+                                  message: OrderMessages.reminder(order),
+                                );
+                              },
+                              icon: const Icon(Icons.notifications_active_outlined, size: 18),
+                              label: const Text('Rappel'),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => WhatsAppLauncher.sendMessage(
+                                phone: order.clientPhone,
+                                message: OrderMessages.tracking(order),
+                              ),
+                              icon: const Icon(Icons.share_outlined, size: 18),
+                              label: const Text('Partager le suivi'),
+                            ),
+                          ),
+                        ]);
+                      }),
+                    ),
 
                     // Actions — export PDF / devis (plan Pro et plus)
                     _Section(

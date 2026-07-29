@@ -254,8 +254,9 @@ class _SubscriptionRequestCardState extends State<_SubscriptionRequestCard> {
         const SizedBox(height: 14),
         Row(children: [
           Expanded(child: OutlinedButton(
-            onPressed: () {
-              AdminDemoData.rejectRequest(widget.entry.user.id);
+            onPressed: () async {
+              await AdminDemoData.rejectRequest(widget.entry.user.id);
+              if (!mounted) return;
               setState(() => _rejected = true);
             },
             style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: BorderSide(color: AppColors.error.withValues(alpha: 0.4)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 12)),
@@ -263,8 +264,9 @@ class _SubscriptionRequestCardState extends State<_SubscriptionRequestCard> {
           )),
           const SizedBox(width: 12),
           Expanded(child: ElevatedButton(
-            onPressed: () {
-              AdminDemoData.approveRequest(widget.entry.user.id);
+            onPressed: () async {
+              await AdminDemoData.approveRequest(widget.entry.user.id);
+              if (!mounted) return;
               // Rafraîchit les KPIs de l'écran parent (totalTailors, revenus…)
               widget.onDataChanged?.call();
               setState(() => _approved = true);

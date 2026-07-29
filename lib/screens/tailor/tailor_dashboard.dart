@@ -259,8 +259,9 @@ class _TailorDashboardState extends State<TailorDashboard> {
     ).animate().fadeIn(delay: Duration(milliseconds: 60 * index), duration: 400.ms).slideY(begin: 0.05, end: 0);
   }
 
-  void _updateStatus(Order order, OrderStatus status) {
-    OrderService.instance.updateOrderStatus(order.id, status);
+  Future<void> _updateStatus(Order order, OrderStatus status) async {
+    await OrderService.instance.updateOrderStatus(order.id, status);
+    if (!mounted) return;
     setState(() {});
   }
 

@@ -12,6 +12,7 @@ class Client extends Equatable {
     this.orderCount = 0,
     this.totalSpent = 0,
     this.orderIds = const [],
+    this.savedMeasurements,
     this.createdAt,
   });
 
@@ -25,6 +26,9 @@ class Client extends Equatable {
   final int orderCount;
   final int totalSpent;
   final List<String> orderIds; // Liste des IDs des commandes du client
+  // Dernières mesures connues du client, réutilisées pour pré-remplir une
+  // nouvelle commande sans avoir à re-mesurer un client déjà connu.
+  final Map<String, double>? savedMeasurements;
   final DateTime? createdAt;
 
   String get initials {
@@ -44,6 +48,7 @@ class Client extends Equatable {
     int? orderCount,
     int? totalSpent,
     List<String>? orderIds,
+    Map<String, double>? savedMeasurements,
     DateTime? createdAt,
   }) {
     return Client(
@@ -57,6 +62,7 @@ class Client extends Equatable {
       orderCount: orderCount ?? this.orderCount,
       totalSpent: totalSpent ?? this.totalSpent,
       orderIds: orderIds ?? this.orderIds,
+      savedMeasurements: savedMeasurements ?? this.savedMeasurements,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -73,6 +79,9 @@ class Client extends Equatable {
       orderCount: map['orderCount'] as int? ?? 0,
       totalSpent: map['totalSpent'] as int? ?? 0,
       orderIds: List<String>.from(map['orderIds'] as List? ?? []),
+      savedMeasurements: (map['savedMeasurements'] as Map?)?.map(
+        (key, value) => MapEntry(key as String, (value as num).toDouble()),
+      ),
       createdAt: map['createdAt'] != null ? DateTime.tryParse(map['createdAt'] as String) : null,
     );
   }
@@ -88,6 +97,7 @@ class Client extends Equatable {
       'orderCount': orderCount,
       'totalSpent': totalSpent,
       'orderIds': orderIds,
+      'savedMeasurements': savedMeasurements,
       'createdAt': createdAt?.toIso8601String(),
     };
   }

@@ -36,7 +36,9 @@ class SubscriptionService {
   int unreadSystemMessagesCount(String userId) =>
       (_systemMessages[userId] ?? []).where((m) => !m.isRead).length;
 
-  void markSystemMessageRead(String userId, String messageId) {
+  Future<void> markSystemMessageRead(String userId, String messageId) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+
     final list = _systemMessages[userId];
     if (list == null) return;
     final idx = list.indexWhere((m) => m.id == messageId);
@@ -61,16 +63,18 @@ class SubscriptionService {
   ///  3. Envoie un message SYSTÈME automatique au compte concerné
   ///  4. Si le plan accordé est Entreprise, crée le document Company associé
   ///     pour que le compte apparaisse dans la liste "Entreprises" de l'admin
-  void approveSubscriptionRequest({
+  Future<void> approveSubscriptionRequest({
     required String userId,
     required String userFullName,
     required String userAtelierId,
     required String userAtelierName,
     required SubscriptionPlan requestedPlan,
     required DateTime newExpiryDate,
-    required void Function(SubscriptionPlan plan, DateTime expiresAt) applyPlanToAccount,
-  }) {
-    applyPlanToAccount(requestedPlan, newExpiryDate);
+    required Future<void> Function(SubscriptionPlan plan, DateTime expiresAt) applyPlanToAccount,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+
+    await applyPlanToAccount(requestedPlan, newExpiryDate);
     _lastKnownPlan[userId] = requestedPlan;
 
     _addSystemMessage(SystemMessage.subscriptionApproved(
@@ -85,7 +89,7 @@ class SubscriptionService {
     // commandes déjà créés restent visibles (voir createCompanyForNewOwner).
     if (requestedPlan == SubscriptionPlan.enterprise &&
         CompanyService.instance.companyForOwner(userId) == null) {
-      CompanyService.instance.createCompanyForNewOwner(
+      await CompanyService.instance.createCompanyForNewOwner(
         ownerId: userId,
         ownerName: userFullName,
         personalAtelierId: userAtelierId,
@@ -100,10 +104,12 @@ class SubscriptionService {
 
   /// Refuse une demande : aucune modification du plan, mais envoie un
   /// message SYSTÈME explicite au compte concerné.
-  void rejectSubscriptionRequest({
+  Future<void> rejectSubscriptionRequest({
     required String userId,
     required SubscriptionPlan requestedPlan,
-  }) {
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
     _addSystemMessage(SystemMessage.subscriptionRejected(
       id: _nextMessageId(),
       userId: userId,
@@ -112,12 +118,14 @@ class SubscriptionService {
   }
 
   /// Renouvellement manuel par l'admin (prolonge la date d'expiration).
-  void renewSubscription({
+  Future<void> renewSubscription({
     required String userId,
     required SubscriptionPlan plan,
     required DateTime newExpiryDate,
     required void Function(SubscriptionPlan plan, DateTime expiresAt) applyPlanToAccount,
-  }) {
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
     applyPlanToAccount(plan, newExpiryDate);
     _lastKnownPlan[userId] = plan;
     _addSystemMessage(SystemMessage.subscriptionRenewed(
@@ -134,7 +142,9 @@ class SubscriptionService {
   /// Enregistre une notification d'expiration (appelé automatiquement quand
   /// l'app détecte qu'un plan vient d'expirer pour ce compte — voir
   /// AuthProvider qui vérifie planExpiresAt à chaque connexion).
-  void notifyExpiration({required String userId, required SubscriptionPlan expiredPlan}) {
+  Future<void> notifyExpiration({required String userId, required SubscriptionPlan expiredPlan}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+
     _addSystemMessage(SystemMessage.subscriptionExpired(
       id: _nextMessageId(),
       userId: userId,

@@ -9,6 +9,7 @@ import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/company/company_shell.dart';
+import '../screens/shared/order_tracking_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/stylist/stylist_shell.dart';
 import '../screens/tailor/tailor_shell.dart';
@@ -26,11 +27,16 @@ class AppRouter {
         final location = state.matchedLocation;
         final isSplash = location == '/splash';
         final isAuthRoute = location.startsWith('/auth');
+        // Écran de suivi de commande : public, ne nécessite aucun compte
+        // (un client final y accède avec juste son numéro de commande).
+        final isTrackingRoute = location.startsWith('/suivi');
 
         if (auth.status == AuthStatus.initial ||
             (auth.status == AuthStatus.loading && isSplash)) {
           return isSplash ? null : '/splash';
         }
+
+        if (isTrackingRoute) return null;
 
         if (!auth.isAuthenticated) {
           if (isSplash) return '/auth/login';
@@ -81,6 +87,10 @@ class AppRouter {
         GoRoute(
           path: '/auth/forgot-password',
           builder: (_, _) => const ForgotPasswordScreen(),
+        ),
+        GoRoute(
+          path: '/suivi',
+          builder: (_, _) => const OrderTrackingScreen(),
         ),
         GoRoute(
           path: '/stylist',

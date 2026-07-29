@@ -208,15 +208,16 @@ class _AddClientSheetState extends State<_AddClientSheet> {
     }
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate() || _selectedAtelierId == null) return;
-    CompanyService.instance.addClient(
+    await CompanyService.instance.addClient(
       atelierId: _selectedAtelierId!,
       atelierName: _selectedAtelierName!,
       fullName: _name.text,
       phone: _phone.text,
       email: _email.text.isEmpty ? null : _email.text,
     );
+    if (!mounted) return;
     setState(() => _added = true);
     widget.onAdded();
   }

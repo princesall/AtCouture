@@ -6,11 +6,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/widgets/common_widgets.dart';
-import '../../data/admin_demo_data.dart';
 import '../../models/app_user.dart';
-import '../../models/subscription_plan.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
+import '../shared/subscription_dialog.dart';
 
 class StylistTailorsScreen extends StatefulWidget {
   const StylistTailorsScreen({super.key});
@@ -39,7 +38,7 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                _showSubscriptionDialog(context);
+                SubscriptionDialog.show(context);
               },
               child: const Text('Voir les abonnements'),
             ),
@@ -95,22 +94,23 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
             child: const Text('Annuler'),
           ),
           ElevatedButton(
-            onPressed: () {
-              if (nameController.text.trim().isEmpty || 
+            onPressed: () async {
+              if (nameController.text.trim().isEmpty ||
                   phoneController.text.trim().isEmpty) {
                 return;
               }
 
-              final newTailor = CompanyService.instance.createTailor(
+              final newTailor = await CompanyService.instance.createTailor(
                 atelierId: user.atelierId!,
                 atelierName: user.atelierName!,
                 fullName: nameController.text.trim(),
-                email: emailController.text.trim().isEmpty 
+                email: emailController.text.trim().isEmpty
                     ? 'couturier_${DateTime.now().millisecondsSinceEpoch}@demo.ml'
                     : emailController.text.trim(),
                 phone: phoneController.text.trim(),
               );
 
+              if (!context.mounted) return;
               Navigator.pop(context);
               setState(() {});
 
@@ -219,21 +219,22 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        if (nameController.text.trim().isEmpty || 
+                      onPressed: () async {
+                        if (nameController.text.trim().isEmpty ||
                             phoneController.text.trim().isEmpty) {
                           return;
                         }
 
-                        CompanyService.instance.updateTailor(
+                        await CompanyService.instance.updateTailor(
                           tailorId: tailor.id,
                           fullName: nameController.text.trim(),
-                          email: emailController.text.trim().isEmpty 
-                              ? null 
+                          email: emailController.text.trim().isEmpty
+                              ? null
                               : emailController.text.trim(),
                           phone: phoneController.text.trim(),
                         );
 
+                        if (!context.mounted) return;
                         Navigator.pop(context);
                         setState(() {});
                       },
@@ -245,146 +246,6 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showSubscriptionDialog(BuildContext context) {
-    final user = context.read<AuthProvider>().user!;
-    final currentPlan = user.plan;
-
-    // Vérifier si une demande est déjà en cours
-    final stylistEntry = AdminDemoData.stylists.firstWhere(
-      (s) => s.user.id == user.id,
-      orElse: () => throw Exception('Styliste non trouvé'),
-    );
-
-    if (stylistEntry.subscriptionRequest != null && !stylistEntry.subscriptionRequest!.approved) {
-      // Demande déjà en cours
-      showDialog(
-        context: context,
-        builder: (context) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.pending_rounded,
-                  color: AppColors.tertiary,
-                  size: 48,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Demande en cours',
-                  style: AppTextStyles.titleMd.copyWith(color: AppColors.primary),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Votre demande pour le plan ${stylistEntry.subscriptionRequest!.requestedPlan.name} est en cours de traitement par l\'administrateur.',
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Compris'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.workspace_premium_rounded, color: AppColors.tertiary, size: 28),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Choisir un abonnement',
-                    style: AppTextStyles.titleMd.copyWith(color: AppColors.primary),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Votre plan actuel : ${currentPlan.name}',
-                style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-              ),
-              const SizedBox(height: 24),
-              ...SubscriptionPlan.values
-                  .where((plan) => plan != SubscriptionPlan.free && plan != currentPlan)
-                  .map((plan) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _SubscriptionPlanCard(
-                          plan: plan,
-                          onTap: () {
-                            Navigator.pop(context);
-                            _confirmSubscriptionRequest(context, plan);
-                          },
-                        ),
-                      )),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Annuler'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _confirmSubscriptionRequest(BuildContext context, SubscriptionPlan plan) {
-    final user = context.read<AuthProvider>().user!;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmer la demande'),
-        content: Text(
-          'Voulez-vous envoyer une demande pour le plan ${plan.name} (${plan.priceLabel}) à l\'administrateur ?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              AdminDemoData.requestSubscription(user.id, plan);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Demande envoyée pour le plan ${plan.name}'),
-                  backgroundColor: AppColors.tertiary,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Confirmer'),
-          ),
-        ],
       ),
     );
   }
@@ -492,8 +353,9 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                                         child: const Text('Annuler'),
                                       ),
                                       ElevatedButton(
-                                        onPressed: () {
-                                          CompanyService.instance.removeTailor(tailor.id);
+                                        onPressed: () async {
+                                          await CompanyService.instance.removeTailor(tailor.id);
+                                          if (!context.mounted) return;
                                           Navigator.pop(context);
                                           setState(() {});
                                         },
@@ -575,76 +437,6 @@ class _TailorCard extends StatelessWidget {
               onPressed: onRemove,
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _SubscriptionPlanCard extends StatelessWidget {
-  const _SubscriptionPlanCard({
-    required this.plan,
-    required this.onTap,
-  });
-
-  final SubscriptionPlan plan;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.primary.withValues(alpha: 0.1),
-              AppColors.secondary.withValues(alpha: 0.1),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  plan.name.toUpperCase(),
-                  style: AppTextStyles.labelCaps.copyWith(
-                    color: AppColors.primary,
-                    fontSize: 12,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  plan.priceLabel,
-                  style: AppTextStyles.titleSm.copyWith(
-                    color: AppColors.tertiary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              plan.tailorsLabel,
-              style: AppTextStyles.bodySm.copyWith(
-                color: AppColors.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              plan.clientsLabel,
-              style: AppTextStyles.bodySm.copyWith(
-                color: AppColors.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -245,8 +245,9 @@ class _PendingTabState extends State<_PendingTab> {
               const SizedBox(height: 14),
               Row(children: [
                 Expanded(child: OutlinedButton(
-                  onPressed: () {
-                    AdminDemoData.rejectRequest(id);
+                  onPressed: () async {
+                    await AdminDemoData.rejectRequest(id);
+                    if (!mounted) return;
                     setState(() => _rejected.add(id));
                   },
                   style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: BorderSide(color: AppColors.error.withValues(alpha: 0.4)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 12)),
@@ -254,8 +255,9 @@ class _PendingTabState extends State<_PendingTab> {
                 )),
                 const SizedBox(width: 12),
                 Expanded(child: ElevatedButton(
-                  onPressed: () {
-                    AdminDemoData.approveRequest(id);
+                  onPressed: () async {
+                    await AdminDemoData.approveRequest(id);
+                    if (!mounted) return;
                     setState(() => _approved.add(id));
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 12), elevation: 0),
@@ -365,8 +367,9 @@ class _ExpiringTabState extends State<_ExpiringTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: Text('ANNULER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurfaceVariant))),
           ElevatedButton(
-            onPressed: () {
-              AdminDemoData.renewSubscription(s.user.id);
+            onPressed: () async {
+              await AdminDemoData.renewSubscription(s.user.id);
+              if (!context.mounted) return;
               Navigator.pop(context);
               setState(() {});
             },

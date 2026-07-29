@@ -44,6 +44,14 @@ class OrderService {
     return _clients.where((c) => c.id == clientId).firstOrNull;
   }
 
+  /// Une commande par son ID — utilisé par l'écran de suivi public (sans
+  /// compte) pour retrouver une commande à partir du numéro communiqué au
+  /// client.
+  Order? orderById(String orderId) {
+    _initDemoData();
+    return _orders.where((o) => o.id == orderId).firstOrNull;
+  }
+
   /// Tous les clients d'un atelier
   List<Client> clientsOfAtelier(String atelierId) {
     _initDemoData();
@@ -104,7 +112,7 @@ class OrderService {
   /// - Sinon, on crée un nouveau client automatiquement
   /// - La commande est liée au client via clientId
   /// - Retourne un tuple (order, isNewClient, existingClient) pour informer l'UI
-  ({Order order, bool isNewClient, Client? existingClient}) createOrder({
+  Future<({Order order, bool isNewClient, Client? existingClient})> createOrder({
     required String clientName,
     required String clientPhone,
     required String atelierId,
@@ -118,7 +126,9 @@ class OrderService {
     int? price,
     int? deposit,
     DateTime? dueDate,
-  }) {
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+
     final now = DateTime.now();
     final orderId = _nextOrderId();
 
@@ -174,13 +184,18 @@ class OrderService {
     );
     _orders.add(order);
 
-    // 4. Mettre à jour le client (ajouter l'ID de commande et incrémenter les stats)
+    // 4. Mettre à jour le client (ajouter l'ID de commande, incrémenter les
+    // stats, et mémoriser les mesures prises pour pouvoir les réutiliser
+    // automatiquement à la prochaine commande de ce client).
     final clientIndex = _clients.indexWhere((c) => c.id == client?.id);
     if (clientIndex != -1) {
       final updatedClient = client.copyWith(
         orderIds: [...client.orderIds, orderId],
         orderCount: client.orderCount + 1,
         totalSpent: client.totalSpent + (price ?? 0),
+        savedMeasurements: measurements != null && measurements.isNotEmpty
+            ? {...?client.savedMeasurements, ...measurements}
+            : client.savedMeasurements,
       );
       _clients[clientIndex] = updatedClient;
     }
@@ -188,35 +203,53 @@ class OrderService {
     return (order: order, isNewClient: isNewClient, existingClient: existingClient);
   }
 
-    /// Ajoute un client manuellement (utilisé par l'UI pour la démo)
-    Client addClient({
-      required String atelierId,
-      required String atelierName,
-      required String fullName,
-      required String phone,
-      String? email,
-      String? notes,
-    }) {
-      final clientId = _nextClientId();
-      final client = Client(
-        id: clientId,
-        fullName: fullName.trim(),
-        phone: phone.trim(),
-        email: email?.trim(),
-        notes: notes,
-        atelierId: atelierId,
-        atelierName: atelierName,
-        orderCount: 0,
-        totalSpent: 0,
-        orderIds: [],
-        createdAt: DateTime.now(),
-      );
-      _clients.add(client);
-      return client;
-    }
+  /// Met à jour (fusionne) les mesures enregistrées d'un client, que ce soit
+  /// depuis sa fiche profil ou automatiquement lors d'une commande.
+  Future<void> updateClientMeasurements(String clientId, Map<String, double> measurements) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    final index = _clients.indexWhere((c) => c.id == clientId);
+    if (index == -1) return;
+
+    final client = _clients[index];
+    _clients[index] = client.copyWith(
+      savedMeasurements: {...?client.savedMeasurements, ...measurements},
+    );
+  }
+
+  /// Ajoute un client manuellement (utilisé par l'UI pour la démo)
+  Future<Client> addClient({
+    required String atelierId,
+    required String atelierName,
+    required String fullName,
+    required String phone,
+    String? email,
+    String? notes,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    final clientId = _nextClientId();
+    final client = Client(
+      id: clientId,
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      email: email?.trim(),
+      notes: notes,
+      atelierId: atelierId,
+      atelierName: atelierName,
+      orderCount: 0,
+      totalSpent: 0,
+      orderIds: [],
+      createdAt: DateTime.now(),
+    );
+    _clients.add(client);
+    return client;
+  }
 
   /// Met à jour le statut d'une commande
-  void updateOrderStatus(String orderId, OrderStatus newStatus) {
+  Future<void> updateOrderStatus(String orderId, OrderStatus newStatus) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
     final index = _orders.indexWhere((o) => o.id == orderId);
     if (index == -1) return;
 
@@ -225,7 +258,7 @@ class OrderService {
   }
 
   /// Met à jour les détails d'une commande
-  void updateOrder({
+  Future<void> updateOrder({
     required String orderId,
     Map<String, double>? measurements,
     List<String>? modelPhotos,
@@ -234,7 +267,9 @@ class OrderService {
     int? price,
     int? deposit,
     DateTime? dueDate,
-  }) {
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+
     final index = _orders.indexWhere((o) => o.id == orderId);
     if (index == -1) return;
 
@@ -261,10 +296,17 @@ class OrderService {
         );
       }
     }
+
+    // Si les mesures changent, les mémoriser aussi sur la fiche client.
+    if (measurements != null && measurements.isNotEmpty && order.clientId != null) {
+      await updateClientMeasurements(order.clientId!, measurements);
+    }
   }
 
   /// Supprime une commande
-  void deleteOrder(String orderId) {
+  Future<void> deleteOrder(String orderId) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
     final order = _orders.where((o) => o.id == orderId).firstOrNull;
     if (order == null) return;
 

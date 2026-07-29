@@ -261,9 +261,9 @@ class _CreateAtelierSheetState extends State<_CreateAtelierSheet> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    CompanyService.instance.createAtelierHead(
+    await CompanyService.instance.createAtelierHead(
       companyId: widget.companyId,
       fullName: _headName.text,
       email: _email.text,
@@ -271,6 +271,7 @@ class _CreateAtelierSheetState extends State<_CreateAtelierSheet> {
       atelierName: _atelierName.text,
       address: _address.text.isEmpty ? null : _address.text,
     );
+    if (!mounted) return;
     setState(() => _created = true);
     widget.onCreated();
   }
@@ -344,15 +345,16 @@ class _CreateTailorSheetState extends State<_CreateTailorSheet> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    CompanyService.instance.createTailor(
+    await CompanyService.instance.createTailor(
       atelierId: widget.atelierId,
       atelierName: widget.atelierName,
       fullName: _fullName.text,
       email: _email.text,
       phone: _phone.text,
     );
+    if (!mounted) return;
     setState(() => _created = true);
     widget.onCreated();
   }

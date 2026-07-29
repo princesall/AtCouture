@@ -48,11 +48,12 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
     super.dispose();
   }
 
-  void _save() {
-    CompanyCustomizationService.instance.setBranding(
+  Future<void> _save() async {
+    await CompanyCustomizationService.instance.setBranding(
       _companyId,
       CompanyBranding(brandName: _brandNameController.text.trim(), accentColor: _accentColor),
     );
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Personnalisation enregistrée')),
     );

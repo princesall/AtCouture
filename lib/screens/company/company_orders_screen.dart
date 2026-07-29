@@ -5,8 +5,10 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/order_messages.dart';
 import '../../core/utils/order_pdf.dart';
 import '../../core/utils/plan_guard.dart';
+import '../../core/utils/whatsapp_launcher.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../models/order.dart';
 import '../../models/order_status.dart';
@@ -167,8 +169,10 @@ class _OrderCard extends StatelessWidget {
               itemBuilder: (context) => const [
                 PopupMenuItem(value: 'pdf', child: Text('Exporter en PDF')),
                 PopupMenuItem(value: 'quote', child: Text('Créer un devis')),
+                PopupMenuItem(value: 'whatsapp_reminder', child: Text('Rappel WhatsApp')),
+                PopupMenuItem(value: 'whatsapp_tracking', child: Text('Partager le suivi')),
               ],
-              onSelected: (value) => _handleDocumentAction(context, value, order),
+              onSelected: (value) => _handleAction(context, value, order),
             ),
           ]),
         ),
@@ -196,24 +200,40 @@ class _OrderCard extends StatelessWidget {
     ).animate().fadeIn(delay: Duration(milliseconds: 50 * index), duration: 350.ms).slideY(begin: 0.04, end: 0);
   }
 
-  void _handleDocumentAction(BuildContext context, String action, Order order) {
+  void _handleAction(BuildContext context, String action, Order order) {
     final user = context.read<AuthProvider>().user!;
     final permissions = user.permissions;
-    final isAllowed = action == 'pdf' ? permissions.hasPdfExport : permissions.hasQuotes;
-    final lockedMessage = action == 'pdf' ? permissions.pdfExportLockedMessage : permissions.quotesLockedMessage;
 
-    if (!PlanGuard.requireFeature(
-      context: context,
-      isAllowed: isAllowed,
-      featureName: 'Documents PDF',
-      lockedMessage: lockedMessage,
-    )) {
-      return;
-    }
-    if (action == 'pdf') {
-      OrderPdf.shareInvoice(order, companyId: user.companyId);
-    } else {
-      OrderPdf.shareQuote(order, companyId: user.companyId);
+    switch (action) {
+      case 'pdf':
+      case 'quote':
+        final isAllowed = action == 'pdf' ? permissions.hasPdfExport : permissions.hasQuotes;
+        final lockedMessage = action == 'pdf' ? permissions.pdfExportLockedMessage : permissions.quotesLockedMessage;
+        if (!PlanGuard.requireFeature(
+          context: context,
+          isAllowed: isAllowed,
+          featureName: 'Documents PDF',
+          lockedMessage: lockedMessage,
+        )) {
+          return;
+        }
+        if (action == 'pdf') {
+          OrderPdf.shareInvoice(order, companyId: user.companyId);
+        } else {
+          OrderPdf.shareQuote(order, companyId: user.companyId);
+        }
+      case 'whatsapp_reminder':
+        if (!PlanGuard.requireFeature(
+          context: context,
+          isAllowed: permissions.hasReminders,
+          featureName: 'Rappels WhatsApp',
+          lockedMessage: permissions.remindersLockedMessage,
+        )) {
+          return;
+        }
+        WhatsAppLauncher.sendMessage(phone: order.clientPhone, message: OrderMessages.reminder(order));
+      case 'whatsapp_tracking':
+        WhatsAppLauncher.sendMessage(phone: order.clientPhone, message: OrderMessages.tracking(order));
     }
   }
 }

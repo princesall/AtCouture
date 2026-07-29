@@ -136,12 +136,14 @@ class CompanyService {
   /// clients/commandes déjà créés par ce compte (via OrderService, indexés
   /// par cet atelierId) deviendraient invisibles dans le nouveau dashboard
   /// Entreprise.
-  Company createCompanyForNewOwner({
+  Future<Company> createCompanyForNewOwner({
     required String ownerId,
     required String ownerName,
     required String personalAtelierId,
     required String personalAtelierName,
-  }) {
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
     final existing = companyForOwner(ownerId);
     if (existing != null) return existing;
 
@@ -171,14 +173,16 @@ class CompanyService {
 
   /// Crée un nouveau Chef d'atelier + son Atelier, rattachés à l'Entreprise.
   /// Réservé au Chef d'Entreprise (vérifié côté UI ET règles serveur).
-  AppUser createAtelierHead({
+  Future<AppUser> createAtelierHead({
     required String companyId,
     required String fullName,
     required String email,
     required String phone,
     required String atelierName,
     String? address,
-  }) {
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
     final now = DateTime.now();
     final atelierId = _nextId('atelier');
     final headId = _nextId('chef_atelier');
@@ -224,13 +228,15 @@ class CompanyService {
   /// appelé par : le Chef d'atelier (pour son propre atelier), ou le Chef
   /// d'Entreprise (pour n'importe quel atelier de son Entreprise, y compris
   /// le sien propre).
-  AppUser createTailor({
+  Future<AppUser> createTailor({
     required String atelierId,
     required String atelierName,
     required String fullName,
     required String email,
     required String phone,
-  }) {
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
     final now = DateTime.now();
     final tailorId = _nextId('tailor');
 
@@ -258,14 +264,18 @@ class CompanyService {
     return newTailor;
   }
 
-  void removeAtelierHead(String headId) {
+  Future<void> removeAtelierHead(String headId) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
     final head = _atelierHeads.where((u) => u.id == headId).firstOrNull;
     if (head == null) return;
     _atelierHeads.removeWhere((u) => u.id == headId);
     _ateliers.removeWhere((a) => a.headStylistId == headId);
   }
 
-  void removeTailor(String tailorId) {
+  Future<void> removeTailor(String tailorId) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
     final tailor = _tailors.where((t) => t.id == tailorId).firstOrNull;
     if (tailor == null) return;
     _tailors.removeWhere((t) => t.id == tailorId);
@@ -279,15 +289,17 @@ class CompanyService {
   }
 
   /// Met à jour les informations d'un couturier existant
-  void updateTailor({
+  Future<void> updateTailor({
     required String tailorId,
     required String fullName,
     required String phone,
     String? email,
-  }) {
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
     final index = _tailors.indexWhere((t) => t.id == tailorId);
     if (index == -1) return;
-    
+
     final tailor = _tailors[index];
     final updatedTailor = tailor.copyWith(
       fullName: fullName.trim(),
@@ -328,7 +340,7 @@ class CompanyService {
   }
 
   /// Ajoute un client à un atelier
-  Client addClient({
+  Future<Client> addClient({
     required String atelierId,
     required String atelierName,
     required String fullName,

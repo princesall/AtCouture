@@ -19,7 +19,8 @@ class CompanyCustomizationService {
   CompanyBranding brandingFor(String? companyId) =>
       (companyId == null ? null : _branding[companyId]) ?? const CompanyBranding();
 
-  void setBranding(String companyId, CompanyBranding branding) {
+  Future<void> setBranding(String companyId, CompanyBranding branding) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     _branding[companyId] = branding;
   }
 }

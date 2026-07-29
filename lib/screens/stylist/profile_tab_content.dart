@@ -12,6 +12,7 @@ import '../company/company_data_export_screen.dart';
 import '../company/company_dedicated_manager_screen.dart';
 import '../shared/calendar_screen.dart';
 import '../shared/reminders_screen.dart';
+import '../shared/subscription_dialog.dart';
 
 /// Onglet Profil réutilisable — utilisé dans StylistShell ET CompanyShell.
 /// Affiche dynamiquement les infos adaptées au rôle (Atelier vs Entreprise).
@@ -42,7 +43,12 @@ class ProfileTabContent extends StatelessWidget {
             subtitle: user.atelierName ?? '—',
           ),
           _ProfileTile(icon: Icons.phone_outlined, title: 'Téléphone', subtitle: user.phone),
-          _ProfileTile(icon: Icons.workspace_premium_outlined, title: 'Abonnement', subtitle: user.plan.priceLabel),
+          _ProfileTile(
+            icon: Icons.workspace_premium_outlined,
+            title: 'Abonnement',
+            subtitle: '${user.plan.priceLabel} — Voir les offres',
+            onTap: () => SubscriptionDialog.show(context),
+          ),
           const SizedBox(height: AppSpacing.xl),
           Align(
             alignment: Alignment.centerLeft,
@@ -149,8 +155,8 @@ class _ProfileMenuTile extends StatelessWidget {
 }
 
 class _ProfileTile extends StatelessWidget {
-  const _ProfileTile({required this.icon, required this.title, required this.subtitle});
-  final IconData icon; final String title; final String subtitle;
+  const _ProfileTile({required this.icon, required this.title, required this.subtitle, this.onTap});
+  final IconData icon; final String title; final String subtitle; final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -165,6 +171,8 @@ class _ProfileTile extends StatelessWidget {
         leading: Icon(icon, color: AppColors.secondary, size: 22),
         title: Text(title, style: AppTextStyles.labelCaps),
         subtitle: Text(subtitle, style: AppTextStyles.bodyLg),
+        trailing: onTap != null ? const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant) : null,
+        onTap: onTap,
       ),
     );
   }

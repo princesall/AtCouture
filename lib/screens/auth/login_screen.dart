@@ -340,6 +340,15 @@ class _LoginCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () => context.push('/suivi'),
+                    icon: const Icon(Icons.receipt_long_outlined, size: 16),
+                    label: const Text('Suivre une commande sans compte'),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.onSurfaceVariant),
+                  ),
+                ),
               ],
             ),
           ),

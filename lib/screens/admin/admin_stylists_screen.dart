@@ -372,8 +372,9 @@ class _StylistCardState extends State<_StylistCard> {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () {
-              AdminDemoData.toggleActive(widget.entry.user.id);
+            onPressed: () async {
+              await AdminDemoData.toggleActive(widget.entry.user.id);
+              if (!mounted) return;
               setState(() => _isActive = !_isActive);
             },
             icon: Icon(_isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded, size: 16),
@@ -520,8 +521,9 @@ class _PlanChangeSheetState extends State<_PlanChangeSheet> {
         )),
         const SizedBox(height: 12),
         SizedBox(width: double.infinity, child: ElevatedButton(
-          onPressed: _selected == null ? null : () {
-            AdminDemoData.applyManualPlanChange(widget.entry.user.id, _selected!);
+          onPressed: _selected == null ? null : () async {
+            await AdminDemoData.applyManualPlanChange(widget.entry.user.id, _selected!);
+            if (!mounted) return;
             setState(() => _done = true);
           },
           style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, disabledBackgroundColor: AppColors.surfaceContainerHigh, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
