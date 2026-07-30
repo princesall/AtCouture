@@ -6,11 +6,13 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/measurement_field_prompt.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../models/client.dart';
 import '../../models/order.dart';
 import '../../models/order_status.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/measurement_fields_service.dart';
 import '../../services/order_service.dart';
 
 class StylistClientsScreen extends StatefulWidget {
@@ -478,50 +480,97 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
   };
 
   late Map<String, double> _measurements = Map.of(widget.client.savedMeasurements ?? {});
+  late List<MeasurementSnapshot> _history = List.of(widget.client.measurementHistory);
+  bool _showHistory = false;
 
   void _editMeasurements() {
-    final controllers = {
+    final atelierId = widget.client.atelierId;
+
+    // Champs personnalisés déjà définis pour l'atelier, plus tout label déjà
+    // présent sur ce client mais pas encore connu de l'atelier (cas rare :
+    // mesure ajoutée avant que ce compte n'ait rechargé la liste).
+    final customLabels = List<String>.of(MeasurementFieldsService.instance.customFieldsFor(atelierId));
+    for (final key in _measurements.keys) {
+      if (!_labels.containsKey(key) && !customLabels.contains(key)) {
+        customLabels.add(key);
+      }
+    }
+
+    final controllers = <String, TextEditingController>{
       for (final key in _labels.keys)
         key: TextEditingController(text: _measurements[key]?.toString() ?? ''),
+      for (final label in customLabels)
+        label: TextEditingController(text: _measurements[label]?.toString() ?? ''),
     };
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Mesures du client'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final entry in _labels.entries)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: TextField(
-                    controller: controllers[entry.key],
-                    decoration: InputDecoration(labelText: '${entry.value} (cm)', suffixText: 'cm'),
-                    keyboardType: TextInputType.number,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Mesures du client'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final entry in _labels.entries)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: TextField(
+                      controller: controllers[entry.key],
+                      decoration: InputDecoration(labelText: '${entry.value} (cm)', suffixText: 'cm'),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                for (final label in customLabels)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: TextField(
+                      controller: controllers[label],
+                      decoration: InputDecoration(labelText: '$label (cm)', suffixText: 'cm'),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      final label = await promptCustomMeasurementLabel(context);
+                      if (label == null || controllers.containsKey(label)) return;
+                      await MeasurementFieldsService.instance.addCustomField(atelierId, label);
+                      setDialogState(() {
+                        customLabels.add(label);
+                        controllers[label] = TextEditingController();
+                      });
+                    },
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Ajouter une mesure'),
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: () async {
+                final updated = <String, double>{};
+                for (final key in controllers.keys) {
+                  final text = controllers[key]!.text.trim();
+                  if (text.isNotEmpty) updated[key] = double.tryParse(text) ?? 0;
+                }
+                await OrderService.instance.updateClientMeasurements(widget.client.id, updated);
+                final refreshed = OrderService.instance.clientById(widget.client.id);
+                setState(() {
+                  _measurements = Map.of(refreshed?.savedMeasurements ?? {..._measurements, ...updated});
+                  _history = List.of(refreshed?.measurementHistory ?? _history);
+                });
+                if (!context.mounted) return;
+                Navigator.pop(context);
+              },
+              child: const Text('Enregistrer'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () async {
-              final updated = <String, double>{};
-              for (final key in _labels.keys) {
-                final text = controllers[key]!.text.trim();
-                if (text.isNotEmpty) updated[key] = double.tryParse(text) ?? 0;
-              }
-              await OrderService.instance.updateClientMeasurements(widget.client.id, updated);
-              setState(() => _measurements = {..._measurements, ...updated});
-              if (!context.mounted) return;
-              Navigator.pop(context);
-            },
-            child: const Text('Enregistrer'),
-          ),
-        ],
       ),
     );
   }
@@ -564,6 +613,62 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                 );
               }).toList(),
             ),
+          if (_history.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            InkWell(
+              onTap: () => setState(() => _showHistory = !_showHistory),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _showHistory ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                    size: 16,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Historique des mesures (${_history.length})',
+                    style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+            if (_showHistory)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final snapshot in _history.reversed)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              Formatters.dateTime.format(snapshot.recordedAt),
+                              style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: 4),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: snapshot.measurements.entries.map((e) {
+                                return Chip(
+                                  label: Text('${_labels[e.key] ?? e.key} : ${e.value}cm', style: AppTextStyles.labelXs),
+                                  backgroundColor: AppColors.surfaceContainerHigh,
+                                  visualDensity: VisualDensity.compact,
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
         ],
       ),
     );

@@ -20,6 +20,7 @@ class Order extends Equatable {
     this.deposit,
     this.dueDate,
     this.createdAt,
+    this.statusHistory = const [],
   });
 
   final String id;
@@ -45,6 +46,11 @@ class Order extends Equatable {
   final int? deposit;
   final DateTime? dueDate;
   final DateTime? createdAt;
+
+  // Historique des changements de statut (quand + par qui) — voir
+  // OrderStatusChange. Le premier élément correspond à la création de la
+  // commande (statut "pending").
+  final List<OrderStatusChange> statusHistory;
 
   String get statusLabel {
     switch (status) {
@@ -77,6 +83,8 @@ class Order extends Equatable {
     int? deposit,
     DateTime? dueDate,
     DateTime? createdAt,
+    List<OrderStatusChange>? statusHistory,
+    bool clearTailor = false,
   }) {
     return Order(
       id: id ?? this.id,
@@ -84,7 +92,7 @@ class Order extends Equatable {
       clientPhone: clientPhone ?? this.clientPhone,
       clientEmail: clientEmail ?? this.clientEmail,
       clientId: clientId ?? this.clientId,
-      tailorId: tailorId ?? this.tailorId,
+      tailorId: clearTailor ? null : (tailorId ?? this.tailorId),
       atelierId: atelierId ?? this.atelierId,
       atelierName: atelierName ?? this.atelierName,
       status: status ?? this.status,
@@ -96,6 +104,7 @@ class Order extends Equatable {
       deposit: deposit ?? this.deposit,
       dueDate: dueDate ?? this.dueDate,
       createdAt: createdAt ?? this.createdAt,
+      statusHistory: statusHistory ?? this.statusHistory,
     );
   }
 
@@ -123,6 +132,10 @@ class Order extends Equatable {
       deposit: map['deposit'] as int?,
       dueDate: map['dueDate'] != null ? DateTime.tryParse(map['dueDate'] as String) : null,
       createdAt: map['createdAt'] != null ? DateTime.tryParse(map['createdAt'] as String) : null,
+      statusHistory: (map['statusHistory'] as List?)
+              ?.map((e) => OrderStatusChange.fromMap(Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          const [],
     );
   }
 
@@ -144,6 +157,7 @@ class Order extends Equatable {
       'deposit': deposit,
       'dueDate': dueDate?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),
+      'statusHistory': statusHistory.map((e) => e.toMap()).toList(),
     };
   }
 

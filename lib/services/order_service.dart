@@ -24,6 +24,15 @@ class OrderService {
   String _nextOrderId() => 'order_${_orderIdCounter++}';
   String _nextClientId() => 'client_${_clientIdCounter++}';
 
+  bool _measurementsEqual(Map<String, double>? a, Map<String, double>? b) {
+    if (a == null || b == null) return a == b;
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      if (b[entry.key] != entry.value) return false;
+    }
+    return true;
+  }
+
   // ── Lectures ──────────────────────────────────────────────────────────────
 
   /// Toutes les commandes d'un atelier
@@ -126,6 +135,7 @@ class OrderService {
     int? price,
     int? deposit,
     DateTime? dueDate,
+    String? createdByName,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 400));
 
@@ -181,21 +191,40 @@ class OrderService {
       deposit: deposit,
       dueDate: dueDate,
       createdAt: now,
+      statusHistory: [
+        OrderStatusChange(
+          status: OrderStatus.pending,
+          changedAt: now,
+          changedByName: createdByName ?? 'Styliste',
+        ),
+      ],
     );
     _orders.add(order);
 
     // 4. Mettre à jour le client (ajouter l'ID de commande, incrémenter les
     // stats, et mémoriser les mesures prises pour pouvoir les réutiliser
-    // automatiquement à la prochaine commande de ce client).
+    // automatiquement à la prochaine commande de ce client, avec un
+    // historique horodaté si les mesures ont réellement changé).
     final clientIndex = _clients.indexWhere((c) => c.id == client?.id);
     if (clientIndex != -1) {
+      final hasNewMeasurements = measurements != null && measurements.isNotEmpty;
+      final mergedMeasurements = hasNewMeasurements
+          ? {...?client.savedMeasurements, ...measurements}
+          : client.savedMeasurements;
+      final measurementsChanged =
+          hasNewMeasurements && !_measurementsEqual(client.savedMeasurements, mergedMeasurements);
+
       final updatedClient = client.copyWith(
         orderIds: [...client.orderIds, orderId],
         orderCount: client.orderCount + 1,
         totalSpent: client.totalSpent + (price ?? 0),
-        savedMeasurements: measurements != null && measurements.isNotEmpty
-            ? {...?client.savedMeasurements, ...measurements}
-            : client.savedMeasurements,
+        savedMeasurements: mergedMeasurements,
+        measurementHistory: measurementsChanged
+            ? [
+                ...client.measurementHistory,
+                MeasurementSnapshot(measurements: mergedMeasurements!, recordedAt: now),
+              ]
+            : client.measurementHistory,
       );
       _clients[clientIndex] = updatedClient;
     }
@@ -212,8 +241,17 @@ class OrderService {
     if (index == -1) return;
 
     final client = _clients[index];
+    final merged = {...?client.savedMeasurements, ...measurements};
+    final changed = !_measurementsEqual(client.savedMeasurements, merged);
+
     _clients[index] = client.copyWith(
-      savedMeasurements: {...?client.savedMeasurements, ...measurements},
+      savedMeasurements: merged,
+      measurementHistory: changed
+          ? [
+              ...client.measurementHistory,
+              MeasurementSnapshot(measurements: merged, recordedAt: DateTime.now()),
+            ]
+          : client.measurementHistory,
     );
   }
 
@@ -246,15 +284,41 @@ class OrderService {
     return client;
   }
 
-  /// Met à jour le statut d'une commande
-  Future<void> updateOrderStatus(String orderId, OrderStatus newStatus) async {
+  /// Met à jour le statut d'une commande, en traçant qui a fait le
+  /// changement et quand (voir Order.statusHistory) — utile pour mesurer les
+  /// délais réels de production et arbitrer les litiges.
+  Future<void> updateOrderStatus(
+    String orderId,
+    OrderStatus newStatus, {
+    required String changedByName,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final index = _orders.indexWhere((o) => o.id == orderId);
     if (index == -1) return;
 
     final order = _orders[index];
-    _orders[index] = order.copyWith(status: newStatus);
+    _orders[index] = order.copyWith(
+      status: newStatus,
+      statusHistory: [
+        ...order.statusHistory,
+        OrderStatusChange(status: newStatus, changedAt: DateTime.now(), changedByName: changedByName),
+      ],
+    );
+  }
+
+  /// Assigne (ou réassigne) le couturier en charge d'une commande —
+  /// utilisable à tout moment depuis le détail de la commande, pas
+  /// seulement à la création. Passer `tailorId: null` retire l'assignation
+  /// actuelle (commande "non assignée").
+  Future<void> assignTailor(String orderId, String? tailorId) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    final index = _orders.indexWhere((o) => o.id == orderId);
+    if (index == -1) return;
+
+    final order = _orders[index];
+    _orders[index] = order.copyWith(tailorId: tailorId, clearTailor: tailorId == null);
   }
 
   /// Met à jour les détails d'une commande

@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/measurement_field_prompt.dart';
 import '../../core/utils/order_messages.dart';
 import '../../core/utils/order_pdf.dart';
 import '../../core/utils/plan_guard.dart';
@@ -19,6 +20,7 @@ import '../../models/order.dart';
 import '../../models/order_status.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
+import '../../services/measurement_fields_service.dart';
 import '../../services/order_service.dart';
 
 class StylistOrdersScreen extends StatefulWidget {
@@ -82,6 +84,15 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
     final tailleController = TextEditingController();
     final hancheController = TextEditingController();
     final longueurController = TextEditingController();
+    const standardMeasurementKeys = {'epaule', 'poitrine', 'taille', 'hanche', 'longueur'};
+
+    // Mesures personnalisées propres à l'atelier (ex: "Tour de bras"),
+    // ajoutées à la volée par n'importe quel styliste puis réutilisées pour
+    // tous les clients suivants — voir MeasurementFieldsService.
+    final customMeasurementControllers = <String, TextEditingController>{
+      for (final label in MeasurementFieldsService.instance.customFieldsFor(user.atelierId!))
+        label: TextEditingController(),
+    };
 
     showDialog(
       context: context,
@@ -156,6 +167,14 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                               if (saved['taille'] != null) tailleController.text = saved['taille'].toString();
                               if (saved['hanche'] != null) hancheController.text = saved['hanche'].toString();
                               if (saved['longueur'] != null) longueurController.text = saved['longueur'].toString();
+                              // Mesures personnalisées déjà enregistrées pour ce client.
+                              for (final entry in saved.entries) {
+                                if (!standardMeasurementKeys.contains(entry.key)) {
+                                  customMeasurementControllers
+                                      .putIfAbsent(entry.key, () => TextEditingController())
+                                      .text = entry.value.toString();
+                                }
+                              }
                             }
                           });
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -303,6 +322,33 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                         suffixText: 'cm',
                       ),
                       keyboardType: TextInputType.number,
+                    ),
+                    for (final entry in customMeasurementControllers.entries) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      TextField(
+                        controller: entry.value,
+                        decoration: InputDecoration(
+                          labelText: '${entry.key} (cm)',
+                          suffixText: 'cm',
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.sm),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () async {
+                          final label = await promptCustomMeasurementLabel(context);
+                          if (label == null || customMeasurementControllers.containsKey(label)) return;
+                          await MeasurementFieldsService.instance.addCustomField(user.atelierId!, label);
+                          setDialogState(() {
+                            customMeasurementControllers[label] = TextEditingController();
+                          });
+                        },
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Ajouter une mesure'),
+                      ),
                     ),
                   ],
 
@@ -455,6 +501,14 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                                 measurements['longueur'] = double.tryParse(longueurController.text) ?? 0;
                               }
                             }
+                            if (permissions.hasSavedMeasurements) {
+                              for (final entry in customMeasurementControllers.entries) {
+                                if (entry.value.text.isNotEmpty) {
+                                  measurements ??= {};
+                                  measurements[entry.key] = double.tryParse(entry.value.text) ?? 0;
+                                }
+                              }
+                            }
                             
                             // Parser la date
                             DateTime? dueDate;
@@ -494,6 +548,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                                   ? null
                                   : int.tryParse(depositController.text.trim()),
                               dueDate: dueDate,
+                              createdByName: user.fullName,
                             );
 
                             if (!context.mounted) return;
@@ -644,7 +699,12 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                             }).toList(),
                             onChanged: (newStatus) async {
                               if (newStatus != null) {
-                                await OrderService.instance.updateOrderStatus(order.id, newStatus);
+                                final changedBy = context.read<AuthProvider>().user!.fullName;
+                                await OrderService.instance.updateOrderStatus(
+                                  order.id,
+                                  newStatus,
+                                  changedByName: changedBy,
+                                );
                                 if (!context.mounted) return;
                                 Navigator.pop(context);
                                 setState(() {});
@@ -654,7 +714,86 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                         ],
                       ),
                     ),
-                    
+
+                    // Couturier — assignable ou réassignable à tout moment,
+                    // pas seulement à la création de la commande.
+                    _Section(
+                      title: 'Couturier',
+                      child: Builder(builder: (context) {
+                        final tailors = CompanyService.instance.tailorsOfAtelier(order.atelierId);
+                        final currentTailor = tailors.where((t) => t.id == order.tailorId).firstOrNull;
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                currentTailor?.fullName ?? 'Non assigné',
+                                style: AppTextStyles.bodySm.copyWith(
+                                  color: currentTailor == null ? AppColors.onSurfaceVariant : null,
+                                ),
+                              ),
+                            ),
+                            DropdownButton<String?>(
+                              value: currentTailor?.id,
+                              hint: const Text('Assigner'),
+                              items: [
+                                const DropdownMenuItem<String?>(value: null, child: Text('Aucun')),
+                                ...tailors.map((t) => DropdownMenuItem<String?>(value: t.id, child: Text(t.fullName))),
+                              ],
+                              onChanged: (tailorId) async {
+                                await OrderService.instance.assignTailor(order.id, tailorId);
+                                if (!context.mounted) return;
+                                Navigator.pop(context);
+                                setState(() {});
+                              },
+                            ),
+                          ],
+                        );
+                      }),
+                    ),
+
+                    // Historique du statut — quand et par qui, utile pour
+                    // mesurer les délais réels et arbitrer les litiges.
+                    if (order.statusHistory.isNotEmpty)
+                      _Section(
+                        title: 'Historique du statut',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final change in order.statusHistory.reversed)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      margin: const EdgeInsets.only(top: 4),
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: _getStatusColor(change.status),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(change.status.label, style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w600)),
+                                          Text(
+                                            '${Formatters.dateTime.format(change.changedAt)} — ${change.changedByName}',
+                                            style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+
                     // Mesures
                     if (order.measurements != null && order.measurements!.isNotEmpty)
                       _Section(

@@ -1,5 +1,33 @@
 import 'package:equatable/equatable.dart';
 
+/// Une prise de mesures horodatée — permet de suivre l'évolution physique
+/// d'un client dans le temps (ex: après une grossesse, une perte de poids...)
+/// plutôt que de n'avoir que la dernière valeur connue.
+class MeasurementSnapshot extends Equatable {
+  const MeasurementSnapshot({
+    required this.measurements,
+    required this.recordedAt,
+  });
+
+  final Map<String, double> measurements;
+  final DateTime recordedAt;
+
+  Map<String, dynamic> toMap() => {
+        'measurements': measurements,
+        'recordedAt': recordedAt.toIso8601String(),
+      };
+
+  factory MeasurementSnapshot.fromMap(Map<String, dynamic> map) => MeasurementSnapshot(
+        measurements: (map['measurements'] as Map).map(
+          (key, value) => MapEntry(key as String, (value as num).toDouble()),
+        ),
+        recordedAt: DateTime.parse(map['recordedAt'] as String),
+      );
+
+  @override
+  List<Object?> get props => [measurements, recordedAt];
+}
+
 class Client extends Equatable {
   const Client({
     required this.id,
@@ -13,6 +41,7 @@ class Client extends Equatable {
     this.totalSpent = 0,
     this.orderIds = const [],
     this.savedMeasurements,
+    this.measurementHistory = const [],
     this.createdAt,
   });
 
@@ -29,6 +58,8 @@ class Client extends Equatable {
   // Dernières mesures connues du client, réutilisées pour pré-remplir une
   // nouvelle commande sans avoir à re-mesurer un client déjà connu.
   final Map<String, double>? savedMeasurements;
+  // Historique complet des prises de mesures, la plus récente en dernier.
+  final List<MeasurementSnapshot> measurementHistory;
   final DateTime? createdAt;
 
   String get initials {
@@ -49,6 +80,7 @@ class Client extends Equatable {
     int? totalSpent,
     List<String>? orderIds,
     Map<String, double>? savedMeasurements,
+    List<MeasurementSnapshot>? measurementHistory,
     DateTime? createdAt,
   }) {
     return Client(
@@ -63,6 +95,7 @@ class Client extends Equatable {
       totalSpent: totalSpent ?? this.totalSpent,
       orderIds: orderIds ?? this.orderIds,
       savedMeasurements: savedMeasurements ?? this.savedMeasurements,
+      measurementHistory: measurementHistory ?? this.measurementHistory,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -82,6 +115,10 @@ class Client extends Equatable {
       savedMeasurements: (map['savedMeasurements'] as Map?)?.map(
         (key, value) => MapEntry(key as String, (value as num).toDouble()),
       ),
+      measurementHistory: (map['measurementHistory'] as List?)
+              ?.map((e) => MeasurementSnapshot.fromMap(Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          const [],
       createdAt: map['createdAt'] != null ? DateTime.tryParse(map['createdAt'] as String) : null,
     );
   }
@@ -98,6 +135,7 @@ class Client extends Equatable {
       'totalSpent': totalSpent,
       'orderIds': orderIds,
       'savedMeasurements': savedMeasurements,
+      'measurementHistory': measurementHistory.map((e) => e.toMap()).toList(),
       'createdAt': createdAt?.toIso8601String(),
     };
   }

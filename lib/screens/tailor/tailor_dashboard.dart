@@ -260,9 +260,50 @@ class _TailorDashboardState extends State<TailorDashboard> {
   }
 
   Future<void> _updateStatus(Order order, OrderStatus status) async {
-    await OrderService.instance.updateOrderStatus(order.id, status);
+    final changedBy = context.read<AuthProvider>().user!.fullName;
+    await OrderService.instance.updateOrderStatus(order.id, status, changedByName: changedBy);
     if (!mounted) return;
     setState(() {});
+  }
+
+  void _showStatusHistory(Order order) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Historique du statut'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final change in order.statusHistory.reversed)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        StatusBadge(change.status),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            '${Formatters.dateTime.format(change.changedAt)} — ${change.changedByName}',
+                            style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
+        ],
+      ),
+    );
   }
 
   Widget _buildExpandedPanel(Order order) {
@@ -342,6 +383,25 @@ class _TailorDashboardState extends State<TailorDashboard> {
               ),
             ],
           ),
+          if (order.statusHistory.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: () => _showStatusHistory(order),
+              child: Row(
+                children: [
+                  Icon(Icons.history_rounded, size: 14, color: AppColors.onSurfaceVariant),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Dernière mise à jour : ${Formatters.dateTime.format(order.statusHistory.last.changedAt)} par ${order.statusHistory.last.changedByName}',
+                      style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
