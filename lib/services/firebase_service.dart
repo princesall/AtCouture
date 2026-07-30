@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
@@ -17,6 +19,20 @@ class FirebaseService {
       _initialized = true;
       if (kDebugMode) {
         debugPrint('⚠ Mode démo Web — Firebase non configuré');
+      }
+      return false;
+    }
+
+    // Aucun GoogleService-Info.plist n'est fourni pour l'instant. Sur iOS,
+    // contrairement à Android, Firebase.initializeApp() sans ce fichier fait
+    // planter l'app nativement au lancement au lieu de lever une exception
+    // Dart récupérable par le catch ci-dessous. À retirer une fois un vrai
+    // projet Firebase configuré pour iOS.
+    if (Platform.isIOS) {
+      _available = false;
+      _initialized = true;
+      if (kDebugMode) {
+        debugPrint('⚠ Mode démo iOS — Firebase non configuré');
       }
       return false;
     }
