@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/widgets/common_widgets.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
 import '../../services/order_service.dart';
@@ -254,6 +255,7 @@ class _CreateAtelierSheetState extends State<_CreateAtelierSheet> {
   final _phone = TextEditingController();
   final _address = TextEditingController();
   bool _created = false;
+  String _temporaryPassword = '';
 
   @override
   void dispose() {
@@ -263,7 +265,7 @@ class _CreateAtelierSheetState extends State<_CreateAtelierSheet> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    await CompanyService.instance.createAtelierHead(
+    final result = await CompanyService.instance.createAtelierHead(
       companyId: widget.companyId,
       fullName: _headName.text,
       email: _email.text,
@@ -272,28 +274,19 @@ class _CreateAtelierSheetState extends State<_CreateAtelierSheet> {
       address: _address.text.isEmpty ? null : _address.text,
     );
     if (!mounted) return;
-    setState(() => _created = true);
+    setState(() {
+      _created = true;
+      _temporaryPassword = result.temporaryPassword;
+    });
     widget.onCreated();
   }
 
   @override
   Widget build(BuildContext context) {
     if (_created) {
-      return Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.check_circle_rounded, color: AppColors.statusDone, size: 56),
-          const SizedBox(height: 16),
-          Text('Atelier créé !', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
-          const SizedBox(height: 8),
-          Text('${_headName.text} peut maintenant se connecter avec :\n${_email.text}\nMot de passe initial : bienvenue123', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant), textAlign: TextAlign.center),
-          const SizedBox(height: 24),
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
-            child: Text('FERMER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary)),
-          )),
-        ]),
+      return SuccessConfirmationSheet(
+        title: 'Atelier créé !',
+        message: '${_headName.text} peut maintenant se connecter avec :\n${_email.text}\nMot de passe temporaire : $_temporaryPassword',
       );
     }
 
@@ -338,6 +331,7 @@ class _CreateTailorSheetState extends State<_CreateTailorSheet> {
   final _email = TextEditingController();
   final _phone = TextEditingController();
   bool _created = false;
+  String _temporaryPassword = '';
 
   @override
   void dispose() {
@@ -347,7 +341,7 @@ class _CreateTailorSheetState extends State<_CreateTailorSheet> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    await CompanyService.instance.createTailor(
+    final result = await CompanyService.instance.createTailor(
       atelierId: widget.atelierId,
       atelierName: widget.atelierName,
       fullName: _fullName.text,
@@ -355,28 +349,19 @@ class _CreateTailorSheetState extends State<_CreateTailorSheet> {
       phone: _phone.text,
     );
     if (!mounted) return;
-    setState(() => _created = true);
+    setState(() {
+      _created = true;
+      _temporaryPassword = result.temporaryPassword;
+    });
     widget.onCreated();
   }
 
   @override
   Widget build(BuildContext context) {
     if (_created) {
-      return Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.check_circle_rounded, color: AppColors.statusDone, size: 56),
-          const SizedBox(height: 16),
-          Text('Couturier ajouté !', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
-          const SizedBox(height: 8),
-          Text('${_fullName.text} peut se connecter avec :\n${_email.text}\nMot de passe initial : bienvenue123', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant), textAlign: TextAlign.center),
-          const SizedBox(height: 24),
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
-            child: Text('FERMER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary)),
-          )),
-        ]),
+      return SuccessConfirmationSheet(
+        title: 'Couturier ajouté !',
+        message: '${_fullName.text} peut se connecter avec :\n${_email.text}\nMot de passe temporaire : $_temporaryPassword',
       );
     }
 

@@ -4,6 +4,7 @@ import '../models/client.dart';
 import '../models/order.dart';
 import '../models/subscription_plan.dart';
 import '../models/user_role.dart';
+import 'auth_service.dart';
 import 'order_service.dart';
 
 /// Service simulant la base de données hiérarchique Entreprise → Ateliers → Couturiers.
@@ -173,7 +174,7 @@ class CompanyService {
 
   /// Crée un nouveau Chef d'atelier + son Atelier, rattachés à l'Entreprise.
   /// Réservé au Chef d'Entreprise (vérifié côté UI ET règles serveur).
-  Future<AppUser> createAtelierHead({
+  Future<({AppUser user, String temporaryPassword})> createAtelierHead({
     required String companyId,
     required String fullName,
     required String email,
@@ -221,14 +222,15 @@ class CompanyService {
       );
     }
 
-    return newHead;
+    final temporaryPassword = AuthService.generateTemporaryPassword(newHead.email);
+    return (user: newHead, temporaryPassword: temporaryPassword);
   }
 
   /// Crée un nouveau Couturier rattaché à un atelier précis. Peut être
   /// appelé par : le Chef d'atelier (pour son propre atelier), ou le Chef
   /// d'Entreprise (pour n'importe quel atelier de son Entreprise, y compris
   /// le sien propre).
-  Future<AppUser> createTailor({
+  Future<({AppUser user, String temporaryPassword})> createTailor({
     required String atelierId,
     required String atelierName,
     required String fullName,
@@ -261,7 +263,8 @@ class CompanyService {
       );
     }
 
-    return newTailor;
+    final temporaryPassword = AuthService.generateTemporaryPassword(newTailor.email);
+    return (user: newTailor, temporaryPassword: temporaryPassword);
   }
 
   Future<void> removeAtelierHead(String headId) async {

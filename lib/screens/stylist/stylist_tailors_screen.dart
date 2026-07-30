@@ -100,7 +100,7 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                 return;
               }
 
-              final newTailor = await CompanyService.instance.createTailor(
+              final result = await CompanyService.instance.createTailor(
                 atelierId: user.atelierId!,
                 atelierName: user.atelierName!,
                 fullName: nameController.text.trim(),
@@ -109,6 +109,7 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                     : emailController.text.trim(),
                 phone: phoneController.text.trim(),
               );
+              final newTailor = result.user;
 
               if (!context.mounted) return;
               Navigator.pop(context);
@@ -129,7 +130,7 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                       const SizedBox(height: 8),
                       Text('Email: ${newTailor.email}'),
                       const SizedBox(height: 8),
-                      Text('Mot de passe temporaire: bienvenue123'),
+                      Text('Mot de passe temporaire: ${result.temporaryPassword}'),
                     ],
                   ),
                   actions: [

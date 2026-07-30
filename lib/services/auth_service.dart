@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../models/app_user.dart';
 import '../data/admin_demo_data.dart';
 import '../models/subscription_plan.dart';
@@ -42,8 +44,8 @@ class AuthService {
       throw AuthException('Email ou mot de passe incorrect');
     }
 
-    final expectedPassword = _demoPasswords[user.email.toLowerCase()] ?? _defaultCreatedAccountPassword;
-    if (expectedPassword != password) {
+    final expectedPassword = _demoPasswords[user.email.toLowerCase()];
+    if (expectedPassword == null || expectedPassword != password) {
       throw AuthException('Email ou mot de passe incorrect');
     }
 
@@ -145,11 +147,19 @@ class AuthService {
   /// pour un compte donné durant la session démo.
   static final Set<String> _expirationNotified = {};
 
-  /// Mot de passe par défaut pour tout compte créé par un Chef d'Entreprise
-  /// (Chef d'atelier ou Couturier) qui n'a pas encore changé son mot de
-  /// passe initial. En production, ce serait un mot de passe temporaire
-  /// envoyé par SMS/email avec obligation de le changer à la 1ère connexion.
-  static const String _defaultCreatedAccountPassword = 'bienvenue123';
+  /// Génère un mot de passe temporaire unique et imprévisible pour un compte
+  /// créé par un Chef d'Entreprise (Chef d'atelier ou Couturier), et
+  /// l'enregistre immédiatement pour cet email. En production, ce mot de
+  /// passe serait envoyé par SMS/email avec obligation de le changer à la
+  /// 1ère connexion ; ici il est simplement affiché une fois à l'écran par
+  /// l'appelant.
+  static String generateTemporaryPassword(String email) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    final random = Random.secure();
+    final password = List.generate(10, (_) => chars[random.nextInt(chars.length)]).join();
+    _demoPasswords[email.trim().toLowerCase()] = password;
+    return password;
+  }
 
   static final Map<String, String> _demoPasswords = {
     'admin@styleconnect.ml': 'admin123',
