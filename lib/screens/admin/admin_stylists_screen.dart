@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/widgets/common_widgets.dart';
 import '../../data/admin_demo_data.dart';
 import '../../models/subscription_plan.dart';
 import '../../services/subscription_service.dart';
@@ -472,21 +473,9 @@ class _PlanChangeSheetState extends State<_PlanChangeSheet> {
   @override
   Widget build(BuildContext context) {
     if (_done) {
-      return Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.check_circle_rounded, color: AppColors.statusDone, size: 56),
-          const SizedBox(height: 16),
-          Text('Plan mis à jour !', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
-          const SizedBox(height: 8),
-          Text('${widget.entry.user.fullName} est maintenant sur le plan ${_selected!.name}', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant), textAlign: TextAlign.center),
-          const SizedBox(height: 24),
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
-            child: Text('FERMER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary)),
-          )),
-        ]),
+      return SuccessConfirmationSheet(
+        title: 'Plan mis à jour !',
+        message: '${widget.entry.user.fullName} est maintenant sur le plan ${_selected!.name}',
       );
     }
     return Padding(

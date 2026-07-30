@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/widgets/common_widgets.dart';
 import '../../models/client.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
@@ -225,22 +226,10 @@ class _AddClientSheetState extends State<_AddClientSheet> {
   @override
   Widget build(BuildContext context) {
     if (_added) {
-      return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.check_circle_rounded, color: AppColors.statusDone, size: 56),
-        const SizedBox(height: 16),
-        Text('Client ajouté !', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
-        const SizedBox(height: 8),
-        Text('${_name.text} a été ajouté à $_selectedAtelierName.', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant), textAlign: TextAlign.center),
-        const SizedBox(height: 24),
-        SizedBox(width: double.infinity, child: ElevatedButton(
-          onPressed: () => Navigator.pop(context),
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
-          child: Text('FERMER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary)),
-        )),
-      ]),
-    );
+      return SuccessConfirmationSheet(
+        title: 'Client ajouté !',
+        message: '${_name.text} a été ajouté à $_selectedAtelierName.',
+      );
     }
 
     return Padding(

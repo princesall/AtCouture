@@ -129,6 +129,42 @@ class PlanBadge extends StatelessWidget {
   }
 }
 
+/// Écran de confirmation après une création/modification réussie dans un
+/// bottom sheet ou un dialog : icône de succès, titre, message, bouton
+/// "FERMER" qui pop la route. Extrait pour remplacer les copier-coller
+/// identiques répétés sur chaque écran de création (atelier, couturier,
+/// client, plan admin...).
+class SuccessConfirmationSheet extends StatelessWidget {
+  const SuccessConfirmationSheet({
+    super.key,
+    required this.title,
+    required this.message,
+  });
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.check_circle_rounded, color: AppColors.statusDone, size: 56),
+        const SizedBox(height: 16),
+        Text(title, style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
+        const SizedBox(height: 8),
+        Text(message, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant), textAlign: TextAlign.center),
+        const SizedBox(height: 24),
+        SizedBox(width: double.infinity, child: ElevatedButton(
+          onPressed: () => Navigator.pop(context),
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
+          child: Text('FERMER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary)),
+        )),
+      ]),
+    );
+  }
+}
+
 class UserAvatar extends StatelessWidget {
   const UserAvatar({
     super.key,
