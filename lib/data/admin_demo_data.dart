@@ -47,25 +47,6 @@ class SubscriptionRequest {
   final bool approved;
 }
 
-class AdminMessage {
-  const AdminMessage({
-    required this.id,
-    required this.senderName,
-    required this.senderRole,
-    required this.content,
-    required this.sentAt,
-    this.isRead = false,
-    this.isReplied = false,
-  });
-  final String id;
-  final String senderName;
-  final String senderRole;
-  final String content;
-  final DateTime sentAt;
-  final bool isRead;
-  final bool isReplied;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Store admin — MUTABLE pour que les actions (Approuver/Refuser/Renouveler)
 // aient un effet réel et persistant sur les comptes durant la session.
@@ -105,29 +86,42 @@ abstract final class AdminDemoData {
   /// Vue en lecture pour l'UI — utilisez les méthodes ci-dessous pour modifier.
   static List<StylistEntry> get stylists => List.unmodifiable(_stylists);
 
-  static final List<AdminMessage> messages = [];
+  /// Retrouve N'IMPORTE QUEL compte de la plateforme par son ID, qu'il
+  /// s'agisse d'un compte "principal" (admin, styliste solo, chef
+  /// d'entreprise) ou d'un compte créé par un chef d'entreprise (chef
+  /// d'atelier, couturier). Utilisé par l'écran Messages admin pour afficher
+  /// le contexte complet du compte à côté d'un signalement.
+  static AppUser? findAnyUserById(String userId) =>
+      AuthService.findById(userId) ?? CompanyService.instance.findAccountById(userId);
 
   /// Un compte "Entreprise" (companyOwner) agrège l'activité de TOUS ses
   /// ateliers (via CompanyService.companyStats) ; un compte solo n'a que le
-  /// sien (via son atelierId). Les 3 helpers ci-dessous appliquent cette
+  /// sien (via son atelierId). Les helpers ci-dessous appliquent cette
   /// règle de façon cohérente pour un styliste donné.
-  static ({int tailors, int orders, int revenue}) _statsFor(AppUser user) {
+  static ({int tailors, int orders, int clients, int revenue}) _statsFor(AppUser user) {
     final companyId = user.companyId;
     if (user.role == UserRole.companyOwner && companyId != null) {
       final stats = CompanyService.instance.companyStats(companyId);
-      return (tailors: stats.totalTailors, orders: stats.totalOrders, revenue: stats.totalRevenue);
+      return (
+        tailors: stats.totalTailors,
+        orders: stats.totalOrders,
+        clients: stats.totalClients,
+        revenue: stats.totalRevenue,
+      );
     }
     final atelierId = user.atelierId;
-    if (atelierId == null) return (tailors: 0, orders: 0, revenue: 0);
+    if (atelierId == null) return (tailors: 0, orders: 0, clients: 0, revenue: 0);
     return (
       tailors: CompanyService.instance.tailorsOfAtelier(atelierId).length,
       orders: OrderService.instance.ordersOfAtelier(atelierId).length,
+      clients: OrderService.instance.clientsOfAtelier(atelierId).length,
       revenue: OrderService.instance.atelierRevenue(atelierId),
     );
   }
 
   static int getStylistTailorCount(AppUser user) => _statsFor(user).tailors;
   static int getStylistOrderCount(AppUser user) => _statsFor(user).orders;
+  static int getStylistClientCount(AppUser user) => _statsFor(user).clients;
   static int getStylistRevenue(AppUser user) => _statsFor(user).revenue;
 
   // KPIs globaux - Calculés dynamiquement à partir des vraies données de
@@ -153,8 +147,6 @@ abstract final class AdminDemoData {
 
   static int get pendingRequests =>
       _stylists.where((s) => s.subscriptionRequest != null && !s.subscriptionRequest!.approved).length;
-
-  static const int unreadMessages = 0;
 
   /// Liste de toutes les Entreprises (plan Entreprise) avec leurs ateliers —
   /// permet à l'Admin de visualiser la structure multi-ateliers de chaque compte.

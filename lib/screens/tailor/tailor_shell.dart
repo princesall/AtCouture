@@ -8,6 +8,7 @@ import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/subscription_service.dart';
+import '../shared/contact_support_screen.dart';
 import '../shared/system_notifications_screen.dart';
 import 'tailor_dashboard.dart';
 import 'tailor_measurements_screen.dart';
@@ -167,6 +168,19 @@ class _TailorProfile extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
+            ListTile(
+              leading: const Icon(Icons.support_agent_outlined, color: AppColors.secondary),
+              title: Text(
+                'Signaler un problème',
+                style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurface),
+              ),
+              onTap: () => ContactSupportScreen.show(context),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                side: const BorderSide(color: AppColors.outlineVariant),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
             ListTile(
               leading: const Icon(Icons.logout, color: AppColors.error),
               title: Text(

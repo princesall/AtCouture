@@ -112,6 +112,26 @@ class AuthService {
     return user;
   }
 
+  Future<void> changePassword({
+    required String email,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+
+    final normalizedEmail = email.trim().toLowerCase();
+    final expectedPassword = _demoPasswords[normalizedEmail];
+    if (expectedPassword == null || expectedPassword != currentPassword) {
+      throw AuthException('Mot de passe actuel incorrect');
+    }
+
+    if (newPassword.length < 6) {
+      throw AuthException('Le nouveau mot de passe doit contenir au moins 6 caractères');
+    }
+
+    _demoPasswords[normalizedEmail] = newPassword;
+  }
+
   Future<void> sendPasswordResetEmail(String email) async {
     await Future<void>.delayed(const Duration(milliseconds: 600));
 
@@ -135,6 +155,12 @@ class AuthService {
       _demoUsers[index] = updatedUser;
     }
   }
+
+  /// Retrouve un compte "principal" (admin, styliste solo, chef d'entreprise)
+  /// par son ID — ne couvre PAS les chefs d'atelier / couturiers créés par
+  /// un chef d'entreprise, voir CompanyService.findAccountById pour ceux-là.
+  static AppUser? findById(String userId) =>
+      _demoUsers.where((u) => u.id == userId).firstOrNull;
 
   /// Récupère un utilisateur par son ID (utilisé par AuthProvider pour rafraîchir)
   AppUser? getUserById(String userId) {

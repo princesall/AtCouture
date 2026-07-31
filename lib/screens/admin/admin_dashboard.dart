@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../data/admin_demo_data.dart';
+import '../../models/support_message.dart';
+import '../../services/support_message_service.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key, this.onNavTap, this.onDataChanged});
@@ -27,7 +30,7 @@ class AdminDashboard extends StatelessWidget {
         const SizedBox(height: 16),
         _buildSubscriptionRequests(context),
         const SizedBox(height: 32),
-        _buildSectionTitle('Messages récents', badge: AdminDemoData.unreadMessages),
+        _buildSectionTitle('Messages récents', badge: SupportMessageService.instance.unreadCount),
         const SizedBox(height: 16),
         _buildRecentMessages(context),
         const SizedBox(height: 32),
@@ -127,7 +130,7 @@ class AdminDashboard extends StatelessWidget {
   }
 
   Widget _buildRecentMessages(BuildContext context) {
-    final recent = AdminDemoData.messages.take(3).toList();
+    final recent = SupportMessageService.instance.allMessages.take(3).toList();
     return Column(
       children: recent.map((m) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -155,7 +158,7 @@ class AdminDashboard extends StatelessWidget {
               subtitle: Text(s.user.atelierName ?? '', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
               trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Text(Formatters.formatCurrency(realRevenue), style: AppTextStyles.titleSm.copyWith(color: AppColors.primary, fontSize: 13)),
-                Text('FCFA', style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
+                Text(AppConstants.currency, style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
               ]),
             ),
           ]);
@@ -179,7 +182,7 @@ class _RevenueCard extends StatelessWidget {
         Text('REVENUS', style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.7))),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(Formatters.formatCurrency(revenue), style: AppTextStyles.statNumber.copyWith(color: AppColors.onTertiary, fontSize: 22)),
-          Text('FCFA / mois', style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.7))),
+          Text('${AppConstants.currency} / mois', style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.7))),
         ]),
       ]),
     );
@@ -283,7 +286,7 @@ class _SubscriptionRequestCardState extends State<_SubscriptionRequestCard> {
 // ── Carte message preview ────────────────────────────────────────────────────
 class _MessagePreviewCard extends StatelessWidget {
   const _MessagePreviewCard({required this.message, this.onTap});
-  final AdminMessage message;
+  final SupportMessage message;
   final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) {

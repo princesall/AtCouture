@@ -84,6 +84,44 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  bool _isChangingPassword = false;
+  bool get isChangingPassword => _isChangingPassword;
+
+  /// Change le mot de passe de l'utilisateur connecté. Ne passe PAS par
+  /// _setLoading()/_setError() : ces méthodes changent _status, or
+  /// AppRouter.redirect renvoie vers /auth/login dès que _status n'est plus
+  /// AuthStatus.authenticated — ça déconnecterait l'utilisateur en pleine
+  /// saisie. On garde donc un état de chargement local et indépendant.
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (_user == null) return false;
+    _isChangingPassword = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _authService.changePassword(
+        email: _user!.email,
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      _isChangingPassword = false;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      _isChangingPassword = false;
+      _errorMessage = e.message;
+      notifyListeners();
+      return false;
+    } catch (_) {
+      _isChangingPassword = false;
+      _errorMessage = 'Une erreur est survenue. Réessayez.';
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> resetPassword(String email) async {
     _setLoading();
     try {

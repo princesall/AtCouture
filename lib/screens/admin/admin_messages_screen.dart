@@ -3,7 +3,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/formatters.dart';
 import '../../data/admin_demo_data.dart';
+import '../../models/support_message.dart';
+import '../../services/support_message_service.dart';
 import 'admin_dashboard.dart';
 
 class AdminMessagesScreen extends StatefulWidget {
@@ -13,23 +16,23 @@ class AdminMessagesScreen extends StatefulWidget {
 }
 
 class _AdminMessagesScreenState extends State<AdminMessagesScreen> {
-  AdminMessage? _selected;
-  final Set<String> _readIds = {};
+  SupportMessage? _selected;
 
-  List<AdminMessage> get _messages => AdminDemoData.messages.map((m) {
-    if (_readIds.contains(m.id)) return AdminMessage(id: m.id, senderName: m.senderName, senderRole: m.senderRole, content: m.content, sentAt: m.sentAt, isRead: true, isReplied: m.isReplied);
-    return m;
-  }).toList();
+  List<SupportMessage> get _messages => SupportMessageService.instance.allMessages;
+  int get _unreadCount => SupportMessageService.instance.unreadCount;
 
-  int get _unreadCount => _messages.where((m) => !m.isRead).length;
+  void _openMessage(SupportMessage message) {
+    SupportMessageService.instance.markRead(message.id);
+    setState(() => _selected = message);
+  }
 
   @override
   Widget build(BuildContext context) {
     if (_selected != null) {
       return _MessageDetailScreen(
-      message: _selected!,
-      onBack: () => setState(() { _readIds.add(_selected!.id); _selected = null; }),
-    );
+        message: _selected!,
+        onBack: () => setState(() => _selected = null),
+      );
     }
 
     return Column(children: [
@@ -50,16 +53,24 @@ class _AdminMessagesScreenState extends State<AdminMessagesScreen> {
       ),
       // ── Liste ──────────────────────────────────────────────────────────
       Expanded(
-        child: ListView.separated(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-          itemCount: _messages.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 10),
-          itemBuilder: (_, i) => _MessageCard(
-            message: _messages[i],
-            index: i,
-            onTap: () => setState(() => _selected = _messages[i]),
-          ),
-        ),
+        child: _messages.isEmpty
+            ? Center(
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  const Icon(Icons.forum_outlined, color: AppColors.onSurfaceVariant, size: 48),
+                  const SizedBox(height: 12),
+                  Text('Aucun message', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+                ]),
+              )
+            : ListView.separated(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+                itemCount: _messages.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (_, i) => _MessageCard(
+                  message: _messages[i],
+                  index: i,
+                  onTap: () => _openMessage(_messages[i]),
+                ),
+              ),
       ),
     ]);
   }
@@ -68,7 +79,7 @@ class _AdminMessagesScreenState extends State<AdminMessagesScreen> {
 // ── Carte message ────────────────────────────────────────────────────────────
 class _MessageCard extends StatelessWidget {
   const _MessageCard({required this.message, required this.index, required this.onTap});
-  final AdminMessage message;
+  final SupportMessage message;
   final int index;
   final VoidCallback onTap;
 
@@ -116,10 +127,97 @@ class _MessageCard extends StatelessWidget {
   }
 }
 
+// ── Résumé du compte de l'expéditeur ─────────────────────────────────────────
+// C'est le principe "comme les grosses boîtes" : quand un compte signale un
+// problème, l'admin voit directement son contexte (abonnement, activité)
+// sans avoir à aller chercher ailleurs dans l'app.
+class _SenderAccountSummary extends StatelessWidget {
+  const _SenderAccountSummary({required this.senderId});
+  final String senderId;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = AdminDemoData.findAnyUserById(senderId);
+    if (user == null) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
+        ),
+        child: Row(children: [
+          const Icon(Icons.person_off_outlined, color: AppColors.onSurfaceVariant, size: 18),
+          const SizedBox(width: 8),
+          Expanded(child: Text('Compte introuvable (peut-être supprimé)', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant))),
+        ]),
+      );
+    }
+
+    final orders = AdminDemoData.getStylistOrderCount(user);
+    final clients = AdminDemoData.getStylistClientCount(user);
+    final revenue = AdminDemoData.getStylistRevenue(user);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+        boxShadow: AppColors.softShadow,
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.badge_outlined, color: AppColors.primary, size: 18),
+          const SizedBox(width: 8),
+          Text('COMPTE', style: AppTextStyles.labelCaps.copyWith(color: AppColors.primary, letterSpacing: 1.2)),
+        ]),
+        const SizedBox(height: 10),
+        _SummaryRow(label: 'Nom', value: user.fullName),
+        _SummaryRow(label: 'Email', value: user.email),
+        _SummaryRow(label: 'Téléphone', value: user.phone),
+        _SummaryRow(label: 'Atelier', value: user.atelierName ?? '—'),
+        _SummaryRow(label: 'Abonnement', value: '${user.plan.priceLabel}${user.isActive ? '' : ' — SUSPENDU'}'),
+        const Divider(height: 20),
+        Row(children: [
+          Expanded(child: _MiniStat(label: 'Commandes', value: '$orders')),
+          Expanded(child: _MiniStat(label: 'Clients', value: '$clients')),
+          Expanded(child: _MiniStat(label: 'Revenus', value: Formatters.formatCurrency(revenue))),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({required this.label, required this.value});
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(children: [
+      SizedBox(width: 90, child: Text(label, style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant))),
+      Expanded(child: Text(value, style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w600))),
+    ]),
+  );
+}
+
+class _MiniStat extends StatelessWidget {
+  const _MiniStat({required this.label, required this.value});
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) => Column(children: [
+    Text(value, style: AppTextStyles.titleSm.copyWith(color: AppColors.primary)),
+    Text(label, style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
+  ]);
+}
+
 // ── Détail message + réponse ─────────────────────────────────────────────────
 class _MessageDetailScreen extends StatefulWidget {
   const _MessageDetailScreen({required this.message, required this.onBack});
-  final AdminMessage message;
+  final SupportMessage message;
   final VoidCallback onBack;
   @override
   State<_MessageDetailScreen> createState() => _MessageDetailScreenState();
@@ -127,19 +225,35 @@ class _MessageDetailScreen extends StatefulWidget {
 
 class _MessageDetailScreenState extends State<_MessageDetailScreen> {
   final _replyCtrl = TextEditingController();
-  bool _replySent = false;
+  bool _isSending = false;
+  late SupportMessage _message;
+
+  @override
+  void initState() {
+    super.initState();
+    _message = widget.message;
+  }
 
   @override
   void dispose() { _replyCtrl.dispose(); super.dispose(); }
 
-  void _send() {
-    if (_replyCtrl.text.trim().isEmpty) return;
-    setState(() => _replySent = true);
+  Future<void> _send() async {
+    if (_isSending || _replyCtrl.text.trim().isEmpty) return;
+    setState(() => _isSending = true);
+    await SupportMessageService.instance.reply(
+      messageId: _message.id,
+      replyContent: _replyCtrl.text,
+    );
+    if (!mounted) return;
+    setState(() {
+      _message = _message.copyWith(reply: _replyCtrl.text.trim(), repliedAt: DateTime.now());
+      _isSending = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final m = widget.message;
+    final m = _message;
     return Column(children: [
       // ── Header retour ──────────────────────────────────────────────────
       Container(
@@ -167,6 +281,9 @@ class _MessageDetailScreenState extends State<_MessageDetailScreen> {
       Expanded(child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _SenderAccountSummary(senderId: m.senderId),
+          const SizedBox(height: 20),
+
           // Message original
           Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
             StylistAvatar(name: m.senderName, isOnline: false, size: 32),
@@ -189,8 +306,8 @@ class _MessageDetailScreenState extends State<_MessageDetailScreen> {
 
           const SizedBox(height: 16),
 
-          // Réponse envoyée (si déjà répondu)
-          if (m.isReplied && !_replySent) ...[
+          // Réponse déjà envoyée (persistée — visible par l'expéditeur aussi)
+          if (m.isReplied) ...[
             Row(crossAxisAlignment: CrossAxisAlignment.end, mainAxisAlignment: MainAxisAlignment.end, children: [
               Expanded(child: Container(
                 padding: const EdgeInsets.all(14),
@@ -200,42 +317,22 @@ class _MessageDetailScreenState extends State<_MessageDetailScreen> {
                   borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(4), bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
                 ),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Merci pour votre message. Nous traitons votre demande et reviendrons vers vous sous 24h.', style: AppTextStyles.bodyLg.copyWith(color: Colors.white)),
-                  const SizedBox(height: 8),
-                  Text('Vous (Admin)', style: AppTextStyles.labelXs.copyWith(color: Colors.white.withValues(alpha: 0.6))),
-                ]),
-              )),
-            ]).animate().fadeIn(delay: 200.ms).slideX(begin: 0.05, end: 0),
-          ],
-
-          // Réponse fraîchement envoyée
-          if (_replySent) ...[
-            const SizedBox(height: 8),
-            Row(crossAxisAlignment: CrossAxisAlignment.end, mainAxisAlignment: MainAxisAlignment.end, children: [
-              Expanded(child: Container(
-                padding: const EdgeInsets.all(14),
-                margin: const EdgeInsets.only(left: 48),
-                decoration: BoxDecoration(
-                  gradient: AppColors.heroGradient,
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(4), bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
-                ),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(_replyCtrl.text, style: AppTextStyles.bodyLg.copyWith(color: Colors.white)),
+                  Text(m.reply!, style: AppTextStyles.bodyLg.copyWith(color: Colors.white)),
                   const SizedBox(height: 8),
                   Row(children: [
-                    Text('Vous (Admin) — maintenant', style: AppTextStyles.labelXs.copyWith(color: Colors.white.withValues(alpha: 0.6))),
+                    Text('Vous (Admin)', style: AppTextStyles.labelXs.copyWith(color: Colors.white.withValues(alpha: 0.6))),
                     const Spacer(),
                     const Icon(Icons.done_all_rounded, color: AppColors.tertiaryFixedDim, size: 14),
                   ]),
                 ]),
               )),
-            ]).animate().fadeIn(duration: 300.ms).slideX(begin: 0.05, end: 0),
+            ]).animate().fadeIn(delay: 200.ms).slideX(begin: 0.05, end: 0),
           ],
         ]),
       )),
 
       // ── Zone de réponse ────────────────────────────────────────────────
-      if (!_replySent)
+      if (!m.isReplied)
         Container(
           padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
           decoration: BoxDecoration(
@@ -247,6 +344,7 @@ class _MessageDetailScreenState extends State<_MessageDetailScreen> {
               controller: _replyCtrl,
               maxLines: 3,
               minLines: 1,
+              enabled: !_isSending,
               decoration: InputDecoration(
                 hintText: 'Écrire une réponse...',
                 filled: true,
@@ -259,12 +357,17 @@ class _MessageDetailScreenState extends State<_MessageDetailScreen> {
             )),
             const SizedBox(width: 10),
             GestureDetector(
-              onTap: _send,
+              onTap: _isSending ? null : _send,
               child: Container(
                 width: 46, height: 46,
                 decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(14),
                   boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))]),
-                child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                child: _isSending
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
               ),
             ),
           ]),

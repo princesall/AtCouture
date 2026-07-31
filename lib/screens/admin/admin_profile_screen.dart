@@ -5,6 +5,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../data/admin_demo_data.dart';
 import '../../providers/auth_provider.dart';
+import '../shared/change_password_dialog.dart';
+import '../shared/help_support_screen.dart';
+import '../shared/system_notifications_screen.dart';
 
 class AdminProfileScreen extends StatelessWidget {
   const AdminProfileScreen({super.key});
@@ -84,13 +87,23 @@ class AdminProfileScreen extends StatelessWidget {
         const SizedBox(height: 28),
         _SectionLabel('Paramètres'),
         const SizedBox(height: 12),
-        _SettingsTile(icon: Icons.notifications_outlined, label: 'Notifications', onTap: () {}),
+        _SettingsTile(
+          icon: Icons.notifications_outlined,
+          label: 'Notifications',
+          onTap: () => SystemNotificationsScreen.show(context),
+        ),
         const SizedBox(height: 10),
-        _SettingsTile(icon: Icons.lock_outline_rounded, label: 'Changer le mot de passe', onTap: () {}),
+        _SettingsTile(
+          icon: Icons.lock_outline_rounded,
+          label: 'Changer le mot de passe',
+          onTap: () => ChangePasswordDialog.show(context),
+        ),
         const SizedBox(height: 10),
-        _SettingsTile(icon: Icons.language_rounded, label: 'Langue : Français', onTap: () {}),
-        const SizedBox(height: 10),
-        _SettingsTile(icon: Icons.help_outline_rounded, label: 'Aide & Support', onTap: () {}),
+        _SettingsTile(
+          icon: Icons.help_outline_rounded,
+          label: 'Aide & Support',
+          onTap: () => HelpSupportScreen.show(context),
+        ),
 
         const SizedBox(height: 28),
         // ── Déconnexion ───────────────────────────────────────────────────

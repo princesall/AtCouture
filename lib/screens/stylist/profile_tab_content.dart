@@ -11,6 +11,7 @@ import '../company/company_customization_screen.dart';
 import '../company/company_data_export_screen.dart';
 import '../company/company_dedicated_manager_screen.dart';
 import '../shared/calendar_screen.dart';
+import '../shared/contact_support_screen.dart';
 import '../shared/reminders_screen.dart';
 import '../shared/subscription_dialog.dart';
 
@@ -93,6 +94,13 @@ class ProfileTabContent extends StatelessWidget {
             ),
           ],
           const SizedBox(height: AppSpacing.xl),
+          ListTile(
+            leading: const Icon(Icons.support_agent_outlined, color: AppColors.secondary),
+            title: Text('Signaler un problème', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurface)),
+            onTap: () => ContactSupportScreen.show(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd), side: const BorderSide(color: AppColors.outlineVariant)),
+          ),
+          const SizedBox(height: AppSpacing.sm),
           ListTile(
             leading: const Icon(Icons.logout, color: AppColors.error),
             title: Text('Déconnexion', style: AppTextStyles.labelCaps.copyWith(color: AppColors.error)),
