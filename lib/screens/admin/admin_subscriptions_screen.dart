@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
@@ -83,7 +84,7 @@ class _OverviewTab extends StatelessWidget {
               Text('REVENUS MENSUELS', style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.7))),
               const SizedBox(height: 6),
               Text(Formatters.formatCurrency(AdminDemoData.monthlyRevenue), style: AppTextStyles.statNumber.copyWith(color: AppColors.onTertiary, fontSize: 28)),
-              Text('FCFA', style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.7))),
+              Text(AppConstants.currency, style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.7))),
             ])),
             Container(
               padding: const EdgeInsets.all(12),

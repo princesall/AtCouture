@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
@@ -121,7 +122,7 @@ class _CompanyCardState extends State<_CompanyCard> {
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             const Icon(Icons.payments_rounded, color: AppColors.onTertiary, size: 16),
             const SizedBox(width: 6),
-            Text('${Formatters.formatCurrency(stats.totalRevenue as int)} FCFA générés au total', style: AppTextStyles.bodySm.copyWith(color: AppColors.onTertiary, fontWeight: FontWeight.w700)),
+            Text('${Formatters.formatCurrency(stats.totalRevenue as int)} ${AppConstants.currency} générés au total', style: AppTextStyles.bodySm.copyWith(color: AppColors.onTertiary, fontWeight: FontWeight.w700)),
           ]),
         ),
         const SizedBox(height: 14),

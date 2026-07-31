@@ -57,22 +57,18 @@ class CompanyDedicatedManagerScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
               _ContactTile(
-                icon: Icons.person_rounded,
-                title: 'Aïcha Traoré',
+                icon: Icons.support_agent_rounded,
+                title: 'Support StyleConnect',
                 subtitle: 'Gestionnaire de compte StyleConnect Entreprise',
               ),
               _ContactTile(
                 icon: Icons.phone_rounded,
-                title: '+223 20 00 00 00',
+                title: '+223 93 16 04 00',
                 subtitle: 'Disponible du lundi au vendredi, 8h–18h',
-                onTap: () => launchUrl(Uri.parse('tel:+22320000000')),
+                onTap: () => launchUrl(Uri.parse('tel:+22393160400')),
               ),
-              _ContactTile(
-                icon: Icons.email_rounded,
-                title: 'entreprise@styleconnect.ml',
-                subtitle: 'Réponse sous 24h ouvrées',
-                onTap: () => launchUrl(Uri.parse('mailto:entreprise@styleconnect.ml')),
-              ),
+              // E-mail de contact pas encore défini — tuile ajoutée une fois
+              // l'adresse réelle communiquée.
               const SizedBox(height: AppSpacing.md),
               Text(
                 'Votre gestionnaire dédié vous accompagne pour la mise en place de vos ateliers, '

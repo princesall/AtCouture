@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/order_status.dart';
+import '../constants/app_constants.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
@@ -249,7 +250,7 @@ class OrderListItem extends StatelessWidget {
                     style: AppTextStyles.titleSm.copyWith(color: AppColors.primary),
                     children: [
                       TextSpan(
-                        text: ' FCFA',
+                        text: ' ${AppConstants.currency}',
                         style: AppTextStyles.labelXs.copyWith(color: AppColors.primary),
                       ),
                     ],

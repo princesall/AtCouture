@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
@@ -310,7 +311,7 @@ class _StylistCardState extends State<_StylistCard> {
       child: Column(children: [
         // ── Stats revenus ──────────────────────────────────────────────
         Row(children: [
-          _StatMini(label: 'REVENUS', value: '${Formatters.formatCurrency(AdminDemoData.getStylistRevenue(s.user))} FCFA', icon: Icons.payments_outlined, color: AppColors.tertiary),
+          _StatMini(label: 'REVENUS', value: '${Formatters.formatCurrency(AdminDemoData.getStylistRevenue(s.user))} ${AppConstants.currency}', icon: Icons.payments_outlined, color: AppColors.tertiary),
           const SizedBox(width: 12),
           _StatMini(label: 'COMMANDES', value: AdminDemoData.getStylistOrderCount(s.user).toString(), icon: Icons.receipt_long_outlined, color: AppColors.primary),
           const SizedBox(width: 12),

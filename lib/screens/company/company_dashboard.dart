@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
@@ -105,7 +106,7 @@ class CompanyDashboard extends StatelessWidget {
             Text('REVENUS TOTAUX', style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.7))),
             const SizedBox(height: 6),
             Text(Formatters.formatCurrency(stats.totalRevenue), style: AppTextStyles.statNumber.copyWith(color: AppColors.onTertiary, fontSize: 28)),
-            Text('FCFA générés par tous vos ateliers', style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.7))),
+            Text('${AppConstants.currency} générés par tous vos ateliers', style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.7))),
           ]),
           const Spacer(),
           const Icon(Icons.trending_up_rounded, color: AppColors.onTertiary, size: 36),

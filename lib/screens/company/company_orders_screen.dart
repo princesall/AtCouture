@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
@@ -56,7 +57,7 @@ class _CompanyOrdersScreenState extends State<CompanyOrdersScreen> {
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Toutes les Commandes', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
-            Text('${orders.length} commandes · ${Formatters.formatCurrency(totalRevenue)} FCFA', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+            Text('${orders.length} commandes · ${Formatters.formatCurrency(totalRevenue)} ${AppConstants.currency}', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
           ])),
         ]),
       ),
