@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -197,6 +198,8 @@ class _AddClientSheetState extends State<_AddClientSheet> {
   String? _selectedAtelierId;
   String? _selectedAtelierName;
   bool _added = false;
+  bool _isSubmitting = false;
+  final String _idempotencyKey = const Uuid().v4();
 
   @override
   void initState() {
@@ -210,17 +213,27 @@ class _AddClientSheetState extends State<_AddClientSheet> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() || _selectedAtelierId == null) return;
-    await CompanyService.instance.addClient(
-      atelierId: _selectedAtelierId!,
-      atelierName: _selectedAtelierName!,
-      fullName: _name.text,
-      phone: _phone.text,
-      email: _email.text.isEmpty ? null : _email.text,
-    );
-    if (!mounted) return;
-    setState(() => _added = true);
-    widget.onAdded();
+    if (_isSubmitting || !_formKey.currentState!.validate() || _selectedAtelierId == null) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await CompanyService.instance.addClient(
+        atelierId: _selectedAtelierId!,
+        atelierName: _selectedAtelierName!,
+        fullName: _name.text,
+        phone: _phone.text,
+        email: _email.text.isEmpty ? null : _email.text,
+        idempotencyKey: _idempotencyKey,
+      );
+      if (!mounted) return;
+      setState(() => _added = true);
+      widget.onAdded();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de l\'ajout du client : $e')),
+      );
+    }
   }
 
   @override
@@ -268,9 +281,11 @@ class _AddClientSheetState extends State<_AddClientSheet> {
         )),
         const SizedBox(height: 20),
         SizedBox(width: double.infinity, child: ElevatedButton(
-          onPressed: _selectedAtelierId == null ? null : _submit,
+          onPressed: _selectedAtelierId == null || _isSubmitting ? null : _submit,
           style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, disabledBackgroundColor: AppColors.surfaceContainerHigh, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
-          child: Text('AJOUTER LE CLIENT', style: AppTextStyles.labelCaps.copyWith(color: _selectedAtelierId == null ? AppColors.onSurfaceVariant : AppColors.onPrimary)),
+          child: _isSubmitting
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
+              : Text('AJOUTER LE CLIENT', style: AppTextStyles.labelCaps.copyWith(color: _selectedAtelierId == null ? AppColors.onSurfaceVariant : AppColors.onPrimary)),
         )),
       ])),
     );

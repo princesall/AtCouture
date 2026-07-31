@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_colors.dart';
@@ -30,6 +32,8 @@ class CreateOrderDialog extends StatefulWidget {
 }
 
 class _CreateOrderDialogState extends State<CreateOrderDialog> {
+  bool _isSubmitting = false;
+  final String _idempotencyKey = const Uuid().v4();
   AppUser? _selectedTailor;
   final List<XFile> _modelPhotos = [];
   final List<XFile> _fabricPhotos = [];
@@ -111,12 +115,16 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
   }
 
   Future<void> _submit(PlanPermissions permissions) async {
+    if (_isSubmitting) return;
+
     if (_nameController.text.trim().isEmpty || _phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez remplir le nom et le téléphone')),
       );
       return;
     }
+
+    setState(() => _isSubmitting = true);
 
     // Parser les mesures (seulement si le plan le permet)
     Map<String, double>? measurements;
@@ -168,25 +176,34 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
       }
     }
 
-    final result = await OrderService.instance.createOrder(
-      clientName: _nameController.text.trim(),
-      clientPhone: _phoneController.text.trim(),
-      clientEmail: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-      tailorId: _selectedTailor?.id,
-      atelierId: widget.user.atelierId!,
-      atelierName: widget.user.atelierName!,
-      measurements: measurements,
-      modelPhotos: _modelPhotos.isEmpty ? null : _modelPhotos.map((f) => f.path).toList(),
-      fabricPhotos: _fabricPhotos.isEmpty ? null : _fabricPhotos.map((f) => f.path).toList(),
-      description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-      price: _priceController.text.trim().isEmpty ? null : int.tryParse(_priceController.text.trim()),
-      deposit: _depositController.text.trim().isEmpty ? null : int.tryParse(_depositController.text.trim()),
-      dueDate: dueDate,
-      createdByName: widget.user.fullName,
-    );
+    try {
+      final result = await OrderService.instance.createOrder(
+        clientName: _nameController.text.trim(),
+        clientPhone: _phoneController.text.trim(),
+        clientEmail: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+        tailorId: _selectedTailor?.id,
+        atelierId: widget.user.atelierId!,
+        atelierName: widget.user.atelierName!,
+        measurements: measurements,
+        modelPhotos: _modelPhotos.isEmpty ? null : _modelPhotos.map((f) => f.path).toList(),
+        fabricPhotos: _fabricPhotos.isEmpty ? null : _fabricPhotos.map((f) => f.path).toList(),
+        description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+        price: _priceController.text.trim().isEmpty ? null : int.tryParse(_priceController.text.trim()),
+        deposit: _depositController.text.trim().isEmpty ? null : int.tryParse(_depositController.text.trim()),
+        dueDate: dueDate,
+        createdByName: widget.user.fullName,
+        idempotencyKey: _idempotencyKey,
+      );
 
-    if (!mounted) return;
-    Navigator.pop(context, result);
+      if (!mounted) return;
+      Navigator.pop(context, result);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de la création de la commande : $e')),
+      );
+    }
   }
 
   @override
@@ -388,7 +405,7 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
                   Expanded(
                     child: TextField(
                       controller: _priceController,
-                      decoration: const InputDecoration(labelText: 'Prix total (FCFA)', prefixText: 'FCFA '),
+                      decoration: const InputDecoration(labelText: 'Prix total (${AppConstants.currency})', prefixText: '${AppConstants.currency} '),
                       keyboardType: TextInputType.number,
                     ),
                   ),
@@ -396,7 +413,7 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
                   Expanded(
                     child: TextField(
                       controller: _depositController,
-                      decoration: const InputDecoration(labelText: 'Acompte (FCFA)', prefixText: 'FCFA '),
+                      decoration: const InputDecoration(labelText: 'Acompte (${AppConstants.currency})', prefixText: '${AppConstants.currency} '),
                       keyboardType: TextInputType.number,
                     ),
                   ),
@@ -464,15 +481,20 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _isSubmitting ? null : () => Navigator.pop(context),
                       child: const Text('Annuler'),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => _submit(permissions),
-                      child: const Text('Créer la commande'),
+                      onPressed: _isSubmitting ? null : () => _submit(permissions),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 20, height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text('Créer la commande'),
                     ),
                   ),
                 ],

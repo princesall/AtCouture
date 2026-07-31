@@ -35,6 +35,13 @@ class CompanyService {
   /// rattachés à un atelier précis via atelierId.
   final List<AppUser> _tailors = [];
 
+  // ── Idempotence (voir OrderService pour le principe) — sans ça, rejouer
+  // createAtelierHead/createTailor créait un compte fantôme en double avec
+  // un mot de passe temporaire différent à chaque appel, aucune vérification
+  // d'unicité n'existant ici (contrairement à AuthService.registerStylist).
+  final Map<String, ({AppUser user, String temporaryPassword})> _atelierHeadIdempotencyCache = {};
+  final Map<String, ({AppUser user, String temporaryPassword})> _tailorIdempotencyCache = {};
+
   // NOTE : les clients et commandes ne sont PAS stockés ici. OrderService est
   // l'UNIQUE source de vérité pour Client/Order (utilisée aussi bien par
   // l'espace Styliste solo que par l'espace Entreprise) — voir clientsOfAtelier/
@@ -181,7 +188,12 @@ class CompanyService {
     required String phone,
     required String atelierName,
     String? address,
+    String? idempotencyKey,
   }) async {
+    if (idempotencyKey != null && _atelierHeadIdempotencyCache.containsKey(idempotencyKey)) {
+      return _atelierHeadIdempotencyCache[idempotencyKey]!;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final now = DateTime.now();
@@ -223,7 +235,11 @@ class CompanyService {
     }
 
     final temporaryPassword = AuthService.generateTemporaryPassword(newHead.email);
-    return (user: newHead, temporaryPassword: temporaryPassword);
+    final result = (user: newHead, temporaryPassword: temporaryPassword);
+    if (idempotencyKey != null) {
+      _atelierHeadIdempotencyCache[idempotencyKey] = result;
+    }
+    return result;
   }
 
   /// Crée un nouveau Couturier rattaché à un atelier précis. Peut être
@@ -236,7 +252,12 @@ class CompanyService {
     required String fullName,
     required String email,
     required String phone,
+    String? idempotencyKey,
   }) async {
+    if (idempotencyKey != null && _tailorIdempotencyCache.containsKey(idempotencyKey)) {
+      return _tailorIdempotencyCache[idempotencyKey]!;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final now = DateTime.now();
@@ -264,7 +285,11 @@ class CompanyService {
     }
 
     final temporaryPassword = AuthService.generateTemporaryPassword(newTailor.email);
-    return (user: newTailor, temporaryPassword: temporaryPassword);
+    final result = (user: newTailor, temporaryPassword: temporaryPassword);
+    if (idempotencyKey != null) {
+      _tailorIdempotencyCache[idempotencyKey] = result;
+    }
+    return result;
   }
 
   Future<void> removeAtelierHead(String headId) async {
@@ -322,6 +347,15 @@ class CompanyService {
     return _tailors.where((u) => u.email.toLowerCase() == normalized).firstOrNull;
   }
 
+  /// Recherche un compte (Chef d'atelier OU Couturier) par ID — voir
+  /// AuthService.findById pour les comptes "principaux" (admin, styliste
+  /// solo, chef d'entreprise).
+  AppUser? findAccountById(String id) {
+    final inHeads = _atelierHeads.where((u) => u.id == id).firstOrNull;
+    if (inHeads != null) return inHeads;
+    return _tailors.where((u) => u.id == id).firstOrNull;
+  }
+
   /// Met à jour un utilisateur existant dans _atelierHeads ou _tailors (utilisé par AdminDemoData)
   void updateUser(AppUser updatedUser) {
     final headsIndex = _atelierHeads.indexWhere((u) => u.id == updatedUser.id);
@@ -350,6 +384,7 @@ class CompanyService {
     required String phone,
     String? email,
     String? notes,
+    String? idempotencyKey,
   }) =>
       OrderService.instance.addClient(
         atelierId: atelierId,
@@ -358,5 +393,6 @@ class CompanyService {
         phone: phone,
         email: email,
         notes: notes,
+        idempotencyKey: idempotencyKey,
       );
 }

@@ -22,6 +22,7 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
   late final TextEditingController _brandNameController;
   late Color _accentColor;
   late String _companyId;
+  bool _isSaving = false;
 
   static const _palette = [
     AppColors.primary,
@@ -49,11 +50,14 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
   }
 
   Future<void> _save() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
     await CompanyCustomizationService.instance.setBranding(
       _companyId,
       CompanyBranding(brandName: _brandNameController.text.trim(), accentColor: _accentColor),
     );
     if (!mounted) return;
+    setState(() => _isSaving = false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Personnalisation enregistrée')),
     );
@@ -116,14 +120,16 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _save,
+                  onPressed: _isSaving ? null : _save,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Enregistrer'),
+                  child: _isSaving
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
+                      : const Text('Enregistrer'),
                 ),
               ),
             ],

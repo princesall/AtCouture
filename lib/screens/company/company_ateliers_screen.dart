@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
@@ -166,7 +168,7 @@ class _AtelierCardState extends State<_AtelierCard> {
           child: Row(children: [
             const Icon(Icons.payments_rounded, color: AppColors.onTertiary, size: 18),
             const SizedBox(width: 8),
-            Text('${Formatters.formatCurrency(revenue)} FCFA générés', style: AppTextStyles.titleSm.copyWith(color: AppColors.onTertiary, fontSize: 13)),
+            Text('${Formatters.formatCurrency(revenue)} ${AppConstants.currency} générés', style: AppTextStyles.titleSm.copyWith(color: AppColors.onTertiary, fontSize: 13)),
           ]),
         ),
         const SizedBox(height: 14),
@@ -255,6 +257,8 @@ class _CreateAtelierSheetState extends State<_CreateAtelierSheet> {
   final _phone = TextEditingController();
   final _address = TextEditingController();
   bool _created = false;
+  bool _isSubmitting = false;
+  final String _idempotencyKey = const Uuid().v4();
   String _temporaryPassword = '';
 
   @override
@@ -264,21 +268,31 @@ class _CreateAtelierSheetState extends State<_CreateAtelierSheet> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    final result = await CompanyService.instance.createAtelierHead(
-      companyId: widget.companyId,
-      fullName: _headName.text,
-      email: _email.text,
-      phone: _phone.text,
-      atelierName: _atelierName.text,
-      address: _address.text.isEmpty ? null : _address.text,
-    );
-    if (!mounted) return;
-    setState(() {
-      _created = true;
-      _temporaryPassword = result.temporaryPassword;
-    });
-    widget.onCreated();
+    if (_isSubmitting || !_formKey.currentState!.validate()) return;
+    setState(() => _isSubmitting = true);
+    try {
+      final result = await CompanyService.instance.createAtelierHead(
+        companyId: widget.companyId,
+        fullName: _headName.text,
+        email: _email.text,
+        phone: _phone.text,
+        atelierName: _atelierName.text,
+        address: _address.text.isEmpty ? null : _address.text,
+        idempotencyKey: _idempotencyKey,
+      );
+      if (!mounted) return;
+      setState(() {
+        _created = true;
+        _temporaryPassword = result.temporaryPassword;
+      });
+      widget.onCreated();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de la création de l\'atelier : $e')),
+      );
+    }
   }
 
   @override
@@ -309,9 +323,11 @@ class _CreateAtelierSheetState extends State<_CreateAtelierSheet> {
         TextFormField(controller: _phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'TÉLÉPHONE', hintText: '+223 70 00 00 00'), validator: (v) => v == null || v.isEmpty ? 'Requis' : null),
         const SizedBox(height: 24),
         SizedBox(width: double.infinity, child: ElevatedButton(
-          onPressed: _submit,
+          onPressed: _isSubmitting ? null : _submit,
           style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
-          child: Text('CRÉER L\'ATELIER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary, letterSpacing: 1.2)),
+          child: _isSubmitting
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
+              : Text('CRÉER L\'ATELIER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary, letterSpacing: 1.2)),
         )),
       ])),
     );
@@ -331,6 +347,8 @@ class _CreateTailorSheetState extends State<_CreateTailorSheet> {
   final _email = TextEditingController();
   final _phone = TextEditingController();
   bool _created = false;
+  bool _isSubmitting = false;
+  final String _idempotencyKey = const Uuid().v4();
   String _temporaryPassword = '';
 
   @override
@@ -340,20 +358,30 @@ class _CreateTailorSheetState extends State<_CreateTailorSheet> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    final result = await CompanyService.instance.createTailor(
-      atelierId: widget.atelierId,
-      atelierName: widget.atelierName,
-      fullName: _fullName.text,
-      email: _email.text,
-      phone: _phone.text,
-    );
-    if (!mounted) return;
-    setState(() {
-      _created = true;
-      _temporaryPassword = result.temporaryPassword;
-    });
-    widget.onCreated();
+    if (_isSubmitting || !_formKey.currentState!.validate()) return;
+    setState(() => _isSubmitting = true);
+    try {
+      final result = await CompanyService.instance.createTailor(
+        atelierId: widget.atelierId,
+        atelierName: widget.atelierName,
+        fullName: _fullName.text,
+        email: _email.text,
+        phone: _phone.text,
+        idempotencyKey: _idempotencyKey,
+      );
+      if (!mounted) return;
+      setState(() {
+        _created = true;
+        _temporaryPassword = result.temporaryPassword;
+      });
+      widget.onCreated();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur lors de l\'ajout du couturier : $e')),
+      );
+    }
   }
 
   @override
@@ -378,9 +406,11 @@ class _CreateTailorSheetState extends State<_CreateTailorSheet> {
         TextFormField(controller: _phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'TÉLÉPHONE', hintText: '+223 70 00 00 00'), validator: (v) => v == null || v.isEmpty ? 'Requis' : null),
         const SizedBox(height: 24),
         SizedBox(width: double.infinity, child: ElevatedButton(
-          onPressed: _submit,
+          onPressed: _isSubmitting ? null : _submit,
           style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
-          child: Text('AJOUTER LE COUTURIER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary, letterSpacing: 1.2)),
+          child: _isSubmitting
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
+              : Text('AJOUTER LE COUTURIER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary, letterSpacing: 1.2)),
         )),
       ])),
     );

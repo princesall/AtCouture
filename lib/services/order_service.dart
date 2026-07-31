@@ -13,6 +13,18 @@ class OrderService {
   final List<Order> _orders = [];
   final List<Client> _clients = [];
 
+  // ── Idempotence ───────────────────────────────────────────────────────────
+  // Le bouton "Créer" est désactivé pendant la soumission côté UI, mais ça ne
+  // protège qu'un seul écran contre le double-tap — pas une relecture réseau
+  // (une fois Firestore branché) ni un appel concurrent depuis un autre point
+  // d'entrée. On mémorise donc le résultat par clé d'idempotence fournie par
+  // l'appelant (un UUID généré une seule fois par formulaire) : rejouer le
+  // même appel avec la même clé renvoie le résultat déjà produit au lieu de
+  // créer un doublon. Même principe à reproduire côté Firestore plus tard
+  // (ex: écrire dans un document dont l'ID dérive de la clé d'idempotence).
+  final Map<String, ({Order order, bool isNewClient, Client? existingClient})> _orderIdempotencyCache = {};
+  final Map<String, Client> _addClientIdempotencyCache = {};
+
   // Initialiser les données de démo
   void _initDemoData() {
     // Plus de données de démo - application vide pour tests
@@ -136,7 +148,12 @@ class OrderService {
     int? deposit,
     DateTime? dueDate,
     String? createdByName,
+    String? idempotencyKey,
   }) async {
+    if (idempotencyKey != null && _orderIdempotencyCache.containsKey(idempotencyKey)) {
+      return _orderIdempotencyCache[idempotencyKey]!;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 400));
 
     final now = DateTime.now();
@@ -229,7 +246,11 @@ class OrderService {
       _clients[clientIndex] = updatedClient;
     }
 
-    return (order: order, isNewClient: isNewClient, existingClient: existingClient);
+    final result = (order: order, isNewClient: isNewClient, existingClient: existingClient);
+    if (idempotencyKey != null) {
+      _orderIdempotencyCache[idempotencyKey] = result;
+    }
+    return result;
   }
 
   /// Met à jour (fusionne) les mesures enregistrées d'un client, que ce soit
@@ -263,7 +284,12 @@ class OrderService {
     required String phone,
     String? email,
     String? notes,
+    String? idempotencyKey,
   }) async {
+    if (idempotencyKey != null && _addClientIdempotencyCache.containsKey(idempotencyKey)) {
+      return _addClientIdempotencyCache[idempotencyKey]!;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final clientId = _nextClientId();
@@ -281,6 +307,9 @@ class OrderService {
       createdAt: DateTime.now(),
     );
     _clients.add(client);
+    if (idempotencyKey != null) {
+      _addClientIdempotencyCache[idempotencyKey] = client;
+    }
     return client;
   }
 
