@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Styleconnect</string>
+	<string>StyleConnect</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,11 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>styleconnect</string>
+	<string>StyleConnect</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>StyleConnect a besoin d'accéder à vos photos pour ajouter des images à vos commandes.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>StyleConnect a besoin d'accéder à l'appareil photo pour prendre des photos de vos commandes.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
