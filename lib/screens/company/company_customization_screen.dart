@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/company_customization_service.dart';
 
 /// Personnalisation de marque — plan Entreprise uniquement
@@ -24,13 +26,13 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
   late String _companyId;
   bool _isSaving = false;
 
-  static const _palette = [
-    AppColors.primary,
-    AppColors.secondary,
-    AppColors.tertiary,
-    Color(0xFF2E7D32),
-    Color(0xFFB71C1C),
-    Color(0xFF6A1B9A),
+  List<Color> _palette(AppColorPalette c) => [
+    c.primary,
+    c.secondary,
+    c.tertiary,
+    const Color(0xFF2E7D32),
+    const Color(0xFFB71C1C),
+    const Color(0xFF6A1B9A),
   ];
 
   @override
@@ -40,7 +42,7 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
     _companyId = user.companyId ?? user.id;
     final branding = CompanyCustomizationService.instance.brandingFor(_companyId);
     _brandNameController = TextEditingController(text: branding.brandName ?? user.atelierName ?? '');
-    _accentColor = branding.accentColor ?? AppColors.primary;
+    _accentColor = branding.accentColor ?? context.read<ThemeProvider>().colors.primary;
   }
 
   @override
@@ -65,12 +67,13 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: c.background,
       appBar: AppBar(
         title: const Text('Personnalisation'),
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.primary,
+        backgroundColor: c.background,
+        foregroundColor: c.primary,
         elevation: 0,
       ),
       body: SafeArea(
@@ -82,20 +85,20 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
               Text(
                 'Personnalisez le nom de marque et la couleur utilisés sur vos documents '
                 'générés (factures, devis).',
-                style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
               ),
               const SizedBox(height: AppSpacing.lg),
-              Text('Nom de marque', style: AppTextStyles.labelCaps.copyWith(color: AppColors.secondary)),
+              Text('Nom de marque', style: AppTextStyles.labelCaps.copyWith(color: c.secondary)),
               const SizedBox(height: 8),
               TextField(
                 controller: _brandNameController,
                 decoration: const InputDecoration(hintText: 'Ex : Keïta Prestige'),
               ),
               const SizedBox(height: AppSpacing.lg),
-              Text('Couleur d\'accent', style: AppTextStyles.labelCaps.copyWith(color: AppColors.secondary)),
+              Text('Couleur d\'accent', style: AppTextStyles.labelCaps.copyWith(color: c.secondary)),
               const SizedBox(height: 8),
               Row(
-                children: _palette.map((color) {
+                children: _palette(c).map((color) {
                   final isSelected = color.toARGB32() == _accentColor.toARGB32();
                   return Padding(
                     padding: const EdgeInsets.only(right: 12),
@@ -106,7 +109,7 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
                         decoration: BoxDecoration(
                           color: color,
                           shape: BoxShape.circle,
-                          border: isSelected ? Border.all(color: AppColors.onSurface, width: 2) : null,
+                          border: isSelected ? Border.all(color: c.onSurface, width: 2) : null,
                         ),
                         child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 18) : null,
                       ),
@@ -122,13 +125,13 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
                 child: ElevatedButton(
                   onPressed: _isSaving ? null : _save,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onPrimary,
+                    backgroundColor: c.primary,
+                    foregroundColor: c.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _isSaving
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
+                      ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: c.onPrimary))
                       : const Text('Enregistrer'),
                 ),
               ),
@@ -149,23 +152,26 @@ class _PreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: brandName,
-      builder: (context, _) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-        ),
-        child: Row(children: [
-          Text(
-            brandName.text.isEmpty ? 'StyleConnect' : brandName.text,
-            style: AppTextStyles.titleMd.copyWith(color: accentColor, fontWeight: FontWeight.bold),
+      builder: (context, _) {
+        final c = context.colors;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: c.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
           ),
-          const Spacer(),
-          Text('Facture', style: AppTextStyles.bodySm.copyWith(color: accentColor)),
-        ]),
-      ),
+          child: Row(children: [
+            Text(
+              brandName.text.isEmpty ? 'StyleConnect' : brandName.text,
+              style: AppTextStyles.titleMd.copyWith(color: accentColor, fontWeight: FontWeight.bold),
+            ),
+            const Spacer(),
+            Text('Facture', style: AppTextStyles.bodySm.copyWith(color: accentColor)),
+          ]),
+        );
+      },
     );
   }
 }

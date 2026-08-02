@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/subscription_service.dart';
@@ -59,6 +59,7 @@ class _CompanyShellState extends State<CompanyShell> {
     final user = context.watch<AuthProvider>().user!;
     final permissions = user.permissions;
     final unread = SubscriptionService.instance.unreadSystemMessagesCount(user.id);
+    final c = context.colors;
 
     // ── Garde-fou : plan EFFECTIF (expiration prise en compte) ───────────
     // Le plan attribué par l'admin (user.plan) est l'unique source de vérité,
@@ -73,7 +74,7 @@ class _CompanyShellState extends State<CompanyShell> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: c.background,
       body: SafeArea(
         bottom: false,
         child: Stack(children: [
@@ -107,7 +108,7 @@ class _CompanyShellState extends State<CompanyShell> {
               right: 56,
               child: Container(
                 width: 18, height: 18,
-                decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                decoration: BoxDecoration(color: c.error, shape: BoxShape.circle),
                 alignment: Alignment.center,
                 child: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
               ),
@@ -129,8 +130,9 @@ class _PlanMismatchScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: c.background,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -138,13 +140,13 @@ class _PlanMismatchScreen extends StatelessWidget {
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               Container(
                 width: 72, height: 72,
-                decoration: BoxDecoration(gradient: AppColors.goldGradient, shape: BoxShape.circle),
-                child: Icon(isExpired ? Icons.hourglass_bottom_rounded : Icons.lock_rounded, color: AppColors.onTertiary, size: 32),
+                decoration: BoxDecoration(gradient: c.goldGradient, shape: BoxShape.circle),
+                child: Icon(isExpired ? Icons.hourglass_bottom_rounded : Icons.lock_rounded, color: c.onTertiary, size: 32),
               ),
               const SizedBox(height: 20),
               Text(
                 isExpired ? 'Abonnement Entreprise expiré' : 'Accès non autorisé',
-                style: AppTextStyles.titleMd.copyWith(color: AppColors.primary),
+                style: AppTextStyles.titleMd.copyWith(color: c.primary),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -152,14 +154,14 @@ class _PlanMismatchScreen extends StatelessWidget {
                 isExpired
                     ? 'Votre abonnement Entreprise a expiré. Vos ateliers, couturiers, clients et commandes sont conservés intacts, mais la gestion multi-ateliers est temporairement verrouillée.\n\nRenouvelez votre abonnement auprès de l\'administrateur pour retrouver immédiatement l\'accès complet.'
                     : 'La gestion multi-ateliers est réservée au plan Entreprise.\nVotre plan actuel : $currentPlan\n\nContactez l\'administrateur pour mettre à niveau votre abonnement.',
-                style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => context.read<AuthProvider>().signOut(),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
-                child: Text('SE DÉCONNECTER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary)),
+                style: ElevatedButton.styleFrom(backgroundColor: c.primary, foregroundColor: c.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+                child: Text('SE DÉCONNECTER', style: AppTextStyles.labelCaps.copyWith(color: c.onPrimary)),
               ),
             ]),
           ),

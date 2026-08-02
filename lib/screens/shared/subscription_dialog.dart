@@ -3,9 +3,10 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../data/admin_demo_data.dart';
 import '../../models/subscription_plan.dart';
 import '../../providers/auth_provider.dart';
@@ -26,39 +27,42 @@ abstract final class SubscriptionDialog {
     if (pendingRequest != null && !pendingRequest.approved) {
       showDialog(
         context: context,
-        builder: (context) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.pending_rounded, color: AppColors.tertiary, size: 48),
-                const SizedBox(height: 16),
-                Text(
-                  'Demande en cours',
-                  style: AppTextStyles.titleMd.copyWith(color: AppColors.primary),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Votre demande pour le plan ${pendingRequest.requestedPlan.name} est en cours de traitement par l\'administrateur.',
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        builder: (context) {
+          final c = context.colors;
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.pending_rounded, color: c.tertiary, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Demande en cours',
+                    style: AppTextStyles.titleMd.copyWith(color: c.primary),
                   ),
-                  child: const Text('Compris'),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Text(
+                    'Votre demande pour le plan ${pendingRequest.requestedPlan.name} est en cours de traitement par l\'administrateur.',
+                    style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: c.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Compris'),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       );
       return;
     }
@@ -90,33 +94,36 @@ abstract final class SubscriptionDialog {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmer la demande'),
-        content: Text(
-          'Voulez-vous envoyer une demande pour le plan ${plan.name} (${plan.priceLabel}) à l\'administrateur ?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
+      builder: (context) {
+        final c = context.colors;
+        return AlertDialog(
+          title: const Text('Confirmer la demande'),
+          content: Text(
+            'Voulez-vous envoyer une demande pour le plan ${plan.name} (${plan.priceLabel}) à l\'administrateur ?',
           ),
-          ElevatedButton(
-            onPressed: () async {
-              await AdminDemoData.requestSubscription(user.id, plan);
-              if (!context.mounted) return;
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Demande envoyée pour le plan ${plan.name}'),
-                  backgroundColor: AppColors.tertiary,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Confirmer'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await AdminDemoData.requestSubscription(user.id, plan);
+                if (!context.mounted) return;
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Demande envoyée pour le plan ${plan.name}'),
+                    backgroundColor: c.tertiary,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: c.primary),
+              child: const Text('Confirmer'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -140,32 +147,33 @@ class _PlanPickerState extends State<_PlanPicker> {
   static final _plans = [SubscriptionPlan.starter, SubscriptionPlan.pro, SubscriptionPlan.enterprise];
 
   List<_Feature> _featuresFor(SubscriptionPlan plan) {
+    final c = context.colors;
     switch (plan) {
       case SubscriptionPlan.starter:
         return [
-          (Icons.person_outline_rounded, AppColors.primary, plan.tailorsLabel),
-          (Icons.people_outline_rounded, AppColors.primary, plan.clientsLabel),
-          (Icons.receipt_long_outlined, AppColors.success, plan.ordersLabel),
-          (Icons.straighten_rounded, AppColors.success, 'Mensurations sauvegardées'),
-          (Icons.notifications_active_outlined, AppColors.secondary, 'Notifications push'),
+          (Icons.person_outline_rounded, c.primary, plan.tailorsLabel),
+          (Icons.people_outline_rounded, c.primary, plan.clientsLabel),
+          (Icons.receipt_long_outlined, c.success, plan.ordersLabel),
+          (Icons.straighten_rounded, c.success, 'Mensurations sauvegardées'),
+          (Icons.notifications_active_outlined, c.secondary, 'Notifications push'),
         ];
       case SubscriptionPlan.pro:
         return [
-          (Icons.person_outline_rounded, AppColors.primary, plan.tailorsLabel),
-          (Icons.people_outline_rounded, AppColors.primary, 'Clients illimités'),
-          (Icons.insights_rounded, AppColors.success, 'Statistiques avancées'),
-          (Icons.calendar_month_rounded, AppColors.secondary, 'Calendrier & rappels automatiques'),
-          (Icons.request_quote_outlined, AppColors.secondary, 'Devis & factures PDF'),
-          (Icons.headset_mic_outlined, AppColors.tertiary, 'Support prioritaire'),
+          (Icons.person_outline_rounded, c.primary, plan.tailorsLabel),
+          (Icons.people_outline_rounded, c.primary, 'Clients illimités'),
+          (Icons.insights_rounded, c.success, 'Statistiques avancées'),
+          (Icons.calendar_month_rounded, c.secondary, 'Calendrier & rappels automatiques'),
+          (Icons.request_quote_outlined, c.secondary, 'Devis & factures PDF'),
+          (Icons.headset_mic_outlined, c.tertiary, 'Support prioritaire'),
         ];
       case SubscriptionPlan.enterprise:
         return [
-          (Icons.person_outline_rounded, AppColors.primary, 'Couturiers illimités'),
-          (Icons.people_outline_rounded, AppColors.primary, 'Clients illimités'),
-          (Icons.apartment_rounded, AppColors.success, 'Plusieurs ateliers'),
-          (Icons.palette_outlined, AppColors.secondary, 'Personnalisation & API'),
-          (Icons.verified_outlined, AppColors.tertiary, 'Toutes les fonctionnalités Pro incluses'),
-          (Icons.headset_mic_outlined, AppColors.tertiary, 'Gestionnaire dédié 24/7'),
+          (Icons.person_outline_rounded, c.primary, 'Couturiers illimités'),
+          (Icons.people_outline_rounded, c.primary, 'Clients illimités'),
+          (Icons.apartment_rounded, c.success, 'Plusieurs ateliers'),
+          (Icons.palette_outlined, c.secondary, 'Personnalisation & API'),
+          (Icons.verified_outlined, c.tertiary, 'Toutes les fonctionnalités Pro incluses'),
+          (Icons.headset_mic_outlined, c.tertiary, 'Gestionnaire dédié 24/7'),
         ];
       case SubscriptionPlan.free:
         return const [];
@@ -174,6 +182,7 @@ class _PlanPickerState extends State<_PlanPicker> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
@@ -182,20 +191,20 @@ class _PlanPickerState extends State<_PlanPicker> {
         children: [
           Row(
             children: [
-              Icon(Icons.workspace_premium_rounded, color: AppColors.tertiary, size: 28),
+              Icon(Icons.workspace_premium_rounded, color: c.tertiary, size: 28),
               const SizedBox(width: 12),
-              Text('Choisir un abonnement', style: AppTextStyles.headlineSm.copyWith(color: AppColors.primary)),
+              Text('Choisir un abonnement', style: AppTextStyles.headlineSm.copyWith(color: c.primary)),
             ],
           ),
           const SizedBox(height: 6),
           Text.rich(
             TextSpan(
               text: 'Votre plan actuel : ',
-              style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+              style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
               children: [
                 TextSpan(
                   text: widget.currentPlan.name,
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+                  style: AppTextStyles.bodySm.copyWith(color: c.primary, fontWeight: FontWeight.w700),
                 ),
               ],
             ),
@@ -204,15 +213,15 @@ class _PlanPickerState extends State<_PlanPicker> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.12),
+              color: c.success.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.check_circle_rounded, size: 14, color: AppColors.success),
+                Icon(Icons.check_circle_rounded, size: 14, color: c.success),
                 const SizedBox(width: 6),
-                Text('Plan actuel', style: AppTextStyles.labelXs.copyWith(color: AppColors.success)),
+                Text('Plan actuel', style: AppTextStyles.labelXs.copyWith(color: c.success)),
               ],
             ),
           ),
@@ -260,12 +269,12 @@ class _PlanPickerState extends State<_PlanPicker> {
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLow,
+              color: c.surfaceContainerLow,
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
             child: Row(
               children: [
-                Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 20),
+                Icon(Icons.calendar_today_rounded, color: c.primary, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -276,11 +285,11 @@ class _PlanPickerState extends State<_PlanPicker> {
                       Text.rich(
                         TextSpan(
                           text: 'Économisez ',
-                          style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                          style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                           children: [
                             TextSpan(
                               text: 'jusqu\'à 20%',
-                              style: AppTextStyles.bodySm.copyWith(color: AppColors.success, fontWeight: FontWeight.w700),
+                              style: AppTextStyles.bodySm.copyWith(color: c.success, fontWeight: FontWeight.w700),
                             ),
                             const TextSpan(text: ' avec l\'abonnement annuel.'),
                           ],
@@ -293,16 +302,16 @@ class _PlanPickerState extends State<_PlanPicker> {
                   value: _annual,
                   onChanged: (value) => setState(() => _annual = value),
                   activeThumbColor: Colors.white,
-                  activeTrackColor: AppColors.primary,
+                  activeTrackColor: c.primary,
                 ),
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.12),
+                    color: c.success.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text('-20%', style: AppTextStyles.labelXs.copyWith(color: AppColors.success)),
+                  child: Text('-20%', style: AppTextStyles.labelXs.copyWith(color: c.success)),
                 ),
               ],
             ),
@@ -311,12 +320,12 @@ class _PlanPickerState extends State<_PlanPicker> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.shield_outlined, size: 16, color: AppColors.onSurfaceVariant),
+              Icon(Icons.shield_outlined, size: 16, color: c.onSurfaceVariant),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
                   'Vous pourrez changer d\'abonnement à tout moment. Sans engagement. Annulez quand vous voulez.',
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                  style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -352,12 +361,14 @@ class _PlanCard extends StatelessWidget {
   final List<_Feature> features;
   final VoidCallback onPick;
 
-  Color get _accent => plan == SubscriptionPlan.enterprise
-      ? AppColors.tertiary
-      : (isPopular ? AppColors.primary : AppColors.onSurfaceVariant);
+  Color _accent(AppColorPalette c) => plan == SubscriptionPlan.enterprise
+      ? c.tertiary
+      : (isPopular ? c.primary : c.onSurfaceVariant);
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final accent = _accent(c);
     final numberFormat = NumberFormat.decimalPattern('fr_FR');
     final displayAmount = annual ? (plan.price * 12 * 0.8).round() : plan.price;
 
@@ -369,14 +380,14 @@ class _PlanCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.lg, AppSpacing.md, AppSpacing.md),
           decoration: BoxDecoration(
             color: plan == SubscriptionPlan.enterprise
-                ? AppColors.tertiary.withValues(alpha: 0.05)
-                : AppColors.surfaceContainerLowest,
+                ? c.tertiary.withValues(alpha: 0.05)
+                : c.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
             border: Border.all(
-              color: isPopular ? AppColors.primary : _accent.withValues(alpha: 0.3),
+              color: isPopular ? c.primary : accent.withValues(alpha: 0.3),
               width: isPopular ? 2 : 1,
             ),
-            boxShadow: AppColors.softShadow,
+            boxShadow: c.softShadow,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,7 +395,7 @@ class _PlanCard extends StatelessWidget {
               Center(
                 child: Text(
                   plan.name.toUpperCase(),
-                  style: AppTextStyles.labelCaps.copyWith(color: _accent),
+                  style: AppTextStyles.labelCaps.copyWith(color: accent),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -392,11 +403,11 @@ class _PlanCard extends StatelessWidget {
                 child: Text.rich(
                   TextSpan(
                     text: numberFormat.format(displayAmount),
-                    style: AppTextStyles.headlineMd.copyWith(color: _accent, fontWeight: FontWeight.w800),
+                    style: AppTextStyles.headlineMd.copyWith(color: accent, fontWeight: FontWeight.w800),
                     children: [
                       TextSpan(
                         text: ' ${AppConstants.currency}',
-                        style: AppTextStyles.bodySm.copyWith(color: _accent),
+                        style: AppTextStyles.bodySm.copyWith(color: accent),
                       ),
                     ],
                   ),
@@ -405,7 +416,7 @@ class _PlanCard extends StatelessWidget {
               Center(
                 child: Text(
                   annual ? '/an' : '/mois',
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                  style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -441,14 +452,14 @@ class _PlanCard extends StatelessWidget {
                     : isPopular
                         ? ElevatedButton(
                             onPressed: onPick,
-                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                            style: ElevatedButton.styleFrom(backgroundColor: c.primary),
                             child: const Text('Choisir'),
                           )
                         : OutlinedButton(
                             onPressed: onPick,
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: _accent,
-                              side: BorderSide(color: _accent),
+                              foregroundColor: accent,
+                              side: BorderSide(color: accent),
                             ),
                             child: const Text('Choisir'),
                           ),
@@ -465,7 +476,7 @@ class _PlanCard extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: c.primary,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(

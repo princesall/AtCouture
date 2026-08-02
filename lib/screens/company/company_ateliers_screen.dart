@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../providers/auth_provider.dart';
@@ -32,22 +32,23 @@ class _CompanyAteliersScreenState extends State<CompanyAteliersScreen> {
     final user = context.watch<AuthProvider>().user!;
     final permissions = user.permissions;
     final ateliers = CompanyService.instance.ateliersOfCompany(user.id);
+    final c = context.colors;
 
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Mes Ateliers', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
-            Text('${ateliers.length} maison${ateliers.length > 1 ? 's' : ''} de couture', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+            Text('Mes Ateliers', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
+            Text('${ateliers.length} maison${ateliers.length > 1 ? 's' : ''} de couture', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
           ])),
           if (permissions.canCreateAtelierHead)
             GestureDetector(
               onTap: () => _showCreateAtelierSheet(context, user.id),
               child: Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(14),
-                  boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 4))]),
+                decoration: BoxDecoration(gradient: c.heroGradient, borderRadius: BorderRadius.circular(14),
+                  boxShadow: [BoxShadow(color: c.primary.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 4))]),
                 child: const Icon(Icons.add_business_rounded, color: Colors.white, size: 22),
               ),
             ),
@@ -72,7 +73,7 @@ class _CompanyAteliersScreenState extends State<CompanyAteliersScreen> {
   void _showCreateAtelierSheet(BuildContext context, String companyId) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surfaceContainerLowest,
+      backgroundColor: context.colors.surfaceContainerLowest,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => _CreateAtelierSheet(companyId: companyId, onCreated: () => setState(() {})),
@@ -92,12 +93,13 @@ class _AtelierCardState extends State<_AtelierCard> {
   @override
   Widget build(BuildContext context) {
     final a = widget.atelier;
+    final c = context.colors;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: widget.isOwnerAtelier ? AppColors.tertiary.withValues(alpha: 0.3) : AppColors.outlineVariant.withValues(alpha: 0.4)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: widget.isOwnerAtelier ? c.tertiary.withValues(alpha: 0.3) : c.outlineVariant.withValues(alpha: 0.4)),
+        boxShadow: c.softShadow,
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(children: [
@@ -109,11 +111,11 @@ class _AtelierCardState extends State<_AtelierCard> {
               Container(
                 width: 52, height: 52,
                 decoration: BoxDecoration(
-                  gradient: widget.isOwnerAtelier ? AppColors.goldGradient : null,
-                  color: widget.isOwnerAtelier ? null : AppColors.primaryFixed.withValues(alpha: 0.35),
+                  gradient: widget.isOwnerAtelier ? c.goldGradient : null,
+                  color: widget.isOwnerAtelier ? null : c.primaryFixed.withValues(alpha: 0.35),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(widget.isOwnerAtelier ? Icons.star_rounded : Icons.storefront_rounded, color: widget.isOwnerAtelier ? AppColors.onTertiary : AppColors.primary, size: 24),
+                child: Icon(widget.isOwnerAtelier ? Icons.star_rounded : Icons.storefront_rounded, color: widget.isOwnerAtelier ? c.onTertiary : c.primary, size: 24),
               ),
               const SizedBox(width: 14),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -122,15 +124,15 @@ class _AtelierCardState extends State<_AtelierCard> {
                   if (widget.isOwnerAtelier)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(gradient: AppColors.goldGradient, borderRadius: BorderRadius.circular(999)),
-                      child: Text('MON ATELIER', style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary, fontSize: 8)),
+                      decoration: BoxDecoration(gradient: c.goldGradient, borderRadius: BorderRadius.circular(999)),
+                      child: Text('MON ATELIER', style: AppTextStyles.labelXs.copyWith(color: c.onTertiary, fontSize: 8)),
                     ),
                 ]),
                 const SizedBox(height: 2),
-                Text(widget.isOwnerAtelier ? 'Vous gérez directement cet atelier' : 'Chef : ${a.headStylistName}', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
-                if (a.address != null) Text(a.address as String, style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant.withValues(alpha: 0.7))),
+                Text(widget.isOwnerAtelier ? 'Vous gérez directement cet atelier' : 'Chef : ${a.headStylistName}', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
+                if (a.address != null) Text(a.address as String, style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant.withValues(alpha: 0.7))),
               ])),
-              Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: AppColors.onSurfaceVariant),
+              Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: c.onSurfaceVariant),
             ]),
           ),
         ),
@@ -145,13 +147,14 @@ class _AtelierCardState extends State<_AtelierCard> {
   }
 
   Widget _buildExpanded(dynamic a) {
+    final c = context.colors;
     final atelierId = a.id as String;
     final tailors = CompanyService.instance.tailorsOfAtelier(atelierId);
     final clientCount = CompanyService.instance.clientsOfAtelier(atelierId).length;
     final orderCount = CompanyService.instance.ordersOfAtelier(atelierId).length;
     final revenue = OrderService.instance.atelierRevenue(atelierId);
     return Container(
-      decoration: BoxDecoration(color: AppColors.surfaceContainerLow, border: Border(top: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.3)))),
+      decoration: BoxDecoration(color: c.surfaceContainerLow, border: Border(top: BorderSide(color: c.outlineVariant.withValues(alpha: 0.3)))),
       padding: const EdgeInsets.all(16),
       child: Column(children: [
         Row(children: [
@@ -164,26 +167,26 @@ class _AtelierCardState extends State<_AtelierCard> {
         const SizedBox(height: 12),
         Container(
           width: double.infinity, padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(gradient: AppColors.goldGradient, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(gradient: c.goldGradient, borderRadius: BorderRadius.circular(12)),
           child: Row(children: [
-            const Icon(Icons.payments_rounded, color: AppColors.onTertiary, size: 18),
+            Icon(Icons.payments_rounded, color: c.onTertiary, size: 18),
             const SizedBox(width: 8),
-            Text('${Formatters.formatCurrency(revenue)} ${AppConstants.currency} générés', style: AppTextStyles.titleSm.copyWith(color: AppColors.onTertiary, fontSize: 13)),
+            Text('${Formatters.formatCurrency(revenue)} ${AppConstants.currency} générés', style: AppTextStyles.titleSm.copyWith(color: c.onTertiary, fontSize: 13)),
           ]),
         ),
         const SizedBox(height: 14),
         Row(children: [
-          Text('COUTURIERS DE CET ATELIER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurfaceVariant, fontSize: 10)),
+          Text('COUTURIERS DE CET ATELIER', style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant, fontSize: 10)),
           const Spacer(),
           GestureDetector(
             onTap: () => _showAddTailorSheet(context, a),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(999)),
+              decoration: BoxDecoration(color: c.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(999)),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.add_rounded, size: 12, color: AppColors.primary),
+                Icon(Icons.add_rounded, size: 12, color: c.primary),
                 const SizedBox(width: 3),
-                Text('AJOUTER', style: AppTextStyles.labelXs.copyWith(color: AppColors.primary, fontSize: 9)),
+                Text('AJOUTER', style: AppTextStyles.labelXs.copyWith(color: c.primary, fontSize: 9)),
               ]),
             ),
           ),
@@ -192,14 +195,14 @@ class _AtelierCardState extends State<_AtelierCard> {
         if (tailors.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text('Aucun couturier pour le moment', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant.withValues(alpha: 0.6))),
+            child: Text('Aucun couturier pour le moment', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant.withValues(alpha: 0.6))),
           )
         else
           ...tailors.map((t) => Padding(
             padding: const EdgeInsets.only(bottom: 6),
             child: Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: AppColors.surfaceContainerLowest, borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: c.surfaceContainerLowest, borderRadius: BorderRadius.circular(10)),
               child: Row(children: [
                 StylistAvatar(name: t.fullName, isOnline: false, size: 30),
                 const SizedBox(width: 10),
@@ -214,7 +217,7 @@ class _AtelierCardState extends State<_AtelierCard> {
   void _showAddTailorSheet(BuildContext context, dynamic atelier) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surfaceContainerLowest,
+      backgroundColor: context.colors.surfaceContainerLowest,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => _CreateTailorSheet(
@@ -230,16 +233,19 @@ class _MiniStat extends StatelessWidget {
   const _MiniStat({required this.label, required this.value, required this.icon});
   final String label; final String value; final IconData icon;
   @override
-  Widget build(BuildContext context) => Expanded(child: Container(
-    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-    decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12)),
-    child: Column(children: [
-      Icon(icon, size: 16, color: AppColors.primary),
-      const SizedBox(height: 4),
-      Text(value, style: AppTextStyles.titleSm.copyWith(color: AppColors.primary, fontSize: 14)),
-      Text(label, style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant, fontSize: 9)),
-    ]),
-  ));
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Expanded(child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+      decoration: BoxDecoration(color: c.primary.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12)),
+      child: Column(children: [
+        Icon(icon, size: 16, color: c.primary),
+        const SizedBox(height: 4),
+        Text(value, style: AppTextStyles.titleSm.copyWith(color: c.primary, fontSize: 14)),
+        Text(label, style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant, fontSize: 9)),
+      ]),
+    ));
+  }
 }
 
 // ── Bottom sheet création atelier + chef ────────────────────────────────────
@@ -297,6 +303,7 @@ class _CreateAtelierSheetState extends State<_CreateAtelierSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     if (_created) {
       return SuccessConfirmationSheet(
         title: 'Atelier créé !',
@@ -307,14 +314,14 @@ class _CreateAtelierSheetState extends State<_CreateAtelierSheet> {
     return Padding(
       padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Form(key: _formKey, child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Nouvel Atelier', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
-        Text('Créez une nouvelle maison de couture et son chef', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+        Text('Nouvel Atelier', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
+        Text('Créez une nouvelle maison de couture et son chef', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
         const SizedBox(height: 20),
         TextFormField(controller: _atelierName, decoration: const InputDecoration(labelText: 'NOM DE L\'ATELIER', hintText: 'Ex: Keïta Prestige — Kati'), validator: (v) => v == null || v.isEmpty ? 'Requis' : null),
         const SizedBox(height: 14),
         TextFormField(controller: _address, decoration: const InputDecoration(labelText: 'ADRESSE (optionnel)', hintText: 'Quartier, ville')),
         const SizedBox(height: 18),
-        Text('CHEF D\'ATELIER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.secondary)),
+        Text('CHEF D\'ATELIER', style: AppTextStyles.labelCaps.copyWith(color: c.secondary)),
         const SizedBox(height: 10),
         TextFormField(controller: _headName, decoration: const InputDecoration(labelText: 'NOM COMPLET', hintText: 'Prénom Nom'), validator: (v) => v == null || v.isEmpty ? 'Requis' : null),
         const SizedBox(height: 14),
@@ -324,10 +331,10 @@ class _CreateAtelierSheetState extends State<_CreateAtelierSheet> {
         const SizedBox(height: 24),
         SizedBox(width: double.infinity, child: ElevatedButton(
           onPressed: _isSubmitting ? null : _submit,
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
+          style: ElevatedButton.styleFrom(backgroundColor: c.primary, foregroundColor: c.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
           child: _isSubmitting
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
-              : Text('CRÉER L\'ATELIER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary, letterSpacing: 1.2)),
+              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: c.onPrimary))
+              : Text('CRÉER L\'ATELIER', style: AppTextStyles.labelCaps.copyWith(color: c.onPrimary, letterSpacing: 1.2)),
         )),
       ])),
     );
@@ -386,6 +393,7 @@ class _CreateTailorSheetState extends State<_CreateTailorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     if (_created) {
       return SuccessConfirmationSheet(
         title: 'Couturier ajouté !',
@@ -396,8 +404,8 @@ class _CreateTailorSheetState extends State<_CreateTailorSheet> {
     return Padding(
       padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Form(key: _formKey, child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Nouveau Couturier', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
-        Text('Pour : ${widget.atelierName}', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+        Text('Nouveau Couturier', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
+        Text('Pour : ${widget.atelierName}', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
         const SizedBox(height: 20),
         TextFormField(controller: _fullName, decoration: const InputDecoration(labelText: 'NOM COMPLET', hintText: 'Prénom Nom'), validator: (v) => v == null || v.isEmpty ? 'Requis' : null),
         const SizedBox(height: 14),
@@ -407,10 +415,10 @@ class _CreateTailorSheetState extends State<_CreateTailorSheet> {
         const SizedBox(height: 24),
         SizedBox(width: double.infinity, child: ElevatedButton(
           onPressed: _isSubmitting ? null : _submit,
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
+          style: ElevatedButton.styleFrom(backgroundColor: c.primary, foregroundColor: c.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
           child: _isSubmitting
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
-              : Text('AJOUTER LE COUTURIER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary, letterSpacing: 1.2)),
+              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: c.onPrimary))
+              : Text('AJOUTER LE COUTURIER', style: AppTextStyles.labelCaps.copyWith(color: c.onPrimary, letterSpacing: 1.2)),
         )),
       ])),
     );

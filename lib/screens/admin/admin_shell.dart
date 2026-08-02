@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import 'admin_dashboard.dart';
 import 'admin_messages_screen.dart';
@@ -29,7 +29,7 @@ class _AdminShellState extends State<AdminShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       body: SafeArea(
         bottom: false,
         child: Stack(children: [

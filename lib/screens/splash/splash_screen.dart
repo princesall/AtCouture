@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.heroGradient),
+        decoration: BoxDecoration(gradient: c.heroGradient),
         child: SafeArea(
           child: Column(
             children: [
@@ -21,26 +22,21 @@ class SplashScreen extends StatelessWidget {
               Container(
                 width: 88,
                 height: 88,
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
-                  gradient: AppColors.goldGradient,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.tertiaryContainer.withValues(alpha: 0.4),
+                      color: c.tertiaryContainer.withValues(alpha: 0.4),
                       blurRadius: 32,
                       offset: const Offset(0, 12),
                     ),
                   ],
                 ),
-                child: Center(
-                  child: Text(
-                    'SC',
-                    style: AppTextStyles.displayLg.copyWith(
-                      color: AppColors.onTertiary,
-                      fontSize: 32,
-                      letterSpacing: 2,
-                    ),
-                  ),
+                child: Image.asset(
+                  'assets/branding/logo_mark_transparent.png',
+                  fit: BoxFit.contain,
                 ),
               )
                   .animate()
@@ -84,7 +80,7 @@ class SplashScreen extends StatelessWidget {
                 height: 28,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: AppColors.tertiaryFixedDim.withValues(alpha: 0.8),
+                  color: c.tertiaryFixedDim.withValues(alpha: 0.8),
                 ),
               ).animate(onPlay: (c) => c.repeat()).fadeIn(delay: 500.ms),
 

@@ -3,8 +3,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../models/atelier.dart';
@@ -28,25 +29,26 @@ class CompanyDashboard extends StatelessWidget {
     final recentOrders = CompanyService.instance.allOrdersOfCompany(user.id)
       ..sort((a, b) => (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
     final clients = CompanyService.instance.allClientsOfCompany(user.id);
+    final c = context.colors;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
       children: [
-        _buildHeader(user.firstName, user.atelierName ?? 'Mon Entreprise', ateliers.length),
+        _buildHeader(c, user.firstName, user.atelierName ?? 'Mon Entreprise', ateliers.length),
         const SizedBox(height: 24),
-        _buildKpiBento(stats),
+        _buildKpiBento(c, stats),
         const SizedBox(height: 32),
-        _buildSectionRow('Mes Ateliers', onSeeAll: () => onNavTap?.call(1)),
+        _buildSectionRow(c, 'Mes Ateliers', onSeeAll: () => onNavTap?.call(1)),
         const SizedBox(height: 16),
-        _buildAtelierCards(ateliers, user.id, onNavTap),
+        _buildAtelierCards(c, ateliers, user.id, onNavTap),
         const SizedBox(height: 32),
-        _buildSectionRow('Clients récents', onSeeAll: () => onNavTap?.call(2)),
+        _buildSectionRow(c, 'Clients récents', onSeeAll: () => onNavTap?.call(2)),
         const SizedBox(height: 16),
-        _buildRecentClients(clients),
+        _buildRecentClients(c, clients),
         const SizedBox(height: 32),
-        _buildSectionRow('Commandes récentes', onSeeAll: () => onNavTap?.call(3)),
+        _buildSectionRow(c, 'Commandes récentes', onSeeAll: () => onNavTap?.call(3)),
         const SizedBox(height: 16),
-        _buildRecentOrders(recentOrders.take(4).toList()),
+        _buildRecentOrders(c, recentOrders.take(4).toList()),
         const SizedBox(height: 32),
         _buildQuickActions(onNavTap),
       ],
@@ -54,42 +56,42 @@ class CompanyDashboard extends StatelessWidget {
   }
 
   // ── Header ────────────────────────────────────────────────────────────────
-  Widget _buildHeader(String firstName, String companyName, int atelierCount) {
+  Widget _buildHeader(AppColorPalette c, String firstName, String companyName, int atelierCount) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(gradient: AppColors.goldGradient, borderRadius: BorderRadius.circular(999)),
+          decoration: BoxDecoration(gradient: c.goldGradient, borderRadius: BorderRadius.circular(999)),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.workspace_premium_rounded, color: AppColors.onTertiary, size: 12),
+            Icon(Icons.workspace_premium_rounded, color: c.onTertiary, size: 12),
             const SizedBox(width: 4),
-            Text('ENTREPRISE', style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary, letterSpacing: 0.8)),
+            Text('ENTREPRISE', style: AppTextStyles.labelXs.copyWith(color: c.onTertiary, letterSpacing: 0.8)),
           ]),
         ),
       ]),
       const SizedBox(height: 8),
-      Text('Bonjour, $firstName', style: AppTextStyles.displayLg.copyWith(fontSize: 26, color: AppColors.primary))
+      Text('Bonjour, $firstName', style: AppTextStyles.displayLg.copyWith(fontSize: 26, color: c.primary))
           .animate().fadeIn(duration: 500.ms).slideY(begin: 0.2, end: 0),
       const SizedBox(height: 4),
       Text('Bienvenue dans $companyName · $atelierCount atelier${atelierCount > 1 ? 's' : ''}',
-          style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant))
+          style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant))
           .animate().fadeIn(delay: 100.ms),
     ]);
   }
 
   // ── KPI Bento ─────────────────────────────────────────────────────────────
-  Widget _buildKpiBento(({int totalAteliers, int totalTailors, int totalClients, int totalOrders, int totalRevenue}) stats) {
+  Widget _buildKpiBento(AppColorPalette c, ({int totalAteliers, int totalTailors, int totalClients, int totalOrders, int totalRevenue}) stats) {
     return Column(children: [
       Row(children: [
-        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'ATELIERS',   value: '${stats.totalAteliers}', icon: Icons.storefront_rounded,    valueColor: AppColors.secondary))),
+        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'ATELIERS',   value: '${stats.totalAteliers}', icon: Icons.storefront_rounded,    valueColor: c.secondary))),
         const SizedBox(width: 14),
-        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'COUTURIERS', value: '${stats.totalTailors}',  icon: Icons.content_cut_rounded,   valueColor: AppColors.primary))),
+        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'COUTURIERS', value: '${stats.totalTailors}',  icon: Icons.content_cut_rounded,   valueColor: c.primary))),
       ]),
       const SizedBox(height: 14),
       Row(children: [
-        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'CLIENTS',    value: '${stats.totalClients}', icon: Icons.people_alt_rounded,     valueColor: AppColors.surfaceTint))),
+        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'CLIENTS',    value: '${stats.totalClients}', icon: Icons.people_alt_rounded,     valueColor: c.surfaceTint))),
         const SizedBox(width: 14),
-        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'COMMANDES',  value: '${stats.totalOrders}',  icon: Icons.receipt_long_rounded,   valueColor: AppColors.statusInProgress))),
+        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'COMMANDES',  value: '${stats.totalOrders}',  icon: Icons.receipt_long_rounded,   valueColor: c.statusInProgress))),
       ]),
       const SizedBox(height: 14),
       // Revenus pleine largeur en or
@@ -97,39 +99,39 @@ class CompanyDashboard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          gradient: AppColors.goldGradient,
+          gradient: c.goldGradient,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [BoxShadow(color: AppColors.tertiary.withValues(alpha: 0.25), blurRadius: 16, offset: const Offset(0, 6))],
+          boxShadow: [BoxShadow(color: c.tertiary.withValues(alpha: 0.25), blurRadius: 16, offset: const Offset(0, 6))],
         ),
         child: Row(children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('REVENUS TOTAUX', style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.7))),
+            Text('REVENUS TOTAUX', style: AppTextStyles.labelXs.copyWith(color: c.onTertiary.withValues(alpha: 0.7))),
             const SizedBox(height: 6),
-            Text(Formatters.formatCurrency(stats.totalRevenue), style: AppTextStyles.statNumber.copyWith(color: AppColors.onTertiary, fontSize: 28)),
-            Text('${AppConstants.currency} générés par tous vos ateliers', style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.7))),
+            Text(Formatters.formatCurrency(stats.totalRevenue), style: AppTextStyles.statNumber.copyWith(color: c.onTertiary, fontSize: 28)),
+            Text('${AppConstants.currency} générés par tous vos ateliers', style: AppTextStyles.labelXs.copyWith(color: c.onTertiary.withValues(alpha: 0.7))),
           ]),
           const Spacer(),
-          const Icon(Icons.trending_up_rounded, color: AppColors.onTertiary, size: 36),
+          Icon(Icons.trending_up_rounded, color: c.onTertiary, size: 36),
         ]),
       ),
     ]).animate().fadeIn(delay: 150.ms, duration: 500.ms);
   }
 
   // ── Section header ────────────────────────────────────────────────────────
-  Widget _buildSectionRow(String title, {VoidCallback? onSeeAll}) {
+  Widget _buildSectionRow(AppColorPalette c, String title, {VoidCallback? onSeeAll}) {
     return Row(children: [
-      Text(title, style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
+      Text(title, style: AppTextStyles.titleMd.copyWith(color: c.primary)),
       const Spacer(),
       if (onSeeAll != null)
         TextButton(
           onPressed: onSeeAll,
-          child: Text('VOIR TOUT', style: AppTextStyles.labelCaps.copyWith(color: AppColors.secondary, letterSpacing: 1.1)),
+          child: Text('VOIR TOUT', style: AppTextStyles.labelCaps.copyWith(color: c.secondary, letterSpacing: 1.1)),
         ),
     ]);
   }
 
   // ── Ateliers cards ────────────────────────────────────────────────────────
-  Widget _buildAtelierCards(List<Atelier> ateliers, String ownerId, ValueChanged<int>? onNavTap) {
+  Widget _buildAtelierCards(AppColorPalette c, List<Atelier> ateliers, String ownerId, ValueChanged<int>? onNavTap) {
     return Column(
       children: ateliers.take(3).toList().asMap().entries.map((e) {
         final a = e.value;
@@ -141,31 +143,31 @@ class CompanyDashboard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLowest,
+                color: c.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isOwner ? AppColors.tertiary.withValues(alpha: 0.3) : AppColors.outlineVariant.withValues(alpha: 0.3)),
-                boxShadow: AppColors.softShadow,
+                border: Border.all(color: isOwner ? c.tertiary.withValues(alpha: 0.3) : c.outlineVariant.withValues(alpha: 0.3)),
+                boxShadow: c.softShadow,
               ),
               child: Row(children: [
                 Container(
                   width: 44, height: 44,
                   decoration: BoxDecoration(
-                    gradient: isOwner ? AppColors.goldGradient : null,
-                    color: isOwner ? null : AppColors.primaryFixed.withValues(alpha: 0.3),
+                    gradient: isOwner ? c.goldGradient : null,
+                    color: isOwner ? null : c.primaryFixed.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(isOwner ? Icons.star_rounded : Icons.storefront_rounded,
-                    color: isOwner ? AppColors.onTertiary : AppColors.primary, size: 20),
+                    color: isOwner ? c.onTertiary : c.primary, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(a.name, style: AppTextStyles.titleSm.copyWith(fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
                   Text(isOwner ? 'Votre atelier personnel' : 'Chef : ${a.headStylistName}',
-                    style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 12)),
+                    style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant, fontSize: 12)),
                 ])),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text('${CompanyService.instance.ordersOfAtelier(a.id).length}', style: AppTextStyles.titleSm.copyWith(color: AppColors.primary)),
-                  Text('commandes', style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
+                  Text('${CompanyService.instance.ordersOfAtelier(a.id).length}', style: AppTextStyles.titleSm.copyWith(color: c.primary)),
+                  Text('commandes', style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant)),
                 ]),
               ]),
             ),
@@ -176,32 +178,32 @@ class CompanyDashboard extends StatelessWidget {
   }
 
   // ── Clients récents ───────────────────────────────────────────────────────
-  Widget _buildRecentClients(List<Client> clients) {
+  Widget _buildRecentClients(AppColorPalette c, List<Client> clients) {
     final recent = clients.take(3).toList();
     if (recent.isEmpty) return _EmptyHint(label: 'Aucun client pour le moment');
 
     return Container(
-      decoration: BoxDecoration(color: AppColors.surfaceContainerLowest, borderRadius: BorderRadius.circular(18), boxShadow: AppColors.premiumShadow),
+      decoration: BoxDecoration(color: c.surfaceContainerLowest, borderRadius: BorderRadius.circular(18), boxShadow: c.premiumShadow),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: recent.asMap().entries.map((e) {
-          final c = e.value;
+          final client = e.value;
           return Column(children: [
-            if (e.key > 0) Divider(height: 1, color: AppColors.outlineVariant.withValues(alpha: 0.3), indent: 16, endIndent: 16),
+            if (e.key > 0) Divider(height: 1, color: c.outlineVariant.withValues(alpha: 0.3), indent: 16, endIndent: 16),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               leading: Container(
                 width: 40, height: 40,
-                decoration: BoxDecoration(color: AppColors.primaryFixed.withValues(alpha: 0.4), shape: BoxShape.circle),
-                child: Center(child: Text(c.initials, style: AppTextStyles.labelCaps.copyWith(color: AppColors.primary))),
+                decoration: BoxDecoration(color: c.primaryFixed.withValues(alpha: 0.4), shape: BoxShape.circle),
+                child: Center(child: Text(client.initials, style: AppTextStyles.labelCaps.copyWith(color: c.primary))),
               ),
-              title: Text(c.fullName, style: AppTextStyles.titleSm.copyWith(fontSize: 14)),
+              title: Text(client.fullName, style: AppTextStyles.titleSm.copyWith(fontSize: 14)),
               subtitle: Row(children: [
-                const Icon(Icons.storefront_outlined, size: 10, color: AppColors.secondary),
+                Icon(Icons.storefront_outlined, size: 10, color: c.secondary),
                 const SizedBox(width: 3),
-                Text(c.atelierName, style: AppTextStyles.labelXs.copyWith(color: AppColors.secondary)),
+                Text(client.atelierName, style: AppTextStyles.labelXs.copyWith(color: c.secondary)),
               ]),
-              trailing: Text('${c.orderCount} cmds', style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
+              trailing: Text('${client.orderCount} cmds', style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant)),
             ),
           ]);
         }).toList(),
@@ -210,26 +212,26 @@ class CompanyDashboard extends StatelessWidget {
   }
 
   // ── Commandes récentes ────────────────────────────────────────────────────
-  Widget _buildRecentOrders(List<Order> orders) {
+  Widget _buildRecentOrders(AppColorPalette c, List<Order> orders) {
     if (orders.isEmpty) return _EmptyHint(label: 'Aucune commande pour le moment');
 
     return Container(
-      decoration: BoxDecoration(color: AppColors.surfaceContainerLowest, borderRadius: BorderRadius.circular(18), boxShadow: AppColors.premiumShadow),
+      decoration: BoxDecoration(color: c.surfaceContainerLowest, borderRadius: BorderRadius.circular(18), boxShadow: c.premiumShadow),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: orders.asMap().entries.map((e) {
           final o = e.value;
           return Column(children: [
-            if (e.key > 0) Divider(height: 1, color: AppColors.outlineVariant.withValues(alpha: 0.3), indent: 16, endIndent: 16),
+            if (e.key > 0) Divider(height: 1, color: c.outlineVariant.withValues(alpha: 0.3), indent: 16, endIndent: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(o.clientName, style: AppTextStyles.titleSm.copyWith(fontSize: 13)),
-                  Text('${o.description ?? 'Vêtement non précisé'} · ${o.atelierName}', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 12)),
+                  Text('${o.description ?? 'Vêtement non précisé'} · ${o.atelierName}', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant, fontSize: 12)),
                 ])),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text('${Formatters.formatCurrency(o.price ?? 0)} F', style: AppTextStyles.titleSm.copyWith(color: AppColors.primary, fontSize: 12)),
+                  Text('${Formatters.formatCurrency(o.price ?? 0)} F', style: AppTextStyles.titleSm.copyWith(color: c.primary, fontSize: 12)),
                   const SizedBox(height: 4),
                   StatusBadge(o.status),
                 ]),
@@ -265,6 +267,6 @@ class _EmptyHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 12),
-    child: Text(label, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+    child: Text(label, style: AppTextStyles.bodySm.copyWith(color: context.colors.onSurfaceVariant)),
   );
 }

@@ -1,8 +1,11 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
+import '../theme/build_context_colors.dart';
 
 class EmptyState extends StatelessWidget {
   const EmptyState({
@@ -20,6 +23,7 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xl),
@@ -30,10 +34,10 @@ class EmptyState extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: AppColors.primaryFixed.withValues(alpha: 0.3),
+                color: c.primaryFixed.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
               ),
-              child: Icon(icon, size: 32, color: AppColors.primary),
+              child: Icon(icon, size: 32, color: c.primary),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
@@ -46,7 +50,7 @@ class EmptyState extends StatelessWidget {
               Text(
                 subtitle!,
                 style: AppTextStyles.bodySm.copyWith(
-                  color: AppColors.onSurfaceVariant,
+                  color: c.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -108,19 +112,20 @@ class PlanBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: compact ? AppSpacing.xs : AppSpacing.sm,
         vertical: compact ? 2 : AppSpacing.xxs,
       ),
       decoration: BoxDecoration(
-        gradient: AppColors.goldGradient,
+        gradient: c.goldGradient,
         borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
       ),
       child: Text(
         planName.toUpperCase(),
         style: AppTextStyles.labelCaps.copyWith(
-          color: AppColors.onTertiary,
+          color: c.onTertiary,
           fontSize: compact ? 9 : 10,
           letterSpacing: 1,
         ),
@@ -146,19 +151,20 @@ class SuccessConfirmationSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.check_circle_rounded, color: AppColors.statusDone, size: 56),
+        Icon(Icons.check_circle_rounded, color: c.statusDone, size: 56),
         const SizedBox(height: 16),
-        Text(title, style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
+        Text(title, style: AppTextStyles.titleMd.copyWith(color: c.primary)),
         const SizedBox(height: 8),
-        Text(message, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant), textAlign: TextAlign.center),
+        Text(message, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant), textAlign: TextAlign.center),
         const SizedBox(height: 24),
         SizedBox(width: double.infinity, child: ElevatedButton(
           onPressed: () => Navigator.pop(context),
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
-          child: Text('FERMER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary)),
+          style: ElevatedButton.styleFrom(backgroundColor: c.primary, foregroundColor: c.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
+          child: Text('FERMER', style: AppTextStyles.labelCaps.copyWith(color: c.onPrimary)),
         )),
       ]),
     );
@@ -181,25 +187,67 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final url = imageUrl;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: dark ? AppColors.heroGradient : AppColors.goldGradient,
+        gradient: dark ? c.heroGradient : c.goldGradient,
         borderRadius: BorderRadius.circular(size * 0.32),
         border: Border.all(
-          color: AppColors.outlineVariant,
+          color: c.outlineVariant,
           width: 1.5,
         ),
       ),
       alignment: Alignment.center,
-      child: Text(
-        initials,
-        style: AppTextStyles.labelCaps.copyWith(
-          color: Colors.white,
-          fontSize: size * 0.34,
-        ),
-      ),
+      clipBehavior: Clip.antiAlias,
+      child: url == null || url.isEmpty
+          ? Text(
+              initials,
+              style: AppTextStyles.labelCaps.copyWith(
+                color: Colors.white,
+                fontSize: size * 0.34,
+              ),
+            )
+          : _AvatarImage(url: url, size: size),
+    );
+  }
+}
+
+/// Affiche l'image d'un avatar/logo depuis une URL réseau ou un chemin de
+/// fichier local (celui renvoyé par image_picker), avec repli discret sur les
+/// initiales si le fichier n'existe plus (ex : démo réinstallée, cache vidé).
+class _AvatarImage extends StatelessWidget {
+  const _AvatarImage({required this.url, required this.size});
+  final String url;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    // Sur le web, image_picker renvoie une URL `blob:` (pas un vrai chemin de
+    // fichier) : `dart:io File` n'y fonctionne pas et fait planter l'écran.
+    final isRemote = kIsWeb ||
+        url.startsWith('http://') ||
+        url.startsWith('https://') ||
+        url.startsWith('blob:');
+    final errorFallback = Icon(Icons.storefront_rounded, color: Colors.white, size: size * 0.4);
+
+    if (isRemote) {
+      return Image.network(
+        url,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => errorFallback,
+      );
+    }
+    return Image.file(
+      File(url),
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => errorFallback,
     );
   }
 }

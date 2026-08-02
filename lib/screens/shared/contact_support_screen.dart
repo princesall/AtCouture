@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/premium_button.dart';
 import '../../models/app_user.dart';
 import '../../models/support_message.dart';
@@ -68,25 +68,26 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    final c = context.colors;
     final myMessages = SupportMessageService.instance.messagesFrom(user.id);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: c.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: c.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primary, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: c.primary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Assistance', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
+        title: Text('Assistance', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           Text(
             'Décrivez votre problème, un administrateur vous répondra ici même.',
-            style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+            style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
           ),
           const SizedBox(height: AppSpacing.md),
           TextField(
@@ -96,8 +97,8 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
             decoration: InputDecoration(
               hintText: 'Ex : je n\'arrive pas à ajouter une photo à une commande...',
               filled: true,
-              fillColor: AppColors.surfaceContainerLowest,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.4))),
+              fillColor: c.surfaceContainerLowest,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: c.outlineVariant.withValues(alpha: 0.4))),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -109,7 +110,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
 
           if (myMessages.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.xl),
-            Text('MES MESSAGES', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurfaceVariant, letterSpacing: 1.2)),
+            Text('MES MESSAGES', style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant, letterSpacing: 1.2)),
             const SizedBox(height: AppSpacing.sm),
             ...myMessages.map((m) => _MyMessageCard(message: m)),
           ],
@@ -125,14 +126,15 @@ class _MyMessageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
+        boxShadow: c.softShadow,
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(message.content, style: AppTextStyles.bodySm),
@@ -141,20 +143,20 @@ class _MyMessageCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppColors.primaryFixed.withValues(alpha: 0.15),
+              color: c.primaryFixed.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Réponse de l\'assistance', style: AppTextStyles.labelXs.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
+              Text('Réponse de l\'assistance', style: AppTextStyles.labelXs.copyWith(color: c.primary, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text(message.reply!, style: AppTextStyles.bodySm),
             ]),
           ),
         ] else
           Row(children: [
-            const Icon(Icons.hourglass_empty_rounded, size: 14, color: AppColors.onSurfaceVariant),
+            Icon(Icons.hourglass_empty_rounded, size: 14, color: c.onSurfaceVariant),
             const SizedBox(width: 6),
-            Text('En attente de réponse', style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
+            Text('En attente de réponse', style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant)),
           ]),
       ]),
     );

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/premium_button.dart';
 import '../../core/widgets/premium_text_field.dart';
 import '../../providers/auth_provider.dart';
@@ -63,6 +63,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Widget _buildForm(AuthProvider auth) {
+    final c = context.colors;
     return Form(
       key: _formKey,
       child: Column(
@@ -73,7 +74,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           Text(
             'Entrez votre email pour recevoir un lien de réinitialisation.',
             style: AppTextStyles.bodyLg.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: c.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -100,6 +101,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Widget _buildSuccess() {
+    final c = context.colors;
     return Column(
       children: [
         const Spacer(),
@@ -107,13 +109,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           width: 80,
           height: 80,
           decoration: BoxDecoration(
-            color: AppColors.statusDoneBg,
+            color: c.statusDoneBg,
             borderRadius: BorderRadius.circular(24),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.mark_email_read_outlined,
             size: 40,
-            color: AppColors.statusDone,
+            color: c.statusDone,
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -126,7 +128,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         Text(
           'Consultez votre boîte mail pour réinitialiser votre mot de passe.',
           style: AppTextStyles.bodyLg.copyWith(
-            color: AppColors.onSurfaceVariant,
+            color: c.onSurfaceVariant,
           ),
           textAlign: TextAlign.center,
         ),

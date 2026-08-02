@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../models/app_user.dart';
@@ -39,6 +39,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    final c = context.colors;
     final orders = _visibleOrders(user).where((o) => o.dueDate != null).toList();
 
     final ordersByDay = <DateTime, List<Order>>{};
@@ -51,11 +52,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final selectedOrders = _selectedDay == null ? const <Order>[] : (ordersByDay[_selectedDay] ?? const []);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: c.background,
       appBar: AppBar(
         title: const Text('Calendrier des livraisons'),
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.primary,
+        backgroundColor: c.background,
+        foregroundColor: c.primary,
         elevation: 0,
       ),
       body: SafeArea(
@@ -69,7 +70,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: _selectedDay == null
                 ? Center(
                     child: Text('Sélectionnez un jour pour voir ses livraisons',
-                        style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+                        style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
                   )
                 : selectedOrders.isEmpty
                     ? Center(
@@ -100,6 +101,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildMonthHeader() {
+    final c = context.colors;
     const months = [
       'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
       'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
@@ -115,7 +117,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           child: Text(
             '${months[_month.month - 1]} ${_month.year}',
             textAlign: TextAlign.center,
-            style: AppTextStyles.titleMd.copyWith(color: AppColors.primary),
+            style: AppTextStyles.titleMd.copyWith(color: c.primary),
           ),
         ),
         IconButton(
@@ -127,12 +129,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildWeekdayLabels() {
+    final c = context.colors;
     const labels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
     return Row(
       children: labels
           .map((l) => Expanded(
                 child: Center(
-                  child: Text(l, style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
+                  child: Text(l, style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant)),
                 ),
               ))
           .toList(),
@@ -140,6 +143,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildMonthGrid(Map<DateTime, List<Order>> ordersByDay) {
+    final c = context.colors;
     final firstOfMonth = DateTime(_month.year, _month.month, 1);
     final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
     // weekday: 1=lundi .. 7=dimanche → nombre de cases vides avant le 1er
@@ -171,9 +175,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     height: 44,
                     margin: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : Colors.transparent,
+                      color: isSelected ? c.primary : Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
-                      border: isToday && !isSelected ? Border.all(color: AppColors.primary) : null,
+                      border: isToday && !isSelected ? Border.all(color: c.primary) : null,
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -181,7 +185,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         Text(
                           '$dayNum',
                           style: AppTextStyles.bodySm.copyWith(
-                            color: isSelected ? AppColors.onPrimary : AppColors.onSurface,
+                            color: isSelected ? c.onPrimary : c.onSurface,
                             fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
                           ),
                         ),
@@ -191,7 +195,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             width: 5, height: 5,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: isSelected ? AppColors.onPrimary : AppColors.tertiary,
+                              color: isSelected ? c.onPrimary : c.tertiary,
                             ),
                           ),
                       ],

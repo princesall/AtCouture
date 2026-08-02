@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../models/app_user.dart';
 import '../../providers/auth_provider.dart';
@@ -255,6 +255,7 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
     final permissions = user.permissions;
+    final c = context.colors;
     final tailors = CompanyService.instance.tailorsOfAtelier(user.atelierId!);
     final currentCount = tailors.length;
     final maxTailors = permissions.maxTailorsPerAtelier;
@@ -278,7 +279,7 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                     Text(
                       '$currentCount/$maxTailors',
                       style: AppTextStyles.bodySm.copyWith(
-                        color: canAdd ? AppColors.primary : AppColors.error,
+                        color: canAdd ? c.primary : c.error,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -295,7 +296,7 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.sm),
                     decoration: BoxDecoration(
-                      color: AppColors.tertiary.withValues(alpha: 0.1),
+                      color: c.tertiary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                     ),
                     child: Row(
@@ -303,14 +304,14 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                         Icon(
                           Icons.info_outline,
                           size: 16,
-                          color: AppColors.tertiary,
+                          color: c.tertiary,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             permissions.canAddTailorMessage,
                             style: AppTextStyles.bodySm.copyWith(
-                              color: AppColors.tertiary,
+                              color: c.tertiary,
                             ),
                           ),
                         ),
@@ -361,7 +362,7 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                                           setState(() {});
                                         },
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.error,
+                                          backgroundColor: c.error,
                                         ),
                                         child: const Text('Supprimer'),
                                       ),
@@ -393,13 +394,14 @@ class _TailorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
+        boxShadow: c.softShadow,
       ),
       child: Row(
         children: [
@@ -419,7 +421,7 @@ class _TailorCard extends StatelessWidget {
                 Text(
                   tailor.phone,
                   style: AppTextStyles.bodySm.copyWith(
-                    color: AppColors.onSurfaceVariant,
+                    color: c.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -428,13 +430,13 @@ class _TailorCard extends StatelessWidget {
           if (onEdit != null)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              color: AppColors.primary,
+              color: c.primary,
               onPressed: onEdit,
             ),
           if (onRemove != null)
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              color: AppColors.error,
+              color: c.error,
               onPressed: onRemove,
             ),
         ],

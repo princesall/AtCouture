@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/plan_guard.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../company/company_customization_screen.dart';
 import '../company/company_data_export_screen.dart';
 import '../company/company_dedicated_manager_screen.dart';
@@ -24,17 +25,19 @@ class ProfileTabContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
     final auth = context.read<AuthProvider>();
+    final theme = context.watch<ThemeProvider>();
+    final c = context.colors;
 
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 120),
         child: Column(children: [
           const SizedBox(height: AppSpacing.lg),
-          UserAvatar(initials: user.initials, size: 80, dark: user.isCompanyOwner),
+          UserAvatar(initials: user.initials, size: 80, dark: user.isCompanyOwner, imageUrl: user.photoUrl),
           const SizedBox(height: AppSpacing.md),
           Text(user.fullName, style: AppTextStyles.headlineLgMobile),
           const SizedBox(height: AppSpacing.xxs),
-          Text(user.email, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+          Text(user.email, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
           const SizedBox(height: AppSpacing.sm),
           PlanBadge(planName: user.plan.name),
           const SizedBox(height: AppSpacing.xl),
@@ -53,7 +56,7 @@ class ProfileTabContent extends StatelessWidget {
           const SizedBox(height: AppSpacing.xl),
           Align(
             alignment: Alignment.centerLeft,
-            child: Text('Fonctionnalités', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurfaceVariant)),
+            child: Text('Fonctionnalités', style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant)),
           ),
           const SizedBox(height: AppSpacing.sm),
           _ProfileMenuTile(
@@ -94,18 +97,33 @@ class ProfileTabContent extends StatelessWidget {
             ),
           ],
           const SizedBox(height: AppSpacing.xl),
-          ListTile(
-            leading: const Icon(Icons.support_agent_outlined, color: AppColors.secondary),
-            title: Text('Signaler un problème', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurface)),
-            onTap: () => ContactSupportScreen.show(context),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd), side: const BorderSide(color: AppColors.outlineVariant)),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              border: Border.all(color: c.outlineVariant),
+            ),
+            child: SwitchListTile(
+              secondary: Icon(theme.isDarkMode ? Icons.dark_mode_outlined : Icons.light_mode_outlined, color: c.secondary),
+              title: Text(theme.isDarkMode ? 'Mode sombre' : 'Mode clair', style: AppTextStyles.labelCaps.copyWith(color: c.onSurface)),
+              value: theme.isDarkMode,
+              onChanged: (_) => theme.toggle(),
+              activeTrackColor: c.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           ListTile(
-            leading: const Icon(Icons.logout, color: AppColors.error),
-            title: Text('Déconnexion', style: AppTextStyles.labelCaps.copyWith(color: AppColors.error)),
+            leading: Icon(Icons.support_agent_outlined, color: c.secondary),
+            title: Text('Signaler un problème', style: AppTextStyles.labelCaps.copyWith(color: c.onSurface)),
+            onTap: () => ContactSupportScreen.show(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd), side: BorderSide(color: c.outlineVariant)),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          ListTile(
+            leading: Icon(Icons.logout, color: c.error),
+            title: Text('Déconnexion', style: AppTextStyles.labelCaps.copyWith(color: c.error)),
             onTap: () => auth.signOut(),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd), side: const BorderSide(color: AppColors.outlineVariant)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd), side: BorderSide(color: c.outlineVariant)),
           ),
         ]),
       ),
@@ -133,19 +151,20 @@ class _ProfileMenuTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
+        boxShadow: c.softShadow,
       ),
       child: ListTile(
-        leading: Icon(icon, color: isAllowed ? AppColors.secondary : AppColors.onSurfaceVariant, size: 22),
+        leading: Icon(icon, color: isAllowed ? c.secondary : c.onSurfaceVariant, size: 22),
         title: Text(title, style: AppTextStyles.bodyLg),
         trailing: isAllowed
-            ? const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant)
+            ? Icon(Icons.chevron_right, color: c.onSurfaceVariant)
             : const PlanLockBadge(),
         onTap: () {
           if (PlanGuard.requireFeature(
@@ -167,19 +186,20 @@ class _ProfileTile extends StatelessWidget {
   final IconData icon; final String title; final String subtitle; final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
+        boxShadow: c.softShadow,
       ),
       child: ListTile(
-        leading: Icon(icon, color: AppColors.secondary, size: 22),
+        leading: Icon(icon, color: c.secondary, size: 22),
         title: Text(title, style: AppTextStyles.labelCaps),
         subtitle: Text(subtitle, style: AppTextStyles.bodyLg),
-        trailing: onTap != null ? const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant) : null,
+        trailing: onTap != null ? Icon(Icons.chevron_right, color: c.onSurfaceVariant) : null,
         onTap: onTap,
       ),
     );

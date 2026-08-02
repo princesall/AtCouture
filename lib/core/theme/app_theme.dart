@@ -1,77 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'app_colors.dart';
+import 'app_color_palette.dart';
 
 abstract final class AppTheme {
-  static ThemeData get light {
+  static ThemeData get light => _build(const AppColorsLight(), Brightness.light);
+  static ThemeData get dark => _build(const AppColorsDark(), Brightness.dark);
+
+  static ThemeData _build(AppColorPalette c, Brightness brightness) {
     final base = ThemeData(
       useMaterial3: true,
-      colorScheme: const ColorScheme(
-        brightness: Brightness.light,
-        // Primaire — Indigo
-        primary:              AppColors.primary,
-        onPrimary:            AppColors.onPrimary,
-        primaryContainer:     AppColors.primaryContainer,
-        onPrimaryContainer:   AppColors.onPrimaryContainer,
-        // Secondaire — Terracotta
-        secondary:            AppColors.secondary,
-        onSecondary:          AppColors.onSecondary,
-        secondaryContainer:   AppColors.secondaryContainer,
-        onSecondaryContainer: AppColors.onSecondaryContainer,
-        // Tertiaire — Or
-        tertiary:             AppColors.tertiary,
-        onTertiary:           AppColors.onTertiary,
-        tertiaryContainer:    AppColors.tertiaryContainer,
-        onTertiaryContainer:  AppColors.onTertiaryContainer,
-        // Erreur
-        error:                AppColors.error,
-        onError:              AppColors.onError,
-        errorContainer:       AppColors.errorContainer,
-        onErrorContainer:     AppColors.onErrorContainer,
-        // Surfaces
-        surface:              AppColors.surface,
-        onSurface:            AppColors.onSurface,
-        onSurfaceVariant:     AppColors.onSurfaceVariant,
-        outline:              AppColors.outline,
-        outlineVariant:       AppColors.outlineVariant,
-        inverseSurface:       AppColors.inverseSurface,
-        onInverseSurface:     AppColors.inverseOnSurface,
-        inversePrimary:       AppColors.inversePrimary,
-        surfaceTint:          AppColors.surfaceTint,
+      brightness: brightness,
+      colorScheme: ColorScheme(
+        brightness: brightness,
+        primary:              c.primary,
+        onPrimary:            c.onPrimary,
+        primaryContainer:     c.primaryContainer,
+        onPrimaryContainer:   c.onPrimaryContainer,
+        secondary:            c.secondary,
+        onSecondary:          c.onSecondary,
+        secondaryContainer:   c.secondaryContainer,
+        onSecondaryContainer: c.onSecondaryContainer,
+        tertiary:             c.tertiary,
+        onTertiary:           c.onTertiary,
+        tertiaryContainer:    c.tertiaryContainer,
+        onTertiaryContainer:  c.onTertiaryContainer,
+        error:                c.error,
+        onError:              c.onError,
+        errorContainer:       c.errorContainer,
+        onErrorContainer:     c.onErrorContainer,
+        surface:              c.surface,
+        onSurface:            c.onSurface,
+        onSurfaceVariant:     c.onSurfaceVariant,
+        outline:              c.outline,
+        outlineVariant:       c.outlineVariant,
+        inverseSurface:       c.inverseSurface,
+        onInverseSurface:     c.inverseOnSurface,
+        inversePrimary:       c.inversePrimary,
+        surfaceTint:          c.surfaceTint,
       ),
     );
 
     return base.copyWith(
-      scaffoldBackgroundColor: AppColors.background,
-      // ── AppBar ────────────────────────────────────────────────────────────
+      scaffoldBackgroundColor: c.background,
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        iconTheme: const IconThemeData(color: AppColors.primary),
+        iconTheme: IconThemeData(color: c.primary),
         titleTextStyle: GoogleFonts.manrope(
           fontSize: 20,
           fontWeight: FontWeight.w700,
-          color: AppColors.primary,
+          color: c.primary,
         ),
       ),
-      // ── Cards ────────────────────────────────────────────────────────────
       cardTheme: CardThemeData(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppColors.surfaceContainerLowest),
+          side: BorderSide(color: c.surfaceContainerLowest),
         ),
         margin: EdgeInsets.zero,
       ),
-      // ── ElevatedButton — Indigo primary ──────────────────────────────────
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
+          backgroundColor: c.primary,
+          foregroundColor: c.onPrimary,
           elevation: 0,
           shadowColor: Colors.transparent,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -83,11 +79,10 @@ abstract final class AppTheme {
           ),
         ),
       ),
-      // ── OutlinedButton — Ghost terracotta ────────────────────────────────
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.secondary,
-          side: const BorderSide(color: AppColors.secondary),
+          foregroundColor: c.secondary,
+          side: BorderSide(color: c.secondary),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: GoogleFonts.hankenGrotesk(
@@ -97,10 +92,9 @@ abstract final class AppTheme {
           ),
         ),
       ),
-      // ── TextButton ───────────────────────────────────────────────────────
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.secondary,
+          foregroundColor: c.secondary,
           textStyle: GoogleFonts.hankenGrotesk(
             fontSize: 12,
             fontWeight: FontWeight.w700,
@@ -108,45 +102,43 @@ abstract final class AppTheme {
           ),
         ),
       ),
-      // ── InputDecoration ──────────────────────────────────────────────────
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceContainerLowest,
+        fillColor: c.surfaceContainerLowest,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.outlineVariant, width: 0.8),
+          borderSide: BorderSide(color: c.outlineVariant, width: 0.8),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5), width: 0.8),
+          borderSide: BorderSide(color: c.outlineVariant.withValues(alpha: 0.5), width: 0.8),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: BorderSide(color: c.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.error, width: 1),
+          borderSide: BorderSide(color: c.error, width: 1),
         ),
         hintStyle: GoogleFonts.manrope(
           fontSize: 14,
-          color: AppColors.onSurfaceVariant,
+          color: c.onSurfaceVariant,
           fontWeight: FontWeight.w400,
         ),
         labelStyle: GoogleFonts.hankenGrotesk(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.6,
-          color: AppColors.onSurfaceVariant,
+          color: c.onSurfaceVariant,
         ),
       ),
-      // ── BottomNavigationBar ──────────────────────────────────────────────
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        selectedItemColor: AppColors.secondary,
-        unselectedItemColor: AppColors.onSurfaceVariant,
+        selectedItemColor: c.secondary,
+        unselectedItemColor: c.onSurfaceVariant,
         selectedLabelStyle: GoogleFonts.hankenGrotesk(
           fontSize: 10,
           fontWeight: FontWeight.w700,
@@ -159,15 +151,13 @@ abstract final class AppTheme {
         ),
         type: BottomNavigationBarType.fixed,
       ),
-      // ── Divider ──────────────────────────────────────────────────────────
-      dividerTheme: const DividerThemeData(
-        color: AppColors.outlineVariant,
+      dividerTheme: DividerThemeData(
+        color: c.outlineVariant,
         thickness: 0.5,
         space: 0,
       ),
-      // ── Chip ─────────────────────────────────────────────────────────────
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.surfaceContainerHigh,
+        backgroundColor: c.surfaceContainerHigh,
         labelStyle: GoogleFonts.hankenGrotesk(
           fontSize: 10,
           fontWeight: FontWeight.w700,
@@ -176,11 +166,10 @@ abstract final class AppTheme {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       ),
-      // ── SnackBar ─────────────────────────────────────────────────────────
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.inverseSurface,
+        backgroundColor: c.inverseSurface,
         contentTextStyle: GoogleFonts.manrope(
-          color: AppColors.inverseOnSurface,
+          color: c.inverseOnSurface,
           fontSize: 14,
         ),
         behavior: SnackBarBehavior.floating,

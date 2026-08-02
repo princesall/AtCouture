@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/premium_button.dart';
 import '../../core/widgets/premium_text_field.dart';
 import '../../providers/auth_provider.dart';
@@ -56,7 +56,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
       );
     } else if (auth.errorMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage!), backgroundColor: AppColors.error),
+        SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.colors.error),
       );
     }
   }
@@ -64,6 +64,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final c = context.colors;
 
     return Dialog(
       child: Padding(
@@ -74,7 +75,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Changer le mot de passe', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
+              Text('Changer le mot de passe', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
               const SizedBox(height: AppSpacing.lg),
               PremiumTextField(
                 controller: _currentPasswordController,

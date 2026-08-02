@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../models/order.dart';
@@ -27,6 +27,7 @@ class _TailorDashboardState extends State<TailorDashboard> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    final c = context.colors;
     final orders = OrderService.instance.ordersOfAtelier(user.atelierId!)
       ..sort((a, b) => (a.dueDate ?? DateTime(9999)).compareTo(b.dueDate ?? DateTime(9999)));
 
@@ -52,11 +53,11 @@ class _TailorDashboardState extends State<TailorDashboard> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.checkroom_outlined, size: 40, color: AppColors.onSurfaceVariant.withValues(alpha: 0.5)),
+                      Icon(Icons.checkroom_outlined, size: 40, color: c.onSurfaceVariant.withValues(alpha: 0.5)),
                       const SizedBox(height: 12),
                       Text(
                         orders.isEmpty ? 'Aucune commande pour le moment' : 'Aucune commande dans cette catégorie',
-                        style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                        style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -73,6 +74,7 @@ class _TailorDashboardState extends State<TailorDashboard> {
   }
 
   Widget _buildGreeting(String firstName, String? atelierName) {
+    final c = context.colors;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
       child: Column(
@@ -80,12 +82,12 @@ class _TailorDashboardState extends State<TailorDashboard> {
         children: [
           Text(
             'Bonjour, $firstName',
-            style: AppTextStyles.headlineLgMobile.copyWith(color: AppColors.primary),
+            style: AppTextStyles.headlineLgMobile.copyWith(color: c.primary),
           ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.15, end: 0),
           const SizedBox(height: 2),
           Text(
             atelierName ?? 'Vos tâches de couture',
-            style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+            style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
           ).animate().fadeIn(delay: 80.ms),
         ],
       ),
@@ -93,6 +95,7 @@ class _TailorDashboardState extends State<TailorDashboard> {
   }
 
   Widget _buildStatRow(int total, int inProgress, int urgent) {
+    final c = context.colors;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
       child: Row(
@@ -109,7 +112,7 @@ class _TailorDashboardState extends State<TailorDashboard> {
               height: 92,
               child: StatCard(
                 label: 'EN COURS', value: '$inProgress', icon: Icons.pending_actions_rounded,
-                valueColor: AppColors.statusInProgress,
+                valueColor: c.statusInProgress,
               ),
             ),
           ),
@@ -119,7 +122,7 @@ class _TailorDashboardState extends State<TailorDashboard> {
               height: 92,
               child: StatCard(
                 label: 'URGENT', value: '$urgent', icon: Icons.priority_high_rounded,
-                valueColor: AppColors.error, isAlert: urgent > 0,
+                valueColor: c.error, isAlert: urgent > 0,
               ),
             ),
           ),
@@ -135,6 +138,7 @@ class _TailorDashboardState extends State<TailorDashboard> {
       'URGENT ($urgent)',
       'TERMINÉ ($done)',
     ];
+    final c = context.colors;
     return SizedBox(
       height: 56,
       child: ListView.separated(
@@ -149,14 +153,14 @@ class _TailorDashboardState extends State<TailorDashboard> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: active ? AppColors.primary : AppColors.surfaceContainerHigh,
+                color: active ? c.primary : c.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(999),
-                boxShadow: active ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 3))] : null,
+                boxShadow: active ? [BoxShadow(color: c.primary.withValues(alpha: 0.2), blurRadius: 8, offset: const Offset(0, 3))] : null,
               ),
               child: Text(
                 filters[i],
                 style: AppTextStyles.labelCaps.copyWith(
-                  color: active ? AppColors.onPrimary : AppColors.onSurfaceVariant,
+                  color: active ? c.onPrimary : c.onSurfaceVariant,
                 ),
               ),
             ),
@@ -168,13 +172,14 @@ class _TailorDashboardState extends State<TailorDashboard> {
 
   Widget _buildOrderCard(Order order, int index) {
     final isExpanded = _expanded.contains(order.id);
+    final c = context.colors;
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
+        boxShadow: c.softShadow,
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -194,13 +199,13 @@ class _TailorDashboardState extends State<TailorDashboard> {
                   Container(
                     width: 56, height: 56,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryFixed.withValues(alpha: 0.4),
+                      color: c.primaryFixed.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     alignment: Alignment.center,
                     child: Text(
                       order.clientName.isNotEmpty ? order.clientName[0].toUpperCase() : '?',
-                      style: AppTextStyles.titleMd.copyWith(color: AppColors.primary),
+                      style: AppTextStyles.titleMd.copyWith(color: c.primary),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -211,7 +216,7 @@ class _TailorDashboardState extends State<TailorDashboard> {
                         Row(
                           children: [
                             Expanded(
-                              child: Text(order.clientName, style: AppTextStyles.titleSm.copyWith(color: AppColors.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              child: Text(order.clientName, style: AppTextStyles.titleSm.copyWith(color: c.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
                             StatusBadge(order.status),
                           ],
@@ -219,23 +224,23 @@ class _TailorDashboardState extends State<TailorDashboard> {
                         const SizedBox(height: 4),
                         Text(
                           order.description ?? 'Sans description',
-                          style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                          style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.onSurfaceVariant),
+                            Icon(Icons.calendar_today_outlined, size: 16, color: c.onSurfaceVariant),
                             const SizedBox(width: 4),
                             Text(
                               order.dueDate != null ? Formatters.date.format(order.dueDate!) : 'Sans échéance',
-                              style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurfaceVariant),
+                              style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant),
                             ),
                             const Spacer(),
                             Icon(
                               isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                              color: AppColors.onSurfaceVariant,
+                              color: c.onSurfaceVariant,
                             ),
                           ],
                         ),
@@ -289,7 +294,7 @@ class _TailorDashboardState extends State<TailorDashboard> {
                         Expanded(
                           child: Text(
                             '${Formatters.dateTime.format(change.changedAt)} — ${change.changedByName}',
-                            style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                            style: AppTextStyles.bodySm.copyWith(color: context.colors.onSurfaceVariant),
                           ),
                         ),
                       ],
@@ -307,10 +312,11 @@ class _TailorDashboardState extends State<TailorDashboard> {
   }
 
   Widget _buildExpandedPanel(Order order) {
+    final c = context.colors;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
-        border: Border(top: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.4))),
+        color: c.surfaceContainerLow,
+        border: Border(top: BorderSide(color: c.outlineVariant.withValues(alpha: 0.4))),
       ),
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -323,8 +329,8 @@ class _TailorDashboardState extends State<TailorDashboard> {
                   icon: const Icon(Icons.straighten_rounded, size: 18),
                   label: Text('MESURES', style: AppTextStyles.labelCaps),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.outlineVariant),
+                    foregroundColor: c.primary,
+                    side: BorderSide(color: c.outlineVariant),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -337,8 +343,8 @@ class _TailorDashboardState extends State<TailorDashboard> {
                   icon: const Icon(Icons.image_outlined, size: 18),
                   label: Text('PHOTOS', style: AppTextStyles.labelCaps),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.outlineVariant),
+                    foregroundColor: c.primary,
+                    side: BorderSide(color: c.outlineVariant),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -355,14 +361,14 @@ class _TailorDashboardState extends State<TailorDashboard> {
                       ? null
                       : () => _updateStatus(order, OrderStatus.completed),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onPrimary,
-                    disabledBackgroundColor: AppColors.surfaceContainerHigh,
+                    backgroundColor: c.primary,
+                    foregroundColor: c.onPrimary,
+                    disabledBackgroundColor: c.surfaceContainerHigh,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: Text('TERMINÉ', style: AppTextStyles.labelCaps.copyWith(
-                    color: order.status == OrderStatus.completed ? AppColors.onSurfaceVariant : AppColors.onPrimary,
+                    color: order.status == OrderStatus.completed ? c.onSurfaceVariant : c.onPrimary,
                   )),
                 ),
               ),
@@ -373,12 +379,12 @@ class _TailorDashboardState extends State<TailorDashboard> {
                       ? null
                       : () => _updateStatus(order, OrderStatus.problem),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: BorderSide(color: AppColors.error.withValues(alpha: 0.3)),
+                    foregroundColor: c.error,
+                    side: BorderSide(color: c.error.withValues(alpha: 0.3)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: Text('PROBLÈME', style: AppTextStyles.labelCaps.copyWith(color: AppColors.error)),
+                  child: Text('PROBLÈME', style: AppTextStyles.labelCaps.copyWith(color: c.error)),
                 ),
               ),
             ],
@@ -389,12 +395,12 @@ class _TailorDashboardState extends State<TailorDashboard> {
               onTap: () => _showStatusHistory(order),
               child: Row(
                 children: [
-                  Icon(Icons.history_rounded, size: 14, color: AppColors.onSurfaceVariant),
+                  Icon(Icons.history_rounded, size: 14, color: c.onSurfaceVariant),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Dernière mise à jour : ${Formatters.dateTime.format(order.statusHistory.last.changedAt)} par ${order.statusHistory.last.changedByName}',
-                      style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant),
+                      style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),

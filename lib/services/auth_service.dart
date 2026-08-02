@@ -77,6 +77,7 @@ class AuthService {
     required String email,
     required String phone,
     required String password,
+    String? logoPath,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 1000));
 
@@ -100,6 +101,7 @@ class AuthService {
       role: UserRole.stylist,
       atelierId: 'atelier_${now.millisecondsSinceEpoch}',
       atelierName: atelierName.trim(),
+      photoUrl: logoPath,
       plan: SubscriptionPlan.free,
       createdAt: now,
     );

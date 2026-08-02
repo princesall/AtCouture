@@ -61,6 +61,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String phone,
     required String password,
+    String? logoPath,
   }) async {
     _setLoading();
     try {
@@ -70,6 +71,7 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         phone: phone,
         password: password,
+        logoPath: logoPath,
       );
       _status = AuthStatus.authenticated;
       _errorMessage = null;

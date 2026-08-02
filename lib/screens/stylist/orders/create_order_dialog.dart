@@ -5,7 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/build_context_colors.dart';
 import '../../../core/utils/measurement_field_prompt.dart';
 import '../../../core/utils/plan_permissions.dart';
 import '../../../models/app_user.dart';
@@ -209,6 +209,7 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
   @override
   Widget build(BuildContext context) {
     final permissions = widget.user.permissions;
+    final c = context.colors;
 
     return Dialog(
       child: Container(
@@ -275,7 +276,7 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
                 if (tailors.isEmpty) {
                   return Text(
                     'Aucun couturier disponible',
-                    style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                    style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                   );
                 }
                 return DropdownButtonFormField<AppUser>(
@@ -300,16 +301,16 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.tertiary.withValues(alpha: 0.1),
+                    color: c.tertiary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                   ),
                   child: Row(children: [
-                    Icon(Icons.lock_outline_rounded, size: 16, color: AppColors.tertiary),
+                    Icon(Icons.lock_outline_rounded, size: 16, color: c.tertiary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         permissions.measurementsLockedMessage,
-                        style: AppTextStyles.bodySm.copyWith(color: AppColors.tertiary),
+                        style: AppTextStyles.bodySm.copyWith(color: c.tertiary),
                       ),
                     ),
                   ]),
@@ -439,16 +440,16 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.tertiary.withValues(alpha: 0.1),
+                    color: c.tertiary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                   ),
                   child: Row(children: [
-                    Icon(Icons.lock_outline_rounded, size: 16, color: AppColors.tertiary),
+                    Icon(Icons.lock_outline_rounded, size: 16, color: c.tertiary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         permissions.photosLockedMessage,
-                        style: AppTextStyles.bodySm.copyWith(color: AppColors.tertiary),
+                        style: AppTextStyles.bodySm.copyWith(color: c.tertiary),
                       ),
                     ),
                   ]),

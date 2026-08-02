@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../providers/auth_provider.dart';
 
 /// Gestionnaire dédié — plan Entreprise uniquement (permissions.hasDedicatedManager).
@@ -16,13 +16,14 @@ class CompanyDedicatedManagerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    final c = context.colors;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: c.background,
       appBar: AppBar(
         title: const Text('Gestionnaire dédié'),
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.primary,
+        backgroundColor: c.background,
+        foregroundColor: c.primary,
         elevation: 0,
       ),
       body: SafeArea(
@@ -35,22 +36,22 @@ class CompanyDedicatedManagerScreen extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(
-                  gradient: AppColors.goldGradient,
+                  gradient: c.goldGradient,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(children: [
                   Container(
                     width: 56, height: 56,
                     decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
-                    child: const Icon(Icons.support_agent_rounded, color: AppColors.onTertiary, size: 28),
+                    child: Icon(Icons.support_agent_rounded, color: c.onTertiary, size: 28),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Votre gestionnaire dédié', style: AppTextStyles.titleSm.copyWith(color: AppColors.onTertiary)),
+                      Text('Votre gestionnaire dédié', style: AppTextStyles.titleSm.copyWith(color: c.onTertiary)),
                       const SizedBox(height: 4),
                       Text('Assigné à ${user.atelierName ?? 'votre entreprise'}',
-                          style: AppTextStyles.bodySm.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.85))),
+                          style: AppTextStyles.bodySm.copyWith(color: c.onTertiary.withValues(alpha: 0.85))),
                     ]),
                   ),
                 ]),
@@ -73,7 +74,7 @@ class CompanyDedicatedManagerScreen extends StatelessWidget {
               Text(
                 'Votre gestionnaire dédié vous accompagne pour la mise en place de vos ateliers, '
                 'la formation de vos équipes et le suivi de votre abonnement Entreprise.',
-                style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
               ),
             ],
           ),
@@ -92,20 +93,21 @@ class _ContactTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
+        boxShadow: c.softShadow,
       ),
       child: ListTile(
-        leading: Icon(icon, color: AppColors.secondary, size: 22),
+        leading: Icon(icon, color: c.secondary, size: 22),
         title: Text(title, style: AppTextStyles.bodyLg),
-        subtitle: Text(subtitle, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+        subtitle: Text(subtitle, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
         onTap: onTap,
-        trailing: onTap == null ? null : const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant),
+        trailing: onTap == null ? null : Icon(Icons.chevron_right, color: c.onSurfaceVariant),
       ),
     );
   }

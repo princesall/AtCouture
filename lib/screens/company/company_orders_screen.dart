@@ -3,8 +3,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/order_messages.dart';
 import '../../core/utils/order_pdf.dart';
@@ -50,14 +50,15 @@ class _CompanyOrdersScreenState extends State<CompanyOrdersScreen> {
     }
 
     final totalRevenue = orders.fold(0, (sum, o) => sum + (o.price ?? 0));
+    final c = context.colors;
 
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Toutes les Commandes', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
-            Text('${orders.length} commandes · ${Formatters.formatCurrency(totalRevenue)} ${AppConstants.currency}', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+            Text('Toutes les Commandes', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
+            Text('${orders.length} commandes · ${Formatters.formatCurrency(totalRevenue)} ${AppConstants.currency}', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
           ])),
         ]),
       ),
@@ -77,11 +78,11 @@ class _CompanyOrdersScreenState extends State<CompanyOrdersScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: active ? AppColors.primary : AppColors.surfaceContainerHigh,
+                  color: active ? c.primary : c.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(_statusLabels[i], style: AppTextStyles.labelCaps.copyWith(
-                  color: active ? AppColors.onPrimary : AppColors.onSurfaceVariant, fontSize: 10)),
+                  color: active ? c.onPrimary : c.onSurfaceVariant, fontSize: 10)),
               ),
             );
           },
@@ -114,7 +115,7 @@ class _CompanyOrdersScreenState extends State<CompanyOrdersScreen> {
       // ── Liste commandes ───────────────────────────────────────────────────
       Expanded(
         child: orders.isEmpty
-            ? Center(child: Text('Aucune commande', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)))
+            ? Center(child: Text('Aucune commande', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)))
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
                 itemCount: orders.length,
@@ -134,12 +135,13 @@ class _OrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = order.status;
     final tailorName = CompanyService.instance.tailorNameForOrder(order) ?? 'Non assigné';
+    final c = context.colors;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
+        boxShadow: c.softShadow,
       ),
       child: Column(children: [
         // Ligne principale
@@ -149,24 +151,24 @@ class _OrderCard extends StatelessWidget {
             // Avatar client initiales
             Container(
               width: 44, height: 44,
-              decoration: BoxDecoration(color: AppColors.primaryFixed.withValues(alpha: 0.35), shape: BoxShape.circle),
+              decoration: BoxDecoration(color: c.primaryFixed.withValues(alpha: 0.35), shape: BoxShape.circle),
               child: Center(child: Text(
                 (order.clientName).split(' ').take(2).map((p) => p[0]).join().toUpperCase(),
-                style: AppTextStyles.labelCaps.copyWith(color: AppColors.primary),
+                style: AppTextStyles.labelCaps.copyWith(color: c.primary),
               )),
             ),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(order.clientName, style: AppTextStyles.titleSm),
-              Text(order.description ?? 'Vêtement non précisé', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+              Text(order.description ?? 'Vêtement non précisé', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('${Formatters.formatCurrency(order.price ?? 0)} F', style: AppTextStyles.titleSm.copyWith(color: AppColors.primary, fontSize: 13)),
+              Text('${Formatters.formatCurrency(order.price ?? 0)} F', style: AppTextStyles.titleSm.copyWith(color: c.primary, fontSize: 13)),
               const SizedBox(height: 4),
               StatusBadge(status),
             ]),
             PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert_rounded, color: AppColors.onSurfaceVariant, size: 18),
+              icon: Icon(Icons.more_vert_rounded, color: c.onSurfaceVariant, size: 18),
               itemBuilder: (context) => const [
                 PopupMenuItem(value: 'pdf', child: Text('Exporter en PDF')),
                 PopupMenuItem(value: 'quote', child: Text('Créer un devis')),
@@ -181,20 +183,20 @@ class _OrderCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
           decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
+            color: c.surfaceContainerLow,
             borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
           ),
           child: Row(children: [
-            const Icon(Icons.storefront_outlined, size: 12, color: AppColors.secondary),
+            Icon(Icons.storefront_outlined, size: 12, color: c.secondary),
             const SizedBox(width: 4),
-            Text(order.atelierName, style: AppTextStyles.labelXs.copyWith(color: AppColors.secondary)),
+            Text(order.atelierName, style: AppTextStyles.labelXs.copyWith(color: c.secondary)),
             const SizedBox(width: 12),
-            const Icon(Icons.content_cut_outlined, size: 12, color: AppColors.onSurfaceVariant),
+            Icon(Icons.content_cut_outlined, size: 12, color: c.onSurfaceVariant),
             const SizedBox(width: 4),
-            Text(tailorName, style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
+            Text(tailorName, style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant)),
             const Spacer(),
             if (order.createdAt != null)
-              Text(Formatters.date.format(order.createdAt!), style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant.withValues(alpha: 0.6))),
+              Text(Formatters.date.format(order.createdAt!), style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant.withValues(alpha: 0.6))),
           ]),
         ),
       ]),
@@ -243,16 +245,19 @@ class _AtelierChip extends StatelessWidget {
   const _AtelierChip({required this.label, required this.active, required this.onTap});
   final String label; final bool active; final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: active ? AppColors.surfaceTint.withValues(alpha: 0.15) : AppColors.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: active ? AppColors.surfaceTint.withValues(alpha: 0.4) : Colors.transparent),
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: active ? c.surfaceTint.withValues(alpha: 0.15) : c.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: active ? c.surfaceTint.withValues(alpha: 0.4) : Colors.transparent),
+        ),
+        child: Text(label, style: AppTextStyles.labelXs.copyWith(color: active ? c.surfaceTint : c.onSurfaceVariant, fontSize: 10)),
       ),
-      child: Text(label, style: AppTextStyles.labelXs.copyWith(color: active ? AppColors.surfaceTint : AppColors.onSurfaceVariant, fontSize: 10)),
-    ),
-  );
+    );
+  }
 }

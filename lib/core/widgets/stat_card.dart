@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'premium_card.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
+import '../theme/build_context_colors.dart';
 
 class StatCard extends StatelessWidget {
   const StatCard({
@@ -25,7 +25,8 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = accentColor ?? AppColors.primary;
+    final c = context.colors;
+    final color = accentColor ?? c.primary;
 
     return PremiumCard(
       onTap: onTap,
@@ -58,7 +59,7 @@ class StatCard extends StatelessWidget {
           Text(
             label,
             style: AppTextStyles.labelCaps.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: c.onSurfaceVariant,
             ),
           ),
           if (subtitle != null) ...[

@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
 
@@ -24,13 +24,14 @@ class CompanyDataExportScreen extends StatelessWidget {
     final clients = CompanyService.instance.allClientsOfCompany(companyId);
     final orders = CompanyService.instance.allOrdersOfCompany(companyId);
     final tailors = CompanyService.instance.allTailorsOfCompany(companyId);
+    final c = context.colors;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: c.background,
       appBar: AppBar(
         title: const Text('Export de données'),
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.primary,
+        backgroundColor: c.background,
+        foregroundColor: c.primary,
         elevation: 0,
       ),
       body: SafeArea(
@@ -42,7 +43,7 @@ class CompanyDataExportScreen extends StatelessWidget {
               Text(
                 'Exportez l\'intégralité des données de votre entreprise au format JSON, '
                 'pour les archiver ou les intégrer à un autre outil.',
-                style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
               ),
               const SizedBox(height: AppSpacing.lg),
               _CountRow(label: 'Ateliers', count: ateliers.length),
@@ -55,8 +56,8 @@ class CompanyDataExportScreen extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: () => _export(context, ateliers: ateliers, clients: clients, orders: orders, tailors: tailors),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onPrimary,
+                    backgroundColor: c.primary,
+                    foregroundColor: c.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -99,14 +100,15 @@ class _CountRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(children: [
-        Icon(Icons.circle, size: 6, color: AppColors.onSurfaceVariant),
+        Icon(Icons.circle, size: 6, color: c.onSurfaceVariant),
         const SizedBox(width: 8),
         Text(label, style: AppTextStyles.bodySm),
         const Spacer(),
-        Text('$count', style: AppTextStyles.titleSm.copyWith(color: AppColors.primary)),
+        Text('$count', style: AppTextStyles.titleSm.copyWith(color: c.primary)),
       ]),
     );
   }

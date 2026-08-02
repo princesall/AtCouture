@@ -6,13 +6,15 @@ import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
+import 'providers/theme_provider.dart';
 import 'router/app_router.dart';
 import 'services/firebase_service.dart';
 
 class StyleConnectApp extends StatefulWidget {
-  const StyleConnectApp({super.key, required this.authProvider});
+  const StyleConnectApp({super.key, required this.authProvider, required this.themeProvider});
 
   final AuthProvider authProvider;
+  final ThemeProvider themeProvider;
 
   @override
   State<StyleConnectApp> createState() => _StyleConnectAppState();
@@ -38,12 +40,17 @@ class _StyleConnectAppState extends State<StyleConnectApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: widget.authProvider),
+        ChangeNotifierProvider.value(value: widget.themeProvider),
       ],
-      child: MaterialApp.router(
-        title: 'StyleConnect',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        routerConfig: _router,
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) => MaterialApp.router(
+          title: 'StyleConnect',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: themeProvider.themeMode,
+          routerConfig: _router,
+        ),
       ),
     );
   }
@@ -72,5 +79,8 @@ Future<void> bootstrap() async {
   final authProvider = AuthProvider();
   await authProvider.initialize();
 
-  runApp(StyleConnectApp(authProvider: authProvider));
+  final themeProvider = ThemeProvider();
+  await themeProvider.initialize();
+
+  runApp(StyleConnectApp(authProvider: authProvider, themeProvider: themeProvider));
 }

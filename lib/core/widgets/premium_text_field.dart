@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
+import '../theme/build_context_colors.dart';
 
 class PremiumTextField extends StatefulWidget {
   const PremiumTextField({
@@ -48,6 +48,7 @@ class _PremiumTextFieldState extends State<PremiumTextField> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final isPassword = widget.obscureText;
 
     return Column(
@@ -57,7 +58,7 @@ class _PremiumTextFieldState extends State<PremiumTextField> {
           Text(
             widget.label!.toUpperCase(),
             style: AppTextStyles.labelCaps.copyWith(
-              color: _focused ? AppColors.primary : AppColors.onSurfaceVariant,
+              color: _focused ? c.primary : c.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -75,8 +76,8 @@ class _PremiumTextFieldState extends State<PremiumTextField> {
             maxLines: isPassword ? 1 : widget.maxLines,
             enabled: widget.enabled,
             autofocus: widget.autofocus,
-            style: AppTextStyles.bodyLg.copyWith(color: AppColors.onSurface),
-            cursorColor: AppColors.primary,
+            style: AppTextStyles.bodyLg.copyWith(color: c.onSurface),
+            cursorColor: c.primary,
             decoration: InputDecoration(
               hintText: widget.hint,
               prefixIcon: widget.prefixIcon != null
@@ -84,8 +85,8 @@ class _PremiumTextFieldState extends State<PremiumTextField> {
                       widget.prefixIcon,
                       size: 20,
                       color: _focused
-                          ? AppColors.primary
-                          : AppColors.onSurfaceVariant,
+                          ? c.primary
+                          : c.onSurfaceVariant,
                     )
                   : null,
               suffixIcon: isPassword
@@ -95,15 +96,15 @@ class _PremiumTextFieldState extends State<PremiumTextField> {
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
                         size: 20,
-                        color: AppColors.onSurfaceVariant,
+                        color: c.onSurfaceVariant,
                       ),
                       onPressed: () => setState(() => _obscured = !_obscured),
                     )
                   : widget.suffixIcon,
               filled: true,
               fillColor: _focused
-                  ? AppColors.surfaceContainerLowest
-                  : AppColors.surfaceContainerLow,
+                  ? c.surfaceContainerLowest
+                  : c.surfaceContainerLow,
             ),
           ),
         ),

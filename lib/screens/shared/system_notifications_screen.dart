@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../models/system_message.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/subscription_service.dart';
@@ -29,25 +30,26 @@ class _SystemNotificationsScreenState extends State<SystemNotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    final c = context.colors;
     final messages = SubscriptionService.instance.systemMessagesFor(user.id);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: c.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: c.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primary, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: c.primary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Notifications', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
+        title: Text('Notifications', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
       ),
       body: messages.isEmpty
           ? Center(
               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Icon(Icons.notifications_off_outlined, color: AppColors.onSurfaceVariant, size: 48),
+                Icon(Icons.notifications_off_outlined, color: c.onSurfaceVariant, size: 48),
                 const SizedBox(height: 12),
-                Text('Aucune notification', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+                Text('Aucune notification', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
               ]),
             )
           : ListView.separated(
@@ -70,26 +72,27 @@ class _SystemMessageCard extends StatelessWidget {
   const _SystemMessageCard({required this.message});
   final SystemMessage message;
 
-  (IconData, Color, Color) get _style => switch (message.type) {
-        SystemMessageType.subscriptionApproved => (Icons.check_circle_rounded, AppColors.statusDone, AppColors.statusDoneBg),
-        SystemMessageType.subscriptionRejected => (Icons.cancel_rounded, AppColors.error, AppColors.errorContainer),
-        SystemMessageType.subscriptionExpired => (Icons.warning_amber_rounded, AppColors.statusInProgress, AppColors.statusInProgressBg),
-        SystemMessageType.subscriptionRenewed => (Icons.autorenew_rounded, AppColors.statusDone, AppColors.statusDoneBg),
-        SystemMessageType.accountCreated => (Icons.celebration_rounded, AppColors.tertiary, AppColors.tertiaryFixed),
-        SystemMessageType.accountDeactivated => (Icons.block_rounded, AppColors.error, AppColors.errorContainer),
-        SystemMessageType.accountReactivated => (Icons.check_circle_rounded, AppColors.statusDone, AppColors.statusDoneBg),
+  (IconData, Color, Color) _style(AppColorPalette c) => switch (message.type) {
+        SystemMessageType.subscriptionApproved => (Icons.check_circle_rounded, c.statusDone, c.statusDoneBg),
+        SystemMessageType.subscriptionRejected => (Icons.cancel_rounded, c.error, c.errorContainer),
+        SystemMessageType.subscriptionExpired => (Icons.warning_amber_rounded, c.statusInProgress, c.statusInProgressBg),
+        SystemMessageType.subscriptionRenewed => (Icons.autorenew_rounded, c.statusDone, c.statusDoneBg),
+        SystemMessageType.accountCreated => (Icons.celebration_rounded, c.tertiary, c.tertiaryFixed),
+        SystemMessageType.accountDeactivated => (Icons.block_rounded, c.error, c.errorContainer),
+        SystemMessageType.accountReactivated => (Icons.check_circle_rounded, c.statusDone, c.statusDoneBg),
       };
 
   @override
   Widget build(BuildContext context) {
-    final (icon, color, bgColor) = _style;
+    final c = context.colors;
+    final (icon, color, bgColor) = _style(c);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: color.withValues(alpha: 0.2)),
-        boxShadow: AppColors.softShadow,
+        boxShadow: c.softShadow,
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
@@ -109,9 +112,9 @@ class _SystemMessageCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(message.title, style: AppTextStyles.titleSm.copyWith(fontSize: 14)),
           const SizedBox(height: 4),
-          Text(message.body, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+          Text(message.body, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
           const SizedBox(height: 8),
-          Text(_formatTime(message.createdAt), style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant.withValues(alpha: 0.6))),
+          Text(_formatTime(message.createdAt), style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant.withValues(alpha: 0.6))),
         ])),
       ]),
     );

@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/measurement_field_prompt.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -42,6 +43,7 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
   void _showClientDetails(Client client) {
     final orders = OrderService.instance.ordersOfClient(client.id);
     final permissions = context.read<AuthProvider>().user!.permissions;
+    final c = context.colors;
 
     showModalBottomSheet(
       context: context,
@@ -52,8 +54,8 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: AppColors.background,
+          decoration: BoxDecoration(
+            color: c.background,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
@@ -64,7 +66,7 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
+                  color: c.outlineVariant,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -84,7 +86,7 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                           Text(
                             client.phone,
                             style: AppTextStyles.bodySm.copyWith(
-                              color: AppColors.onSurfaceVariant,
+                              color: c.onSurfaceVariant,
                             ),
                           ),
                           if (client.email != null) ...[
@@ -92,7 +94,7 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                             Text(
                               client.email!,
                               style: AppTextStyles.bodySm.copyWith(
-                                color: AppColors.onSurfaceVariant,
+                                color: c.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -117,7 +119,7 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                         label: 'Commandes',
                         value: '${client.orderCount}',
                         icon: Icons.receipt_long_outlined,
-                        color: AppColors.primary,
+                        color: c.primary,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.md),
@@ -126,7 +128,7 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                         label: 'Total dépensé',
                         value: Formatters.formatCurrency(client.totalSpent),
                         icon: Icons.payments_outlined,
-                        color: AppColors.secondary,
+                        color: c.secondary,
                       ),
                     ),
                   ],
@@ -286,7 +288,7 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                     Text(
                       '${clients.length} client${clients.length > 1 ? 's' : ''}',
                       style: AppTextStyles.bodySm.copyWith(
-                        color: AppColors.onSurfaceVariant,
+                        color: context.colors.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -353,15 +355,16 @@ class _ClientCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
+          color: c.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
-          boxShadow: AppColors.softShadow,
+          border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
+          boxShadow: c.softShadow,
         ),
         child: Row(
           children: [
@@ -381,7 +384,7 @@ class _ClientCard extends StatelessWidget {
                   Text(
                     client.phone,
                     style: AppTextStyles.bodySm.copyWith(
-                      color: AppColors.onSurfaceVariant,
+                      color: c.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -390,13 +393,13 @@ class _ClientCard extends StatelessWidget {
                       Icon(
                         Icons.receipt_long_outlined,
                         size: 14,
-                        color: AppColors.primary,
+                        color: c.primary,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '${client.orderCount} commande${client.orderCount > 1 ? 's' : ''}',
                         style: AppTextStyles.labelXs.copyWith(
-                          color: AppColors.primary,
+                          color: c.primary,
                         ),
                       ),
                     ],
@@ -406,7 +409,7 @@ class _ClientCard extends StatelessWidget {
             ),
             Icon(
               Icons.chevron_right,
-              color: AppColors.onSurfaceVariant,
+              color: c.onSurfaceVariant,
             ),
           ],
         ),
@@ -448,7 +451,7 @@ class _StatCard extends StatelessWidget {
           Text(
             label,
             style: AppTextStyles.labelXs.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: context.colors.onSurfaceVariant,
             ),
           ),
         ],
@@ -577,10 +580,11 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLow,
+        color: c.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
       ),
       child: Column(
@@ -600,7 +604,7 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
           if (_measurements.isEmpty)
             Text(
               'Aucune mesure enregistrée pour ce client.',
-              style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+              style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
             )
           else
             Wrap(
@@ -609,7 +613,7 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
               children: _measurements.entries.map((e) {
                 return Chip(
                   label: Text('${_labels[e.key] ?? e.key} : ${e.value}cm'),
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  backgroundColor: c.primary.withValues(alpha: 0.1),
                 );
               }).toList(),
             ),
@@ -623,12 +627,12 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                   Icon(
                     _showHistory ? Icons.expand_less_rounded : Icons.expand_more_rounded,
                     size: 16,
-                    color: AppColors.onSurfaceVariant,
+                    color: c.onSurfaceVariant,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     'Historique des mesures (${_history.length})',
-                    style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                    style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -647,7 +651,7 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                           children: [
                             Text(
                               Formatters.dateTime.format(snapshot.recordedAt),
-                              style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant),
+                              style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant),
                             ),
                             const SizedBox(height: 4),
                             Wrap(
@@ -656,7 +660,7 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                               children: snapshot.measurements.entries.map((e) {
                                 return Chip(
                                   label: Text('${_labels[e.key] ?? e.key} : ${e.value}cm', style: AppTextStyles.labelXs),
-                                  backgroundColor: AppColors.surfaceContainerHigh,
+                                  backgroundColor: c.surfaceContainerHigh,
                                   visualDensity: VisualDensity.compact,
                                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 );
@@ -682,12 +686,13 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -700,13 +705,13 @@ class _OrderCard extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(order.status).withValues(alpha: 0.1),
+                  color: _getStatusColor(c, order.status).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   order.statusLabel,
                   style: AppTextStyles.labelXs.copyWith(
-                    color: _getStatusColor(order.status),
+                    color: _getStatusColor(c, order.status),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -716,7 +721,7 @@ class _OrderCard extends StatelessWidget {
                 Text(
                   Formatters.formatCurrency(order.price!),
                   style: AppTextStyles.titleSm.copyWith(
-                    color: AppColors.primary,
+                    color: c.primary,
                   ),
                 ),
             ],
@@ -735,7 +740,7 @@ class _OrderCard extends StatelessWidget {
             Text(
               'Créée le ${Formatters.date.format(order.createdAt!)}',
               style: AppTextStyles.labelXs.copyWith(
-                color: AppColors.onSurfaceVariant,
+                color: c.onSurfaceVariant,
               ),
             ),
           ],
@@ -744,16 +749,16 @@ class _OrderCard extends StatelessWidget {
     );
   }
 
-  Color _getStatusColor(OrderStatus status) {
+  Color _getStatusColor(AppColorPalette c, OrderStatus status) {
     switch (status) {
       case OrderStatus.pending:
-        return AppColors.tertiary;
+        return c.tertiary;
       case OrderStatus.inProgress:
-        return AppColors.primary;
+        return c.primary;
       case OrderStatus.completed:
-        return AppColors.secondary;
+        return c.secondary;
       case OrderStatus.problem:
-        return AppColors.success;
+        return c.success;
     }
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../theme/build_context_colors.dart';
 
 class PremiumCard extends StatelessWidget {
   const PremiumCard({
@@ -25,14 +25,15 @@ class PremiumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final decoration = BoxDecoration(
       gradient: gradient,
-      color: gradient == null ? (backgroundColor ?? AppColors.surfaceContainerLowest) : null,
+      color: gradient == null ? (backgroundColor ?? c.surfaceContainerLowest) : null,
       borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
       border: Border.all(
-        color: borderColor ?? AppColors.outlineVariant.withValues(alpha: 0.4),
+        color: borderColor ?? c.outlineVariant.withValues(alpha: 0.4),
       ),
-      boxShadow: showShadow ? AppColors.premiumShadow : null,
+      boxShadow: showShadow ? c.premiumShadow : null,
     );
 
     final content = Padding(padding: padding, child: child);
@@ -64,9 +65,10 @@ class PremiumDarkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return PremiumCard(
-      gradient: AppColors.heroGradient,
-      borderColor: AppColors.primaryContainer,
+      gradient: c.heroGradient,
+      borderColor: c.primaryContainer,
       showShadow: true,
       padding: padding,
       child: child,

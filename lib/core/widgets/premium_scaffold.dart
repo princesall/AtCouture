@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../theme/build_context_colors.dart';
 
 class FadeSlidePageRoute<T> extends PageRouteBuilder<T> {
   FadeSlidePageRoute({required Widget page, super.settings})
@@ -56,9 +56,10 @@ class PremiumScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     if (sliver) {
       return Scaffold(
-        backgroundColor: backgroundColor ?? AppColors.background,
+        backgroundColor: backgroundColor ?? c.background,
         floatingActionButton: floatingActionButton,
         bottomNavigationBar: bottomNavigationBar,
         body: CustomScrollView(
@@ -74,7 +75,7 @@ class PremiumScaffold extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: backgroundColor ?? AppColors.background,
+      backgroundColor: backgroundColor ?? c.background,
       appBar: title != null
           ? AppBar(
               title: Text(title!),

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/order_messages.dart';
 import '../../core/utils/order_pdf.dart';
@@ -75,7 +75,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
               ? 'Commande créée - Nouveau client ajouté'
               : 'Commande créée - Client existant réutilisé',
         ),
-        backgroundColor: AppColors.success,
+        backgroundColor: context.colors.success,
         action: SnackBarAction(
           label: 'Envoyer via WhatsApp',
           textColor: Colors.white,
@@ -91,6 +91,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
   }
 
   void _showOrderDetails(Order order) {
+    final c = context.colors;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -100,8 +101,8 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
         minChildSize: 0.4,
         maxChildSize: 0.9,
         builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: AppColors.background,
+          decoration: BoxDecoration(
+            color: c.background,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
@@ -111,7 +112,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
+                  color: c.outlineVariant,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -151,7 +152,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                           Text(
                             order.clientPhone,
                             style: AppTextStyles.bodySm.copyWith(
-                              color: AppColors.onSurfaceVariant,
+                              color: c.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -169,13 +170,13 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: orderStatusColor(order.status).withValues(alpha: 0.1),
+                              color: orderStatusColor(c, order.status).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               order.statusLabel,
                               style: AppTextStyles.labelCaps.copyWith(
-                                color: orderStatusColor(order.status),
+                                color: orderStatusColor(c, order.status),
                               ),
                             ),
                           ),
@@ -219,7 +220,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                               child: Text(
                                 currentTailor?.fullName ?? 'Non assigné',
                                 style: AppTextStyles.bodySm.copyWith(
-                                  color: currentTailor == null ? AppColors.onSurfaceVariant : null,
+                                  color: currentTailor == null ? c.onSurfaceVariant : null,
                                 ),
                               ),
                             ),
@@ -261,7 +262,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                                       width: 8,
                                       height: 8,
                                       decoration: BoxDecoration(
-                                        color: orderStatusColor(change.status),
+                                        color: orderStatusColor(c, change.status),
                                         shape: BoxShape.circle,
                                       ),
                                     ),
@@ -273,7 +274,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                                           Text(change.status.label, style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w600)),
                                           Text(
                                             '${Formatters.dateTime.format(change.changedAt)} — ${change.changedByName}',
-                                            style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant),
+                                            style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant),
                                           ),
                                         ],
                                       ),
@@ -295,7 +296,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                           children: order.measurements!.entries.map((entry) {
                             return Chip(
                               label: Text('${entry.key}: ${entry.value}cm'),
-                              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                              backgroundColor: c.primary.withValues(alpha: 0.1),
                             );
                           }).toList(),
                         ),
@@ -318,7 +319,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                             Text(
                               Formatters.formatCurrency(order.price!),
                               style: AppTextStyles.headlineSm.copyWith(
-                                color: AppColors.primary,
+                                color: c.primary,
                               ),
                             ),
                             if (order.deposit != null) ...[
@@ -326,14 +327,14 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                               Text(
                                 'Acompte: ${Formatters.formatCurrency(order.deposit!)}',
                                 style: AppTextStyles.bodySm.copyWith(
-                                  color: AppColors.onSurfaceVariant,
+                                  color: c.onSurfaceVariant,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 'Reste: ${Formatters.formatCurrency(order.price! - order.deposit!)}',
                                 style: AppTextStyles.bodySm.copyWith(
-                                  color: AppColors.error,
+                                  color: c.error,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -465,6 +466,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    final c = context.colors;
     final orders = _getFilteredOrders(user.atelierId!);
 
     return Stack(
@@ -487,7 +489,7 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                         Text(
                           '${orders.length} commande${orders.length > 1 ? 's' : ''}',
                           style: AppTextStyles.bodySm.copyWith(
-                            color: AppColors.onSurfaceVariant,
+                            color: c.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -556,11 +558,11 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
           right: 20,
           child: FloatingActionButton.extended(
             onPressed: _showCreateOrderDialog,
-            backgroundColor: AppColors.secondary,
-            foregroundColor: AppColors.onSecondary,
+            backgroundColor: c.secondary,
+            foregroundColor: c.onSecondary,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             icon: const Icon(Icons.add),
-            label: Text('Commande', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSecondary)),
+            label: Text('Commande', style: AppTextStyles.labelCaps.copyWith(color: c.onSecondary)),
           ),
         ),
       ],

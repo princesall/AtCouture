@@ -3,8 +3,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../models/client.dart';
@@ -30,6 +30,7 @@ class _CompanyClientsScreenState extends State<CompanyClientsScreen> {
     final user = context.watch<AuthProvider>().user!;
     final ateliers = CompanyService.instance.ateliersOfCompany(user.id);
     var clients = CompanyService.instance.allClientsOfCompany(user.id);
+    final c = context.colors;
 
     // Filtre atelier
     if (_atelierFilter != null) {
@@ -49,15 +50,15 @@ class _CompanyClientsScreenState extends State<CompanyClientsScreen> {
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Tous les Clients', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
-            Text('${clients.length} client${clients.length > 1 ? 's' : ''} — vue consolidée', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+            Text('Tous les Clients', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
+            Text('${clients.length} client${clients.length > 1 ? 's' : ''} — vue consolidée', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
           ])),
           GestureDetector(
             onTap: () => _showAddClientSheet(context, user.id, ateliers),
             child: Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(gradient: AppColors.heroGradient, borderRadius: BorderRadius.circular(14),
-                boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 4))]),
+              decoration: BoxDecoration(gradient: c.heroGradient, borderRadius: BorderRadius.circular(14),
+                boxShadow: [BoxShadow(color: c.primary.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 4))]),
               child: const Icon(Icons.person_add_rounded, color: Colors.white, size: 22),
             ),
           ),
@@ -72,7 +73,7 @@ class _CompanyClientsScreenState extends State<CompanyClientsScreen> {
           onChanged: (v) => setState(() => _search = v),
           decoration: InputDecoration(
             hintText: 'Rechercher un client...',
-            prefixIcon: const Icon(Icons.search_rounded, color: AppColors.onSurfaceVariant, size: 20),
+            prefixIcon: Icon(Icons.search_rounded, color: c.onSurfaceVariant, size: 20),
             suffixIcon: _search.isNotEmpty ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () => setState(() => _search = '')) : null,
           ),
         ),
@@ -104,7 +105,7 @@ class _CompanyClientsScreenState extends State<CompanyClientsScreen> {
       // ── Liste clients ─────────────────────────────────────────────────────
       Expanded(
         child: clients.isEmpty
-            ? Center(child: Text('Aucun client', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)))
+            ? Center(child: Text('Aucun client', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)))
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
                 itemCount: clients.length,
@@ -118,7 +119,7 @@ class _CompanyClientsScreenState extends State<CompanyClientsScreen> {
   void _showAddClientSheet(BuildContext ctx, String ownerId, List<dynamic> ateliers) {
     showModalBottomSheet(
       context: ctx,
-      backgroundColor: AppColors.surfaceContainerLowest,
+      backgroundColor: ctx.colors.surfaceContainerLowest,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => _AddClientSheet(ownerId: ownerId, ateliers: ateliers, onAdded: () => setState(() {})),
@@ -132,38 +133,39 @@ class _ClientCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
+        boxShadow: c.softShadow,
       ),
       child: Row(children: [
         // Avatar initiales
         Container(
           width: 48, height: 48,
-          decoration: BoxDecoration(color: AppColors.primaryFixed.withValues(alpha: 0.4), shape: BoxShape.circle),
-          child: Center(child: Text(client.initials, style: AppTextStyles.titleSm.copyWith(color: AppColors.primary))),
+          decoration: BoxDecoration(color: c.primaryFixed.withValues(alpha: 0.4), shape: BoxShape.circle),
+          child: Center(child: Text(client.initials, style: AppTextStyles.titleSm.copyWith(color: c.primary))),
         ),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(client.fullName, style: AppTextStyles.titleSm),
           const SizedBox(height: 2),
-          Text(client.phone, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+          Text(client.phone, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
           const SizedBox(height: 4),
           Row(children: [
-            const Icon(Icons.storefront_outlined, size: 11, color: AppColors.secondary),
+            Icon(Icons.storefront_outlined, size: 11, color: c.secondary),
             const SizedBox(width: 3),
-            Expanded(child: Text(client.atelierName, style: AppTextStyles.labelXs.copyWith(color: AppColors.secondary), maxLines: 1, overflow: TextOverflow.ellipsis)),
+            Expanded(child: Text(client.atelierName, style: AppTextStyles.labelXs.copyWith(color: c.secondary), maxLines: 1, overflow: TextOverflow.ellipsis)),
           ]),
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text('${client.orderCount} cmd${client.orderCount > 1 ? 's' : ''}', style: AppTextStyles.labelCaps.copyWith(color: AppColors.primary, fontSize: 10)),
+          Text('${client.orderCount} cmd${client.orderCount > 1 ? 's' : ''}', style: AppTextStyles.labelCaps.copyWith(color: c.primary, fontSize: 10)),
           if (client.totalSpent > 0) ...[
             const SizedBox(height: 2),
-            Text('${Formatters.formatCurrency(client.totalSpent)} F', style: AppTextStyles.labelXs.copyWith(color: AppColors.tertiary, fontWeight: FontWeight.w700)),
+            Text('${Formatters.formatCurrency(client.totalSpent)} F', style: AppTextStyles.labelXs.copyWith(color: c.tertiary, fontWeight: FontWeight.w700)),
           ],
         ]),
       ]),
@@ -175,14 +177,17 @@ class _Chip extends StatelessWidget {
   const _Chip({required this.label, required this.active, required this.onTap});
   final String label; final bool active; final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: active ? AppColors.primary : AppColors.surfaceContainerHigh, borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: AppTextStyles.labelCaps.copyWith(color: active ? AppColors.onPrimary : AppColors.onSurfaceVariant, fontSize: 10)),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(color: active ? c.primary : c.surfaceContainerHigh, borderRadius: BorderRadius.circular(999)),
+        child: Text(label, style: AppTextStyles.labelCaps.copyWith(color: active ? c.onPrimary : c.onSurfaceVariant, fontSize: 10)),
+      ),
+    );
+  }
 }
 
 class _AddClientSheet extends StatefulWidget {
@@ -238,6 +243,7 @@ class _AddClientSheetState extends State<_AddClientSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     if (_added) {
       return SuccessConfirmationSheet(
         title: 'Client ajouté !',
@@ -248,8 +254,8 @@ class _AddClientSheetState extends State<_AddClientSheet> {
     return Padding(
       padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
       child: Form(key: _formKey, child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Nouveau Client', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
-        Text('Ajouter un client dans un de vos ateliers', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+        Text('Nouveau Client', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
+        Text('Ajouter un client dans un de vos ateliers', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
         const SizedBox(height: 20),
         TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'NOM COMPLET', hintText: 'Prénom Nom'), validator: (v) => v == null || v.isEmpty ? 'Requis' : null),
         const SizedBox(height: 14),
@@ -257,7 +263,7 @@ class _AddClientSheetState extends State<_AddClientSheet> {
         const SizedBox(height: 14),
         TextFormField(controller: _email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'EMAIL (optionnel)', hintText: 'client@email.ml')),
         const SizedBox(height: 18),
-        Text('ATELIER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.secondary)),
+        Text('ATELIER', style: AppTextStyles.labelCaps.copyWith(color: c.secondary)),
         const SizedBox(height: 8),
         ...widget.ateliers.map((a) => Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -266,15 +272,15 @@ class _AddClientSheetState extends State<_AddClientSheet> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _selectedAtelierId == a.id ? AppColors.primaryFixed.withValues(alpha: 0.3) : AppColors.surfaceContainerLow,
+                color: _selectedAtelierId == a.id ? c.primaryFixed.withValues(alpha: 0.3) : c.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _selectedAtelierId == a.id ? AppColors.primary.withValues(alpha: 0.4) : Colors.transparent, width: 1.5),
+                border: Border.all(color: _selectedAtelierId == a.id ? c.primary.withValues(alpha: 0.4) : Colors.transparent, width: 1.5),
               ),
               child: Row(children: [
-                const Icon(Icons.storefront_rounded, size: 18, color: AppColors.primary),
+                Icon(Icons.storefront_rounded, size: 18, color: c.primary),
                 const SizedBox(width: 10),
                 Expanded(child: Text(a.name as String, style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w600))),
-                if (_selectedAtelierId == a.id) const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+                if (_selectedAtelierId == a.id) Icon(Icons.check_circle_rounded, color: c.primary, size: 18),
               ]),
             ),
           ),
@@ -282,10 +288,10 @@ class _AddClientSheetState extends State<_AddClientSheet> {
         const SizedBox(height: 20),
         SizedBox(width: double.infinity, child: ElevatedButton(
           onPressed: _selectedAtelierId == null || _isSubmitting ? null : _submit,
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, disabledBackgroundColor: AppColors.surfaceContainerHigh, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
+          style: ElevatedButton.styleFrom(backgroundColor: c.primary, foregroundColor: c.onPrimary, disabledBackgroundColor: c.surfaceContainerHigh, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
           child: _isSubmitting
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.onPrimary))
-              : Text('AJOUTER LE CLIENT', style: AppTextStyles.labelCaps.copyWith(color: _selectedAtelierId == null ? AppColors.onSurfaceVariant : AppColors.onPrimary)),
+              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: c.onPrimary))
+              : Text('AJOUTER LE CLIENT', style: AppTextStyles.labelCaps.copyWith(color: _selectedAtelierId == null ? c.onSurfaceVariant : c.onPrimary)),
         )),
       ])),
     );

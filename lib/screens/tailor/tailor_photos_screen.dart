@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../models/order.dart';
 import '../../providers/auth_provider.dart';
@@ -24,9 +24,10 @@ class _TailorPhotosScreenState extends State<TailorPhotosScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    final c = context.colors;
     final permissions = user.permissions;
     final orders = OrderService.instance.ordersOfAtelier(user.atelierId!);
-    
+
     // Filtrer les commandes qui ont des photos
     final ordersWithPhotos = orders.where((o) => 
       (o.modelPhotos != null && o.modelPhotos!.isNotEmpty) ||
@@ -70,7 +71,7 @@ class _TailorPhotosScreenState extends State<TailorPhotosScreen> {
                 Text(
                   '${ordersWithPhotos.length} commande${ordersWithPhotos.length > 1 ? 's' : ''} avec photos',
                   style: AppTextStyles.bodySm.copyWith(
-                    color: AppColors.onSurfaceVariant,
+                    color: c.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -111,16 +112,17 @@ class _PhotoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final hasModelPhotos = order.modelPhotos != null && order.modelPhotos!.isNotEmpty;
     final hasFabricPhotos = order.fabricPhotos != null && order.fabricPhotos!.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
+        boxShadow: c.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,7 +149,7 @@ class _PhotoCard extends StatelessWidget {
                     Text(
                       order.description ?? 'Sans description',
                       style: AppTextStyles.bodySm.copyWith(
-                        color: AppColors.onSurfaceVariant,
+                        color: c.onSurfaceVariant,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -160,13 +162,13 @@ class _PhotoCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           const Divider(height: 1),
           const SizedBox(height: AppSpacing.md),
-          
+
           // Photos du modèle
           if (hasModelPhotos) ...[
             Text(
               'Photos du modèle',
               style: AppTextStyles.labelCaps.copyWith(
-                color: AppColors.onSurfaceVariant,
+                color: c.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -192,7 +194,7 @@ class _PhotoCard extends StatelessWidget {
             Text(
               'Photos du tissu',
               style: AppTextStyles.labelCaps.copyWith(
-                color: AppColors.onSurfaceVariant,
+                color: c.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -228,6 +230,7 @@ class _PhotoThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return GestureDetector(
       onTap: () {
         showDialog(
@@ -256,10 +259,10 @@ class _PhotoThumbnail extends StatelessWidget {
         width: 100,
         height: 100,
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLow,
+          color: c.surfaceContainerLow,
           borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
           border: Border.all(
-            color: AppColors.outlineVariant.withValues(alpha: 0.3),
+            color: c.outlineVariant.withValues(alpha: 0.3),
           ),
         ),
         clipBehavior: Clip.antiAlias,
@@ -308,6 +311,7 @@ class _PhotoImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     // Sur le web, image_picker renvoie une URL `blob:` (pas un vrai chemin de
     // fichier) : `dart:io File` n'y fonctionne pas et fait planter l'écran.
     // On charge alors la photo via Image.network, qui sait lire les blob:.
@@ -318,9 +322,9 @@ class _PhotoImage extends StatelessWidget {
     final errorFallback = Container(
       width: width,
       height: height,
-      color: AppColors.surfaceContainerLow,
+      color: c.surfaceContainerLow,
       alignment: Alignment.center,
-      child: const Icon(Icons.broken_image_outlined, color: AppColors.onSurfaceVariant),
+      child: Icon(Icons.broken_image_outlined, color: c.onSurfaceVariant),
     );
 
     if (isRemote) {

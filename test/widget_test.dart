@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:styleconnect/app.dart';
 import 'package:styleconnect/providers/auth_provider.dart';
+import 'package:styleconnect/providers/theme_provider.dart';
 
 void main() {
   testWidgets('StyleConnect affiche le splash', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
     final authProvider = AuthProvider();
+    final themeProvider = ThemeProvider();
     // AuthProvider.initialize() attend un vrai Future.delayed (simulation de
     // latence réseau). Sous flutter test, l'horloge est simulée et n'avance
     // que via tester.pump(duration) : un Future.delayed réel appelé hors de
@@ -14,8 +18,9 @@ void main() {
     // le test indéfiniment. runAsync() exécute ce bout de code dans la vraie
     // zone asynchrone pour que le délai s'écoule normalement.
     await tester.runAsync(() => authProvider.initialize());
+    await tester.runAsync(() => themeProvider.initialize());
 
-    await tester.pumpWidget(StyleConnectApp(authProvider: authProvider));
+    await tester.pumpWidget(StyleConnectApp(authProvider: authProvider, themeProvider: themeProvider));
     await tester.pump();
 
     expect(find.text('StyleConnect'), findsOneWidget);

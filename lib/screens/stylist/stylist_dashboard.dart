@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/plan_guard.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../models/order_status.dart';
@@ -20,27 +21,28 @@ class StylistDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    final c = context.colors;
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
       children: [
-        _buildGreeting(user.firstName, user.atelierName),
+        _buildGreeting(c, user.firstName, user.atelierName),
         const SizedBox(height: 24),
         _buildBentoGrid(context),
         const SizedBox(height: 32),
-        _buildSectionHeader('⚡ Priorité'),
+        _buildSectionHeader(c, '⚡ Priorité'),
         const SizedBox(height: 16),
         _buildUrgentOrders(context),
         const SizedBox(height: 32),
         _buildQuickActions(context),
         const SizedBox(height: 32),
-        _buildSectionHeader('Commandes Récentes'),
+        _buildSectionHeader(c, 'Commandes Récentes'),
         const SizedBox(height: 16),
         _buildRecentOrders(context),
       ],
     );
   }
 
-  Widget _buildGreeting(String firstName, String? atelierName) {
+  Widget _buildGreeting(AppColorPalette c, String firstName, String? atelierName) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -48,7 +50,7 @@ class StylistDashboard extends StatelessWidget {
           'Bonjour, $firstName',
           style: AppTextStyles.displayLg.copyWith(
             fontSize: 28,
-            color: AppColors.primary,
+            color: c.primary,
           ),
         ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2, end: 0),
         const SizedBox(height: 4),
@@ -56,7 +58,7 @@ class StylistDashboard extends StatelessWidget {
           atelierName != null
               ? 'Bienvenue dans $atelierName'
               : 'Prêt à créer l\'excellence aujourd\'hui ?',
-          style: AppTextStyles.bodyLg.copyWith(color: AppColors.onSurfaceVariant),
+          style: AppTextStyles.bodyLg.copyWith(color: c.onSurfaceVariant),
         ).animate().fadeIn(delay: 150.ms, duration: 500.ms),
       ],
     );
@@ -64,6 +66,7 @@ class StylistDashboard extends StatelessWidget {
 
   Widget _buildBentoGrid(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    final c = context.colors;
     final orders = OrderService.instance.ordersOfAtelier(user.atelierId!);
     final inProgress = orders.where((o) => o.status == OrderStatus.inProgress).length;
     final completed = orders.where((o) => o.status == OrderStatus.completed).length;
@@ -91,7 +94,7 @@ class StylistDashboard extends StatelessWidget {
                   label: 'TERMINÉES',
                   value: completed.toString(),
                   icon: Icons.check_circle_outline_rounded,
-                  valueColor: AppColors.tertiary,
+                  valueColor: c.tertiary,
                 ),
               ),
             ),
@@ -107,17 +110,17 @@ class StylistDashboard extends StatelessWidget {
     ).animate().fadeIn(delay: 200.ms, duration: 600.ms).slideY(begin: 0.1, end: 0);
   }
 
-  Widget _buildSectionHeader(String title, {VoidCallback? onSeeAll}) {
+  Widget _buildSectionHeader(AppColorPalette c, String title, {VoidCallback? onSeeAll}) {
     return Row(
       children: [
-        Text(title, style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
+        Text(title, style: AppTextStyles.titleMd.copyWith(color: c.primary)),
         const Spacer(),
         if (onSeeAll != null)
           TextButton(
             onPressed: onSeeAll,
             child: Text(
               'VOIR TOUT',
-              style: AppTextStyles.labelCaps.copyWith(color: AppColors.secondary, letterSpacing: 1.2),
+              style: AppTextStyles.labelCaps.copyWith(color: c.secondary, letterSpacing: 1.2),
             ),
           ),
       ],
@@ -126,6 +129,7 @@ class StylistDashboard extends StatelessWidget {
 
   Widget _buildUrgentOrders(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    final c = context.colors;
     final orders = OrderService.instance.ordersOfAtelier(user.atelierId!);
     final urgentOrders = orders.where((o) => o.status == OrderStatus.problem).toList();
 
@@ -133,12 +137,12 @@ class StylistDashboard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
+          color: c.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           'Aucune commande urgente',
-          style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+          style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
         ),
       ).animate().fadeIn(delay: 300.ms, duration: 500.ms);
     }
@@ -208,6 +212,7 @@ class StylistDashboard extends StatelessWidget {
 
   Widget _buildRecentOrders(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    final c = context.colors;
     final orders = OrderService.instance.ordersOfAtelier(user.atelierId!);
     final recentOrders = orders.take(3).toList();
 
@@ -215,22 +220,22 @@ class StylistDashboard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
+          color: c.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: AppColors.premiumShadow,
+          boxShadow: c.premiumShadow,
         ),
         child: Text(
           'Aucune commande récente',
-          style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+          style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
         ),
       ).animate().fadeIn(delay: 500.ms, duration: 500.ms);
     }
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: AppColors.premiumShadow,
+        boxShadow: c.premiumShadow,
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -240,7 +245,7 @@ class StylistDashboard extends StatelessWidget {
           return Column(
             children: [
               if (i > 0)
-                Divider(height: 1, color: AppColors.outlineVariant.withValues(alpha: 0.3), indent: 16, endIndent: 16),
+                Divider(height: 1, color: c.outlineVariant.withValues(alpha: 0.3), indent: 16, endIndent: 16),
               OrderListItem(
                 clientName: o.clientName,
                 garmentType: o.description ?? 'Sans description',

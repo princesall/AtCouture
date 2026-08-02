@@ -3,24 +3,25 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_color_palette.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/build_context_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/common_widgets.dart';
 import '../../../models/order.dart';
 import '../../../models/order_status.dart';
 
-Color orderStatusColor(OrderStatus status) {
+Color orderStatusColor(AppColorPalette c, OrderStatus status) {
   switch (status) {
     case OrderStatus.pending:
-      return AppColors.tertiary;
+      return c.tertiary;
     case OrderStatus.inProgress:
-      return AppColors.primary;
+      return c.primary;
     case OrderStatus.completed:
-      return AppColors.secondary;
+      return c.secondary;
     case OrderStatus.problem:
-      return AppColors.success;
+      return c.success;
   }
 }
 
@@ -38,14 +39,15 @@ class OrderFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return FilterChip(
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => onTap(),
-      selectedColor: AppColors.primary.withValues(alpha: 0.2),
-      checkmarkColor: AppColors.primary,
+      selectedColor: c.primary.withValues(alpha: 0.2),
+      checkmarkColor: c.primary,
       labelStyle: AppTextStyles.labelCaps.copyWith(
-        color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
+        color: isSelected ? c.primary : c.onSurfaceVariant,
       ),
     );
   }
@@ -63,15 +65,16 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
+          color: c.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
-          boxShadow: AppColors.softShadow,
+          border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
+          boxShadow: c.softShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -97,7 +100,7 @@ class OrderCard extends StatelessWidget {
                       Text(
                         order.clientPhone,
                         style: AppTextStyles.bodySm.copyWith(
-                          color: AppColors.onSurfaceVariant,
+                          color: c.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -109,13 +112,13 @@ class OrderCard extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: orderStatusColor(order.status).withValues(alpha: 0.1),
+                    color: orderStatusColor(c, order.status).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     order.statusLabel,
                     style: AppTextStyles.labelXs.copyWith(
-                      color: orderStatusColor(order.status),
+                      color: orderStatusColor(c, order.status),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -138,7 +141,7 @@ class OrderCard extends StatelessWidget {
                   Text(
                     Formatters.formatCurrency(order.price!),
                     style: AppTextStyles.titleSm.copyWith(
-                      color: AppColors.primary,
+                      color: c.primary,
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -147,13 +150,13 @@ class OrderCard extends StatelessWidget {
                   Text(
                     Formatters.date.format(order.createdAt!),
                     style: AppTextStyles.labelXs.copyWith(
-                      color: AppColors.onSurfaceVariant,
+                      color: c.onSurfaceVariant,
                     ),
                   ),
                 const Spacer(),
                 Icon(
                   Icons.chevron_right,
-                  color: AppColors.onSurfaceVariant,
+                  color: c.onSurfaceVariant,
                 ),
               ],
             ),
@@ -186,7 +189,7 @@ class OrderDetailSection extends StatelessWidget {
           Text(
             title,
             style: AppTextStyles.labelCaps.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: context.colors.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -264,7 +267,7 @@ class PhotoPickerSection extends StatelessWidget {
                         onTap: () => onRemove(file),
                         child: Container(
                           padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                          decoration: BoxDecoration(color: context.colors.error, shape: BoxShape.circle),
                           child: const Icon(Icons.close, size: 14, color: Colors.white),
                         ),
                       ),
@@ -297,7 +300,7 @@ class XFileThumbnail extends StatelessWidget {
           return Container(
             width: size,
             height: size,
-            color: AppColors.surfaceContainerLow,
+            color: context.colors.surfaceContainerLow,
           );
         }
         return Image.memory(snapshot.data!, width: size, height: size, fit: BoxFit.cover);

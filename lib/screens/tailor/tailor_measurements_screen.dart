@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../models/order.dart';
 import '../../models/order_status.dart';
@@ -22,8 +23,9 @@ class _TailorMeasurementsScreenState extends State<TailorMeasurementsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    final c = context.colors;
     final orders = OrderService.instance.ordersOfAtelier(user.atelierId!);
-    
+
     // Filtrer les commandes qui ont des mesures
     final ordersWithMeasurements = orders.where((o) => 
       o.measurements != null && o.measurements!.isNotEmpty
@@ -45,7 +47,7 @@ class _TailorMeasurementsScreenState extends State<TailorMeasurementsScreen> {
                 Text(
                   '${ordersWithMeasurements.length} commande${ordersWithMeasurements.length > 1 ? 's' : ''} avec mesures',
                   style: AppTextStyles.bodySm.copyWith(
-                    color: AppColors.onSurfaceVariant,
+                    color: c.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -86,13 +88,14 @@ class _MeasurementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
+        boxShadow: c.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -119,7 +122,7 @@ class _MeasurementCard extends StatelessWidget {
                     Text(
                       order.description ?? 'Sans description',
                       style: AppTextStyles.bodySm.copyWith(
-                        color: AppColors.onSurfaceVariant,
+                        color: c.onSurfaceVariant,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -133,13 +136,13 @@ class _MeasurementCard extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(order.status).withValues(alpha: 0.1),
+                  color: _getStatusColor(order.status, c).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   order.statusLabel,
                   style: AppTextStyles.labelXs.copyWith(
-                    color: _getStatusColor(order.status),
+                    color: _getStatusColor(order.status, c),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -169,16 +172,16 @@ class _MeasurementCard extends StatelessWidget {
     );
   }
 
-  Color _getStatusColor(OrderStatus status) {
+  Color _getStatusColor(OrderStatus status, AppColorPalette c) {
     switch (status) {
       case OrderStatus.pending:
-        return AppColors.tertiary;
+        return c.tertiary;
       case OrderStatus.inProgress:
-        return AppColors.primary;
+        return c.primary;
       case OrderStatus.completed:
-        return AppColors.secondary;
+        return c.secondary;
       case OrderStatus.problem:
-        return AppColors.success;
+        return c.success;
     }
   }
 
@@ -208,13 +211,14 @@ class _MeasurementItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.05),
+        color: c.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
         border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.2),
+          color: c.primary.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -224,14 +228,14 @@ class _MeasurementItem extends StatelessWidget {
           Text(
             label,
             style: AppTextStyles.labelXs.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: c.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
             style: AppTextStyles.titleSm.copyWith(
-              color: AppColors.primary,
+              color: c.primary,
               fontWeight: FontWeight.w600,
             ),
           ),

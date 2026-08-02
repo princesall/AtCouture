@@ -6,9 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/auth_backdrop.dart';
 import '../../core/widgets/premium_button.dart';
 import '../../core/widgets/premium_text_field.dart';
@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(auth.errorMessage!),
-          backgroundColor: AppColors.error,
+          backgroundColor: context.colors.error,
         ),
       );
     }
@@ -55,9 +55,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final c = context.colors;
 
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: c.primary,
       body: Stack(
         children: [
           const Positioned.fill(child: AuthBackdrop()),
@@ -127,6 +128,7 @@ class _BrandPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final crossAxis = isWide ? CrossAxisAlignment.start : CrossAxisAlignment.center;
     final textAlign = isWide ? TextAlign.left : TextAlign.center;
 
@@ -144,7 +146,7 @@ class _BrandPanel extends StatelessWidget {
           'BIENVENUE',
           textAlign: textAlign,
           style: AppTextStyles.labelCaps.copyWith(
-            color: AppColors.tertiaryFixedDim,
+            color: c.tertiaryFixedDim,
             letterSpacing: 3,
           ),
         ).animate().fadeIn(delay: 100.ms),
@@ -204,6 +206,7 @@ class _FeatureRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Row(
       children: [
         Container(
@@ -212,7 +215,7 @@ class _FeatureRow extends StatelessWidget {
             color: Colors.white.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 16, color: AppColors.tertiaryFixedDim),
+          child: Icon(icon, size: 16, color: c.tertiaryFixedDim),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -244,6 +247,7 @@ class _LoginCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
       child: BackdropFilter(
@@ -252,10 +256,10 @@ class _LoginCard extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest.withValues(alpha: 0.92),
+            color: c.surfaceContainerLowest.withValues(alpha: 0.92),
             borderRadius: BorderRadius.circular(28),
             border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
-            boxShadow: AppColors.premiumShadow,
+            boxShadow: c.premiumShadow,
           ),
           child: Form(
             key: formKey,
@@ -264,12 +268,12 @@ class _LoginCard extends StatelessWidget {
               children: [
                 Text(
                   'Connexion',
-                  style: AppTextStyles.titleMd.copyWith(color: AppColors.primary),
+                  style: AppTextStyles.titleMd.copyWith(color: c.primary),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Accédez à votre espace de travail',
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                  style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                 ),
                 const SizedBox(height: 26),
 
@@ -303,7 +307,7 @@ class _LoginCard extends StatelessWidget {
                     onPressed: () => context.push('/auth/forgot-password'),
                     child: Text(
                       'Mot de passe oublié ?',
-                      style: AppTextStyles.bodySm.copyWith(color: AppColors.primary),
+                      style: AppTextStyles.bodySm.copyWith(color: c.primary),
                     ),
                   ),
                 ),
@@ -322,7 +326,7 @@ class _LoginCard extends StatelessWidget {
                   child: Text.rich(
                     TextSpan(
                       text: 'Pas encore de compte ? ',
-                      style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                      style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                       children: [
                         WidgetSpan(
                           child: GestureDetector(
@@ -330,7 +334,7 @@ class _LoginCard extends StatelessWidget {
                             child: Text(
                               'Créer un compte',
                               style: AppTextStyles.bodySm.copyWith(
-                                color: AppColors.secondary,
+                                color: c.secondary,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -346,7 +350,7 @@ class _LoginCard extends StatelessWidget {
                     onPressed: () => context.push('/suivi'),
                     icon: const Icon(Icons.receipt_long_outlined, size: 16),
                     label: const Text('Suivre une commande sans compte'),
-                    style: TextButton.styleFrom(foregroundColor: AppColors.onSurfaceVariant),
+                    style: TextButton.styleFrom(foregroundColor: c.onSurfaceVariant),
                   ),
                 ),
               ],

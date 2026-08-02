@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../core/constants/app_constants.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/admin_demo_data.dart';
 import '../../models/subscription_plan.dart';
@@ -22,12 +23,13 @@ class _AdminSubscriptionsScreenState extends State<AdminSubscriptionsScreen> {
   // ── Barre fixe + onglets ─────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Column(children: [
       // Onglets
       Container(
         margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
         padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(color: AppColors.surfaceContainerHigh, borderRadius: BorderRadius.circular(14)),
+        decoration: BoxDecoration(color: c.surfaceContainerHigh, borderRadius: BorderRadius.circular(14)),
         child: Row(children: List.generate(_tabs.length, (i) {
           final active = i == _tabIndex;
           return Expanded(child: GestureDetector(
@@ -36,11 +38,11 @@ class _AdminSubscriptionsScreenState extends State<AdminSubscriptionsScreen> {
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
-                color: active ? AppColors.surfaceContainerLowest : Colors.transparent,
+                color: active ? c.surfaceContainerLowest : Colors.transparent,
                 borderRadius: BorderRadius.circular(10),
-                boxShadow: active ? AppColors.softShadow : null,
+                boxShadow: active ? c.softShadow : null,
               ),
-              child: Text(_tabs[i], style: AppTextStyles.labelCaps.copyWith(color: active ? AppColors.primary : AppColors.onSurfaceVariant), textAlign: TextAlign.center),
+              child: Text(_tabs[i], style: AppTextStyles.labelCaps.copyWith(color: active ? c.primary : c.onSurfaceVariant), textAlign: TextAlign.center),
             ),
           ));
         })),
@@ -62,6 +64,7 @@ class _AdminSubscriptionsScreenState extends State<AdminSubscriptionsScreen> {
 class _OverviewTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final counts = <SubscriptionPlan, int>{};
     for (final s in AdminDemoData.stylists) {
       counts[s.user.plan] = (counts[s.user.plan] ?? 0) + 1;
@@ -75,16 +78,16 @@ class _OverviewTab extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            gradient: AppColors.goldGradient,
+            gradient: c.goldGradient,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [BoxShadow(color: AppColors.tertiary.withValues(alpha: 0.2), blurRadius: 16, offset: const Offset(0, 6))],
+            boxShadow: [BoxShadow(color: c.tertiary.withValues(alpha: 0.2), blurRadius: 16, offset: const Offset(0, 6))],
           ),
           child: Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('REVENUS MENSUELS', style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.7))),
+              Text('REVENUS MENSUELS', style: AppTextStyles.labelXs.copyWith(color: c.onTertiary.withValues(alpha: 0.7))),
               const SizedBox(height: 6),
-              Text(Formatters.formatCurrency(AdminDemoData.monthlyRevenue), style: AppTextStyles.statNumber.copyWith(color: AppColors.onTertiary, fontSize: 28)),
-              Text(AppConstants.currency, style: AppTextStyles.labelXs.copyWith(color: AppColors.onTertiary.withValues(alpha: 0.7))),
+              Text(Formatters.formatCurrency(AdminDemoData.monthlyRevenue), style: AppTextStyles.statNumber.copyWith(color: c.onTertiary, fontSize: 28)),
+              Text(AppConstants.currency, style: AppTextStyles.labelXs.copyWith(color: c.onTertiary.withValues(alpha: 0.7))),
             ])),
             Container(
               padding: const EdgeInsets.all(12),
@@ -95,7 +98,7 @@ class _OverviewTab extends StatelessWidget {
         ).animate().fadeIn(duration: 400.ms),
 
         const SizedBox(height: 24),
-        Text('Répartition par plan', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
+        Text('Répartition par plan', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
         const SizedBox(height: 16),
 
         // ── Cartes par plan ────────────────────────────────────────────
@@ -117,32 +120,34 @@ class _PlanStatCard extends StatelessWidget {
   const _PlanStatCard({required this.plan, required this.count, required this.pct});
   final SubscriptionPlan plan; final int count; final double pct;
 
-  Color get _color => switch (plan) {
-    SubscriptionPlan.free       => AppColors.onSurfaceVariant,
-    SubscriptionPlan.starter    => AppColors.statusInProgress,
-    SubscriptionPlan.pro        => AppColors.primary,
-    SubscriptionPlan.enterprise => AppColors.tertiary,
+  Color _color(AppColorPalette c) => switch (plan) {
+    SubscriptionPlan.free       => c.onSurfaceVariant,
+    SubscriptionPlan.starter    => c.statusInProgress,
+    SubscriptionPlan.pro        => c.primary,
+    SubscriptionPlan.enterprise => c.tertiary,
   };
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final color = _color(c);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: AppColors.softShadow,
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
+        boxShadow: c.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: _color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(999)),
-            child: Text(plan.name.toUpperCase(), style: AppTextStyles.labelCaps.copyWith(color: _color)),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(999)),
+            child: Text(plan.name.toUpperCase(), style: AppTextStyles.labelCaps.copyWith(color: color)),
           ),
           const Spacer(),
-          Text('$count styliste${count > 1 ? 's' : ''}', style: AppTextStyles.titleSm.copyWith(color: _color, fontSize: 14)),
+          Text('$count styliste${count > 1 ? 's' : ''}', style: AppTextStyles.titleSm.copyWith(color: color, fontSize: 14)),
         ]),
         const SizedBox(height: 12),
         Row(children: [
@@ -151,16 +156,16 @@ class _PlanStatCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: pct,
               minHeight: 6,
-              backgroundColor: _color.withValues(alpha: 0.1),
-              valueColor: AlwaysStoppedAnimation<Color>(_color),
+              backgroundColor: color.withValues(alpha: 0.1),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           )),
           const SizedBox(width: 12),
-          Text('${(pct * 100).toStringAsFixed(0)}%', style: AppTextStyles.labelXs.copyWith(color: _color)),
+          Text('${(pct * 100).toStringAsFixed(0)}%', style: AppTextStyles.labelXs.copyWith(color: color)),
         ]),
         if (plan != SubscriptionPlan.free) ...[
           const SizedBox(height: 8),
-          Text(plan.priceLabel, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+          Text(plan.priceLabel, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
         ],
       ]),
     );
@@ -180,13 +185,14 @@ class _PendingTabState extends State<_PendingTab> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final pending = AdminDemoData.stylists.where((s) => s.subscriptionRequest != null && !s.subscriptionRequest!.approved).toList();
 
     if (pending.isEmpty) {
       return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.check_circle_outline_rounded, color: AppColors.statusDone, size: 56),
+        Icon(Icons.check_circle_outline_rounded, color: c.statusDone, size: 56),
         const SizedBox(height: 16),
-        Text('Aucune demande en attente', style: AppTextStyles.titleSm.copyWith(color: AppColors.onSurfaceVariant)),
+        Text('Aucune demande en attente', style: AppTextStyles.titleSm.copyWith(color: c.onSurfaceVariant)),
       ]));
     }
 
@@ -203,14 +209,14 @@ class _PendingTabState extends State<_PendingTab> {
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: isApproved ? AppColors.statusDoneBg : AppColors.surfaceContainerHigh,
+                color: isApproved ? c.statusDoneBg : c.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isApproved ? AppColors.statusDone.withValues(alpha: 0.3) : AppColors.outlineVariant.withValues(alpha: 0.3)),
+                border: Border.all(color: isApproved ? c.statusDone.withValues(alpha: 0.3) : c.outlineVariant.withValues(alpha: 0.3)),
               ),
               child: Row(children: [
-                Icon(isApproved ? Icons.check_circle_rounded : Icons.cancel_rounded, color: isApproved ? AppColors.statusDone : AppColors.onSurfaceVariant, size: 20),
+                Icon(isApproved ? Icons.check_circle_rounded : Icons.cancel_rounded, color: isApproved ? c.statusDone : c.onSurfaceVariant, size: 20),
                 const SizedBox(width: 12),
-                Text(isApproved ? '${s.user.fullName} — Approuvé' : '${s.user.fullName} — Refusé', style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w600, color: isApproved ? AppColors.statusDone : AppColors.onSurfaceVariant)),
+                Text(isApproved ? '${s.user.fullName} — Approuvé' : '${s.user.fullName} — Refusé', style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w600, color: isApproved ? c.statusDone : c.onSurfaceVariant)),
               ]),
             ),
           );
@@ -221,26 +227,26 @@ class _PendingTabState extends State<_PendingTab> {
           padding: const EdgeInsets.only(bottom: 12),
           child: Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: AppColors.surfaceContainerLowest, borderRadius: BorderRadius.circular(20), border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)), boxShadow: AppColors.softShadow),
+            decoration: BoxDecoration(color: c.surfaceContainerLowest, borderRadius: BorderRadius.circular(20), border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)), boxShadow: c.softShadow),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
                 StylistAvatar(name: s.user.fullName, isOnline: s.isOnline),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(s.user.fullName, style: AppTextStyles.titleSm),
-                  Text(s.user.atelierName ?? '', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+                  Text(s.user.atelierName ?? '', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
                 ])),
               ]),
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: AppColors.primaryFixed.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: c.primaryFixed.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
                 child: Row(children: [
-                  const Icon(Icons.swap_horiz_rounded, color: AppColors.primary, size: 20),
+                  Icon(Icons.swap_horiz_rounded, color: c.primary, size: 20),
                   const SizedBox(width: 10),
-                  Text('${s.user.plan.name} → ${req.requestedPlan.name}', style: AppTextStyles.titleSm.copyWith(color: AppColors.primary, fontSize: 14)),
+                  Text('${s.user.plan.name} → ${req.requestedPlan.name}', style: AppTextStyles.titleSm.copyWith(color: c.primary, fontSize: 14)),
                   const Spacer(),
-                  Text(req.requestedPlan.priceLabel, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+                  Text(req.requestedPlan.priceLabel, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
                 ]),
               ),
               const SizedBox(height: 14),
@@ -251,8 +257,8 @@ class _PendingTabState extends State<_PendingTab> {
                     if (!mounted) return;
                     setState(() => _rejected.add(id));
                   },
-                  style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: BorderSide(color: AppColors.error.withValues(alpha: 0.4)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 12)),
-                  child: Text('REFUSER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.error)),
+                  style: OutlinedButton.styleFrom(foregroundColor: c.error, side: BorderSide(color: c.error.withValues(alpha: 0.4)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 12)),
+                  child: Text('REFUSER', style: AppTextStyles.labelCaps.copyWith(color: c.error)),
                 )),
                 const SizedBox(width: 12),
                 Expanded(child: ElevatedButton(
@@ -261,8 +267,8 @@ class _PendingTabState extends State<_PendingTab> {
                     if (!mounted) return;
                     setState(() => _approved.add(id));
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 12), elevation: 0),
-                  child: Text('APPROUVER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary)),
+                  style: ElevatedButton.styleFrom(backgroundColor: c.primary, foregroundColor: c.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 12), elevation: 0),
+                  child: Text('APPROUVER', style: AppTextStyles.labelCaps.copyWith(color: c.onPrimary)),
                 )),
               ]),
             ]),
@@ -283,6 +289,7 @@ class _ExpiringTab extends StatefulWidget {
 class _ExpiringTabState extends State<_ExpiringTab> {
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final expiring = AdminDemoData.stylists.where((s) {
       final exp = s.user.planExpiresAt;
       return exp != null && exp.isBefore(DateTime.now().add(const Duration(days: 30)));
@@ -291,9 +298,9 @@ class _ExpiringTabState extends State<_ExpiringTab> {
 
     if (expiring.isEmpty) {
       return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.check_circle_outline_rounded, color: AppColors.statusDone, size: 56),
+        Icon(Icons.check_circle_outline_rounded, color: c.statusDone, size: 56),
         const SizedBox(height: 16),
-        Text('Aucun abonnement expirant', style: AppTextStyles.titleSm.copyWith(color: AppColors.onSurfaceVariant)),
+        Text('Aucun abonnement expirant', style: AppTextStyles.titleSm.copyWith(color: c.onSurfaceVariant)),
       ]));
     }
 
@@ -308,32 +315,32 @@ class _ExpiringTabState extends State<_ExpiringTab> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isUrgent ? AppColors.errorContainer.withValues(alpha: 0.15) : AppColors.surfaceContainerLowest,
+              color: isUrgent ? c.errorContainer.withValues(alpha: 0.15) : c.surfaceContainerLowest,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: isUrgent ? AppColors.error.withValues(alpha: 0.2) : AppColors.outlineVariant.withValues(alpha: 0.3)),
-              boxShadow: AppColors.softShadow,
+              border: Border.all(color: isUrgent ? c.error.withValues(alpha: 0.2) : c.outlineVariant.withValues(alpha: 0.3)),
+              boxShadow: c.softShadow,
             ),
             child: Row(children: [
               StylistAvatar(name: s.user.fullName, isOnline: s.isOnline),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(s.user.fullName, style: AppTextStyles.titleSm),
-                Text(s.user.atelierName ?? '', style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+                Text(s.user.atelierName ?? '', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
                 const SizedBox(height: 6),
                 Row(children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: isUrgent ? AppColors.errorContainer.withValues(alpha: 0.4) : AppColors.statusInProgressBg,
+                      color: isUrgent ? c.errorContainer.withValues(alpha: 0.4) : c.statusInProgressBg,
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       isUrgent ? 'EXPIRE DANS $daysLeft J' : 'EXPIRE DANS $daysLeft J',
-                      style: AppTextStyles.labelXs.copyWith(color: isUrgent ? AppColors.error : AppColors.statusInProgress),
+                      style: AppTextStyles.labelXs.copyWith(color: isUrgent ? c.error : c.statusInProgress),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(s.user.plan.name, style: AppTextStyles.labelXs.copyWith(color: AppColors.onSurfaceVariant)),
+                  Text(s.user.plan.name, style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant)),
                 ]),
               ])),
               GestureDetector(
@@ -341,7 +348,7 @@ class _ExpiringTabState extends State<_ExpiringTab> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: isUrgent ? AppColors.error : AppColors.primary,
+                    color: isUrgent ? c.error : c.primary,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text('RENOUVELER', style: AppTextStyles.labelXs.copyWith(color: Colors.white)),
@@ -355,18 +362,19 @@ class _ExpiringTabState extends State<_ExpiringTab> {
   }
 
   void _showRenewDialog(BuildContext context, StylistEntry s) {
+    final c = context.colors;
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surfaceContainerLowest,
+        backgroundColor: c.surfaceContainerLowest,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Renouveler l\'abonnement', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
+        title: Text('Renouveler l\'abonnement', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
         content: Text(
           'Renouveler le plan ${s.user.plan.name} de ${s.user.fullName} pour 12 mois ?',
-          style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+          style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('ANNULER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurfaceVariant))),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('ANNULER', style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant))),
           ElevatedButton(
             onPressed: () async {
               await AdminDemoData.renewSubscription(s.user.id);
@@ -374,8 +382,8 @@ class _ExpiringTabState extends State<_ExpiringTab> {
               Navigator.pop(context);
               setState(() {});
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), elevation: 0),
-            child: Text('CONFIRMER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary)),
+            style: ElevatedButton.styleFrom(backgroundColor: c.primary, foregroundColor: c.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), elevation: 0),
+            child: Text('CONFIRMER', style: AppTextStyles.labelCaps.copyWith(color: c.onPrimary)),
           ),
         ],
       ),

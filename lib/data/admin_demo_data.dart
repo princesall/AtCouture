@@ -135,6 +135,34 @@ abstract final class AdminDemoData {
   static int get monthlyRevenue =>
       _stylists.fold(0, (sum, s) => sum + getStylistRevenue(s.user));
 
+  /// Abonnés PAYANTS actuellement actifs (plan payant + non expiré),
+  /// groupés par plan. Le plan Découverte (gratuit) n'est jamais compté.
+  /// Un compte dont l'abonnement a expiré retombe sur les droits Découverte
+  /// (voir AppUser.permissions) : il n'est donc plus compté ici tant qu'il
+  /// n'a pas renouvelé, même si son champ `plan` affiche encore l'ancien plan.
+  static Map<SubscriptionPlan, int> get paidSubscribersByPlan {
+    final counts = <SubscriptionPlan, int>{};
+    for (final s in _stylists) {
+      final user = s.user;
+      if (user.plan == SubscriptionPlan.free) continue;
+      if (user.permissions.isExpired) continue;
+      counts[user.plan] = (counts[user.plan] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  static int get paidSubscribersCount =>
+      paidSubscribersByPlan.values.fold(0, (a, b) => a + b);
+
+  /// Revenu d'ABONNEMENT mensuel de StyleConnect : somme du prix des plans
+  /// payants actuellement actifs. À ne pas confondre avec `monthlyRevenue`,
+  /// qui mesure le volume d'affaires des ateliers auprès de LEURS clients.
+  /// Ce montant reste théorique tant qu'aucun moyen de paiement réel n'est
+  /// branché (voir SubscriptionService) : aujourd'hui, changer de plan ne
+  /// fait bouger aucun argent, seul le champ `plan` du compte est modifié.
+  static int get subscriptionRevenue =>
+      paidSubscribersByPlan.entries.fold(0, (sum, e) => sum + e.key.price * e.value);
+
   static int get expiringIn7Days {
     final now = DateTime.now();
     final in7Days = now.add(const Duration(days: 7));

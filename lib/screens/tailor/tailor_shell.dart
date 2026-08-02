@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/subscription_service.dart';
 import '../shared/contact_support_screen.dart';
 import '../shared/system_notifications_screen.dart';
@@ -45,9 +46,10 @@ class _TailorShellState extends State<TailorShell> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
     final unread = SubscriptionService.instance.unreadSystemMessagesCount(user.id);
+    final c = context.colors;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: c.background,
       body: SafeArea(
         bottom: false,
         child: Stack(
@@ -88,7 +90,7 @@ class _TailorShellState extends State<TailorShell> {
                 right: 56,
                 child: Container(
                   width: 18, height: 18,
-                  decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: c.error, shape: BoxShape.circle),
                   alignment: Alignment.center,
                   child: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
                 ),
@@ -108,6 +110,8 @@ class _TailorProfile extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
     final auth = context.read<AuthProvider>();
+    final theme = context.watch<ThemeProvider>();
+    final c = context.colors;
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -117,38 +121,38 @@ class _TailorProfile extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: AppSpacing.xl),
-            UserAvatar(initials: user.initials, size: 80),
+            UserAvatar(initials: user.initials, size: 80, imageUrl: user.photoUrl),
             const SizedBox(height: AppSpacing.md),
             Text(user.fullName, style: AppTextStyles.headlineLgMobile),
             const SizedBox(height: AppSpacing.xxs),
             Text(
               user.atelierName ?? '',
-              style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+              style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.xl),
             Container(
               margin: const EdgeInsets.only(bottom: AppSpacing.sm),
               decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLowest,
+                color: c.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-                boxShadow: AppColors.softShadow,
+                border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
+                boxShadow: c.softShadow,
               ),
               child: ListTile(
-                leading: Icon(Icons.storefront_outlined, color: AppColors.secondary, size: 22),
+                leading: Icon(Icons.storefront_outlined, color: c.secondary, size: 22),
                 title: Text('Atelier', style: AppTextStyles.labelCaps),
                 subtitle: Text(user.atelierName ?? '—', style: AppTextStyles.bodyLg),
               ),
             ),
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLowest,
+                color: c.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-                boxShadow: AppColors.softShadow,
+                border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
+                boxShadow: c.softShadow,
               ),
               child: ListTile(
-                leading: Icon(Icons.phone_outlined, color: AppColors.secondary, size: 22),
+                leading: Icon(Icons.phone_outlined, color: c.secondary, size: 22),
                 title: Text('Téléphone', style: AppTextStyles.labelCaps),
                 subtitle: Text(user.phone, style: AppTextStyles.bodyLg),
               ),
@@ -156,41 +160,56 @@ class _TailorProfile extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLowest,
+                color: c.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-                boxShadow: AppColors.softShadow,
+                border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
+                boxShadow: c.softShadow,
               ),
               child: ListTile(
-                leading: Icon(Icons.mail_outline, color: AppColors.secondary, size: 22),
+                leading: Icon(Icons.mail_outline, color: c.secondary, size: 22),
                 title: Text('Email', style: AppTextStyles.labelCaps),
                 subtitle: Text(user.email, style: AppTextStyles.bodyLg),
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            ListTile(
-              leading: const Icon(Icons.support_agent_outlined, color: AppColors.secondary),
-              title: Text(
-                'Signaler un problème',
-                style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurface),
-              ),
-              onTap: () => ContactSupportScreen.show(context),
-              shape: RoundedRectangleBorder(
+            Container(
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                side: const BorderSide(color: AppColors.outlineVariant),
+                border: Border.all(color: c.outlineVariant),
+              ),
+              child: SwitchListTile(
+                secondary: Icon(theme.isDarkMode ? Icons.dark_mode_outlined : Icons.light_mode_outlined, color: c.secondary),
+                title: Text(theme.isDarkMode ? 'Mode sombre' : 'Mode clair', style: AppTextStyles.labelCaps.copyWith(color: c.onSurface)),
+                value: theme.isDarkMode,
+                onChanged: (_) => theme.toggle(),
+                activeTrackColor: c.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
             ListTile(
-              leading: const Icon(Icons.logout, color: AppColors.error),
+              leading: Icon(Icons.support_agent_outlined, color: c.secondary),
+              title: Text(
+                'Signaler un problème',
+                style: AppTextStyles.labelCaps.copyWith(color: c.onSurface),
+              ),
+              onTap: () => ContactSupportScreen.show(context),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                side: BorderSide(color: c.outlineVariant),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ListTile(
+              leading: Icon(Icons.logout, color: c.error),
               title: Text(
                 'Déconnexion',
-                style: AppTextStyles.labelCaps.copyWith(color: AppColors.error),
+                style: AppTextStyles.labelCaps.copyWith(color: c.error),
               ),
               onTap: () => auth.signOut(),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                side: const BorderSide(color: AppColors.outlineVariant),
+                side: BorderSide(color: c.outlineVariant),
               ),
             ),
           ],

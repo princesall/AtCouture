@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/premium_button.dart';
 import '../../core/widgets/premium_text_field.dart';
@@ -57,12 +57,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: c.background,
       appBar: AppBar(
         title: const Text('Suivre ma commande'),
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.primary,
+        backgroundColor: c.background,
+        foregroundColor: c.primary,
         elevation: 0,
       ),
       body: SafeArea(
@@ -74,7 +75,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               Text(
                 'Entrez le numéro de commande communiqué par votre atelier '
                 '(par exemple par WhatsApp) pour suivre son avancement.',
-                style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
               ),
               const SizedBox(height: AppSpacing.lg),
               PremiumTextField(
@@ -100,22 +101,23 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   }
 
   Widget _buildResult() {
+    final c = context.colors;
     final order = _result;
     if (order == null) {
       return Container(
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: AppColors.errorContainer.withValues(alpha: 0.3),
+          color: c.errorContainer.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         ),
         child: Row(
           children: [
-            Icon(Icons.error_outline_rounded, color: AppColors.error),
+            Icon(Icons.error_outline_rounded, color: c.error),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 'Aucune commande trouvée avec ce numéro. Vérifiez le numéro reçu par votre atelier.',
-                style: AppTextStyles.bodySm.copyWith(color: AppColors.error),
+                style: AppTextStyles.bodySm.copyWith(color: c.error),
               ),
             ),
           ],
@@ -126,10 +128,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.3)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
+        boxShadow: c.softShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,7 +147,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           const SizedBox(height: AppSpacing.sm),
           Text(
             order.description ?? 'Vêtement non précisé',
-            style: AppTextStyles.bodyLg.copyWith(color: AppColors.onSurfaceVariant),
+            style: AppTextStyles.bodyLg.copyWith(color: c.onSurfaceVariant),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
@@ -156,11 +158,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
-                Icon(Icons.event_outlined, size: 16, color: AppColors.onSurfaceVariant),
+                Icon(Icons.event_outlined, size: 16, color: c.onSurfaceVariant),
                 const SizedBox(width: 6),
                 Text(
                   'Livraison prévue le ${Formatters.date.format(order.dueDate!)}',
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                  style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                 ),
               ],
             ),

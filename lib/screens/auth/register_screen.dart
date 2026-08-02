@@ -1,11 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/auth_backdrop.dart';
 import '../../core/widgets/premium_button.dart';
 import '../../core/widgets/premium_text_field.dart';
@@ -27,6 +30,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+  XFile? _logoFile;
+
+  Future<void> _pickLogo() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 800);
+    if (picked == null) return;
+    setState(() => _logoFile = picked);
+  }
 
   @override
   void dispose() {
@@ -49,12 +59,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       email: _emailController.text,
       phone: _phoneController.text,
       password: _passwordController.text,
+      logoPath: _logoFile?.path,
     );
 
     if (!mounted) return;
     if (!success && auth.errorMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage!), backgroundColor: AppColors.error),
+        SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.colors.error),
       );
     }
   }
@@ -62,9 +73,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final c = context.colors;
 
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: c.primary,
       body: Column(
         children: [
           // ── Bandeau de marque ──────────────────────────────────────────
@@ -127,9 +139,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Expanded(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: AppColors.background,
+                color: c.background,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                boxShadow: AppColors.premiumShadow,
+                boxShadow: c.premiumShadow,
               ),
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -151,6 +163,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                             _SectionLabel('Vos informations'),
                             const SizedBox(height: AppSpacing.sm),
+                            Center(child: _LogoPicker(file: _logoFile, onTap: _pickLogo)),
+                            const SizedBox(height: AppSpacing.md),
                             PremiumTextField(
                               controller: _nameController,
                               label: 'Nom complet',
@@ -236,7 +250,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 onPressed: () => context.pop(),
                                 child: Text(
                                   'Déjà un compte ? Se connecter',
-                                  style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                                  style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                                 ),
                               ),
                             ),
@@ -255,6 +269,68 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 }
 
+// ── Sélecteur du logo de l'atelier (optionnel, à la création du compte) ─────
+class _LogoPicker extends StatelessWidget {
+  const _LogoPicker({required this.file, required this.onTap});
+  final XFile? file;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Stack(
+            children: [
+              Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: c.surfaceContainerLowest,
+                  border: Border.all(color: c.outlineVariant.withValues(alpha: 0.5), width: 1.5),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: file == null
+                    ? Icon(Icons.storefront_outlined, color: c.onSurfaceVariant, size: 32)
+                    : FutureBuilder<Uint8List>(
+                        future: file!.readAsBytes(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return Container(color: c.surfaceContainerLow);
+                          }
+                          return Image.memory(snapshot.data!, width: 88, height: 88, fit: BoxFit.cover);
+                        },
+                      ),
+              ),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: c.secondary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: c.background, width: 2),
+                  ),
+                  child: const Icon(Icons.add_a_photo_rounded, color: Colors.white, size: 14),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            file == null ? 'Ajouter le logo de l\'atelier' : 'Modifier le logo',
+            style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.label);
   final String label;
@@ -263,7 +339,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label.toUpperCase(),
-      style: AppTextStyles.labelCaps.copyWith(color: AppColors.secondary),
+      style: AppTextStyles.labelCaps.copyWith(color: context.colors.secondary),
     );
   }
 }
@@ -275,23 +351,24 @@ class _PlanPreviewChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
+        boxShadow: c.softShadow,
       ),
       child: Row(
         children: [
           Container(
             width: 40, height: 40,
             decoration: BoxDecoration(
-              gradient: AppColors.goldGradient,
+              gradient: c.goldGradient,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.workspace_premium_rounded, color: AppColors.onTertiary, size: 20),
+            child: Icon(Icons.workspace_premium_rounded, color: c.onTertiary, size: 20),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
@@ -300,12 +377,12 @@ class _PlanPreviewChip extends StatelessWidget {
               children: [
                 Text(
                   'Plan ${plan.name} inclus',
-                  style: AppTextStyles.titleSm.copyWith(color: AppColors.primary, fontSize: 14),
+                  style: AppTextStyles.titleSm.copyWith(color: c.primary, fontSize: 14),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${plan.tailorsLabel} · ${plan.clientsLabel}',
-                  style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 12),
+                  style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant, fontSize: 12),
                 ),
               ],
             ),

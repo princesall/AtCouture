@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../theme/build_context_colors.dart';
 
 /// Source de vérité UNIQUE pour "cet utilisateur a-t-il le droit de faire X ?".
 ///
@@ -46,41 +46,42 @@ class PlanGuard {
   }
 
   static void _showUpsellDialog(BuildContext context, {required String featureName, required String message}) {
+    final c = context.colors;
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surfaceContainerLowest,
+        backgroundColor: c.surfaceContainerLowest,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         icon: Container(
           width: 56, height: 56,
-          decoration: BoxDecoration(gradient: AppColors.goldGradient, shape: BoxShape.circle),
-          child: const Icon(Icons.lock_rounded, color: AppColors.onTertiary, size: 26),
+          decoration: BoxDecoration(gradient: c.goldGradient, shape: BoxShape.circle),
+          child: Icon(Icons.lock_rounded, color: c.onTertiary, size: 26),
         ),
         title: Text(
           'Fonctionnalité verrouillée',
-          style: AppTextStyles.titleMd.copyWith(color: AppColors.primary),
+          style: AppTextStyles.titleMd.copyWith(color: c.primary),
           textAlign: TextAlign.center,
         ),
         content: Text(
           message,
-          style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+          style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('COMPRIS', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurfaceVariant)),
+            child: Text('COMPRIS', style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.onPrimary,
+              backgroundColor: c.primary,
+              foregroundColor: c.onPrimary,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               elevation: 0,
             ),
-            child: Text('CONTACTER L\'ADMIN', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onPrimary)),
+            child: Text('CONTACTER L\'ADMIN', style: AppTextStyles.labelCaps.copyWith(color: c.onPrimary)),
           ),
         ],
       ),
@@ -95,10 +96,11 @@ class PlanLockBadge extends StatelessWidget {
   final double size;
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       padding: EdgeInsets.all(size * 0.25),
-      decoration: BoxDecoration(gradient: AppColors.goldGradient, shape: BoxShape.circle),
-      child: Icon(Icons.lock_rounded, size: size, color: AppColors.onTertiary),
+      decoration: BoxDecoration(gradient: c.goldGradient, shape: BoxShape.circle),
+      child: Icon(Icons.lock_rounded, size: size, color: c.onTertiary),
     );
   }
 }

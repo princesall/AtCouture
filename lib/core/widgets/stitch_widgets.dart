@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../models/order_status.dart';
 import '../constants/app_constants.dart';
-import '../theme/app_colors.dart';
+import '../theme/app_color_palette.dart';
 import '../theme/app_text_styles.dart';
+import '../theme/build_context_colors.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // StatusBadge — badge pill pour le statut d'une commande
@@ -16,11 +17,12 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final (label, bg, fg) = switch (status) {
-      OrderStatus.pending    => ('EN ATTENTE', AppColors.statusPendingBg,    AppColors.statusPending),
-      OrderStatus.inProgress => ('EN COURS',   AppColors.statusInProgressBg, AppColors.statusInProgress),
-      OrderStatus.completed  => ('TERMINÉ',     AppColors.statusDoneBg,       AppColors.statusDone),
-      OrderStatus.problem    => ('PROBLÈME',    AppColors.statusProblemBg,    AppColors.statusProblem),
+      OrderStatus.pending    => ('EN ATTENTE', c.statusPendingBg,    c.statusPending),
+      OrderStatus.inProgress => ('EN COURS',   c.statusInProgressBg, c.statusInProgress),
+      OrderStatus.completed  => ('TERMINÉ',     c.statusDoneBg,       c.statusDone),
+      OrderStatus.problem    => ('PROBLÈME',    c.statusProblemBg,    c.statusProblem),
     };
 
     return Container(
@@ -57,15 +59,16 @@ class StitchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
+          color: c.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: AppColors.surfaceContainerLowest),
-          boxShadow: AppColors.premiumShadow,
+          border: Border.all(color: c.surfaceContainerLowest),
+          boxShadow: c.premiumShadow,
         ),
         padding: padding ?? const EdgeInsets.all(16),
         child: child,
@@ -102,22 +105,23 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final bg = backgroundColor ??
         (isAlert
-            ? AppColors.errorContainer.withValues(alpha: 0.4)
-            : AppColors.surfaceContainerLowest);
+            ? c.errorContainer.withValues(alpha: 0.4)
+            : c.surfaceContainerLowest);
 
     final numColor = valueColor ??
-        (isAlert ? AppColors.error : AppColors.primary);
+        (isAlert ? c.error : c.primary);
 
     return Container(
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
         border: isAlert
-            ? Border.all(color: AppColors.error.withValues(alpha: 0.1))
-            : Border.all(color: AppColors.surfaceContainerLowest),
-        boxShadow: isAlert ? null : AppColors.premiumShadow,
+            ? Border.all(color: c.error.withValues(alpha: 0.1))
+            : Border.all(color: c.surfaceContainerLowest),
+        boxShadow: isAlert ? null : c.premiumShadow,
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -128,8 +132,8 @@ class StatCard extends StatelessWidget {
             label.toUpperCase(),
             style: AppTextStyles.labelXs.copyWith(
               color: isAlert
-                  ? AppColors.error.withValues(alpha: 0.8)
-                  : AppColors.onSurfaceVariant.withValues(alpha: 0.7),
+                  ? c.error.withValues(alpha: 0.8)
+                  : c.onSurfaceVariant.withValues(alpha: 0.7),
             ),
           ),
           Row(
@@ -189,22 +193,25 @@ class OrderListItem extends StatelessWidget {
     return clientName.isNotEmpty ? clientName[0].toUpperCase() : '?';
   }
 
-  Color get _avatarBg => switch (status) {
-    OrderStatus.completed  => AppColors.secondaryFixed.withValues(alpha: 0.5),
-    OrderStatus.inProgress => AppColors.primaryFixed.withValues(alpha: 0.5),
-    OrderStatus.pending    => AppColors.surfaceContainerHigh,
-    OrderStatus.problem    => AppColors.errorContainer.withValues(alpha: 0.5),
+  Color _avatarBg(AppColorPalette c) => switch (status) {
+    OrderStatus.completed  => c.secondaryFixed.withValues(alpha: 0.5),
+    OrderStatus.inProgress => c.primaryFixed.withValues(alpha: 0.5),
+    OrderStatus.pending    => c.surfaceContainerHigh,
+    OrderStatus.problem    => c.errorContainer.withValues(alpha: 0.5),
   };
 
-  Color get _avatarFg => switch (status) {
-    OrderStatus.completed  => AppColors.secondary,
-    OrderStatus.inProgress => AppColors.primary,
-    OrderStatus.pending    => AppColors.onSurfaceVariant,
-    OrderStatus.problem    => AppColors.error,
+  Color _avatarFg(AppColorPalette c) => switch (status) {
+    OrderStatus.completed  => c.secondary,
+    OrderStatus.inProgress => c.primary,
+    OrderStatus.pending    => c.onSurfaceVariant,
+    OrderStatus.problem    => c.error,
   };
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final avatarBg = _avatarBg(c);
+    final avatarFg = _avatarFg(c);
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -216,14 +223,14 @@ class OrderListItem extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: _avatarBg,
+                color: avatarBg,
                 shape: BoxShape.circle,
-                border: Border.all(color: _avatarFg.withValues(alpha: 0.1)),
+                border: Border.all(color: avatarFg.withValues(alpha: 0.1)),
               ),
               child: Center(
                 child: Text(
                   _initials,
-                  style: AppTextStyles.titleSm.copyWith(color: _avatarFg),
+                  style: AppTextStyles.titleSm.copyWith(color: avatarFg),
                 ),
               ),
             ),
@@ -233,9 +240,9 @@ class OrderListItem extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(clientName, style: AppTextStyles.titleSm.copyWith(color: AppColors.onSurface)),
+                  Text(clientName, style: AppTextStyles.titleSm.copyWith(color: c.onSurface)),
                   const SizedBox(height: 2),
-                  Text(garmentType, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+                  Text(garmentType, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
                 ],
               ),
             ),
@@ -247,11 +254,11 @@ class OrderListItem extends StatelessWidget {
                 Text.rich(
                   TextSpan(
                     text: price,
-                    style: AppTextStyles.titleSm.copyWith(color: AppColors.primary),
+                    style: AppTextStyles.titleSm.copyWith(color: c.primary),
                     children: [
                       TextSpan(
                         text: ' ${AppConstants.currency}',
-                        style: AppTextStyles.labelXs.copyWith(color: AppColors.primary),
+                        style: AppTextStyles.labelXs.copyWith(color: c.primary),
                       ),
                     ],
                   ),
@@ -289,6 +296,7 @@ class GlassNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Positioned(
       bottom: 16,
       left: 24,
@@ -296,10 +304,10 @@ class GlassNavBar extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.75),
+          color: c.surfaceContainerLowest.withValues(alpha: 0.85),
           borderRadius: BorderRadius.circular(999),
-          boxShadow: AppColors.premiumShadow,
-          border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+          boxShadow: c.premiumShadow,
+          border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -324,7 +332,8 @@ class _NavPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? AppColors.secondary : AppColors.onSurfaceVariant;
+    final c = context.colors;
+    final color = isActive ? c.secondary : c.onSurfaceVariant;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -336,7 +345,7 @@ class _NavPill extends StatelessWidget {
                 width: 44,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: AppColors.secondary.withValues(alpha: 0.12),
+                  color: c.secondary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -369,11 +378,12 @@ class UrgentStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.errorContainer.withValues(alpha: 0.4),
+        color: c.errorContainer.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.1)),
+        border: Border.all(color: c.error.withValues(alpha: 0.1)),
       ),
       padding: const EdgeInsets.all(16),
       child: Stack(
@@ -381,27 +391,27 @@ class UrgentStatCard extends StatelessWidget {
           Positioned(
             right: -24,
             bottom: -24,
-            child: Icon(Icons.warning_rounded, size: 80, color: AppColors.error.withValues(alpha: 0.08)),
+            child: Icon(Icons.warning_rounded, size: 80, color: c.error.withValues(alpha: 0.08)),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'EN RETARD',
-                style: AppTextStyles.labelXs.copyWith(color: AppColors.error.withValues(alpha: 0.8)),
+                style: AppTextStyles.labelXs.copyWith(color: c.error.withValues(alpha: 0.8)),
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Text(
-                    count.toString().padLeft(2, '0'),
-                    style: AppTextStyles.statNumber.copyWith(color: AppColors.error),
+                    count.toString(),
+                    style: AppTextStyles.statNumber.copyWith(color: c.error),
                   ),
                   const SizedBox(width: 12),
                   Text(
                     'Actions requises\nimmédiatement',
                     style: AppTextStyles.bodySm.copyWith(
-                      color: AppColors.error.withValues(alpha: 0.9),
+                      color: c.error.withValues(alpha: 0.9),
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
                     ),
@@ -417,20 +427,18 @@ class UrgentStatCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TopAppBar Stitch — header fixe avec avatar + notifications
+// TopAppBar Stitch — header fixe avec logo + notifications
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class StitchAppBar extends StatelessWidget implements PreferredSizeWidget {
   const StitchAppBar({
     super.key,
     required this.title,
-    this.avatarUrl,
     this.onNotificationTap,
     this.actions,
   });
 
   final String title;
-  final String? avatarUrl;
   final VoidCallback? onNotificationTap;
   final List<Widget>? actions;
 
@@ -439,37 +447,38 @@ class StitchAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       height: 64 + MediaQuery.of(context).padding.top,
       padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top, 20, 0),
       decoration: BoxDecoration(
-        color: AppColors.background.withValues(alpha: 0.9),
-        border: Border(bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.3))),
+        color: c.background.withValues(alpha: 0.9),
+        border: Border(bottom: BorderSide(color: c.outlineVariant.withValues(alpha: 0.3))),
       ),
       child: Row(
         children: [
-          // Avatar
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.primaryContainer.withValues(alpha: 0.3), width: 2),
-            ),
-            child: ClipOval(
-              child: avatarUrl != null
-                  ? Image.network(avatarUrl!, fit: BoxFit.cover)
-                  : Container(
-                      color: AppColors.primaryFixed,
-                      child: Icon(Icons.person, color: AppColors.primary, size: 22),
-                    ),
+          // Monogramme StyleConnect
+          SizedBox(
+            width: 34,
+            height: 34,
+            child: Image.asset(
+              'assets/branding/logo_mark_transparent.png',
+              fit: BoxFit.contain,
             ),
           ),
-          const SizedBox(width: 12),
-          // Titre app
-          Text(
-            title,
-            style: AppTextStyles.headlineLgMobile.copyWith(color: AppColors.primary),
+          const SizedBox(width: 8),
+          // Titre app — "Style" / "Connect" en deux tons
+          Text.rich(
+            TextSpan(
+              style: AppTextStyles.headlineLgMobile.copyWith(color: c.primary),
+              children: [
+                TextSpan(text: title.substring(0, 5)),
+                TextSpan(
+                  text: title.substring(5),
+                  style: TextStyle(color: c.tertiary),
+                ),
+              ],
+            ),
           ),
           const Spacer(),
           // Actions
@@ -477,7 +486,7 @@ class StitchAppBar extends StatelessWidget implements PreferredSizeWidget {
           // Cloche notifs
           IconButton(
             onPressed: onNotificationTap,
-            icon: const Icon(Icons.notifications_outlined, color: AppColors.onSurfaceVariant),
+            icon: Icon(Icons.notifications_outlined, color: c.onSurfaceVariant),
             style: IconButton.styleFrom(
               shape: const CircleBorder(),
               padding: const EdgeInsets.all(8),
@@ -509,8 +518,9 @@ class QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = isPrimary ? AppColors.primary : AppColors.primaryContainer;
-    final fg = AppColors.onPrimary;
+    final c = context.colors;
+    final bg = isPrimary ? c.primary : c.primaryContainer;
+    final fg = c.onPrimary;
 
     return GestureDetector(
       onTap: onTap,
@@ -572,14 +582,15 @@ class UrgentOrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
+          color: c.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.surfaceContainerLowest),
-          boxShadow: AppColors.premiumShadow,
+          border: Border.all(color: c.surfaceContainerLowest),
+          boxShadow: c.premiumShadow,
         ),
         padding: const EdgeInsets.all(14),
         child: Row(
@@ -589,13 +600,13 @@ class UrgentOrderCard extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: AppColors.surfaceContainerHigh.withValues(alpha: 0.5),
+                color: c.surfaceContainerHigh.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(12),
               ),
               clipBehavior: Clip.antiAlias,
               child: imageUrl != null
                   ? Image.network(imageUrl!, fit: BoxFit.cover)
-                  : const Icon(Icons.checkroom, color: AppColors.secondary, size: 32),
+                  : Icon(Icons.checkroom, color: c.secondary, size: 32),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -605,23 +616,23 @@ class UrgentOrderCard extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(clientName, style: AppTextStyles.titleSm.copyWith(color: AppColors.primary)),
+                        child: Text(clientName, style: AppTextStyles.titleSm.copyWith(color: c.primary)),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppColors.secondaryContainer.withValues(alpha: 0.3),
+                          color: c.secondaryContainer.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
                           urgencyLabel.toUpperCase(),
-                          style: AppTextStyles.labelXs.copyWith(color: AppColors.onSecondaryContainer),
+                          style: AppTextStyles.labelXs.copyWith(color: c.onSecondaryContainer),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(garmentType, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+                  Text(garmentType, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
                 ],
               ),
             ),

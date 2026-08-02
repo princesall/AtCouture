@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../constants/app_constants.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../theme/build_context_colors.dart';
 import '../theme/app_text_styles.dart';
 
 enum PremiumButtonVariant { primary, gold, outline, ghost, dark }
@@ -110,37 +110,38 @@ class _PremiumButtonState extends State<PremiumButton> {
   }
 
   _ButtonColors _resolveColors(bool enabled) {
+    final c = context.colors;
     if (!enabled) {
-      return const _ButtonColors(
-        background: AppColors.surfaceContainerHigh,
-        foreground: AppColors.onSurfaceVariant,
+      return _ButtonColors(
+        background: c.surfaceContainerHigh,
+        foreground: c.onSurfaceVariant,
       );
     }
 
     return switch (widget.variant) {
-      PremiumButtonVariant.primary => const _ButtonColors(
-          background: AppColors.primary,
-          foreground: AppColors.onPrimary,
-          shadow: Color(0x33131F5D),
+      PremiumButtonVariant.primary => _ButtonColors(
+          background: c.primary,
+          foreground: c.onPrimary,
+          shadow: const Color(0x33131F5D),
         ),
-      PremiumButtonVariant.gold => const _ButtonColors(
-          gradient: AppColors.goldGradient,
-          foreground: AppColors.onTertiary,
-          shadow: Color(0x33735C00),
+      PremiumButtonVariant.gold => _ButtonColors(
+          gradient: c.goldGradient,
+          foreground: c.onTertiary,
+          shadow: const Color(0x33735C00),
         ),
-      PremiumButtonVariant.outline => const _ButtonColors(
-          background: AppColors.surfaceContainerLowest,
-          foreground: AppColors.onSurface,
-          border: AppColors.outlineVariant,
+      PremiumButtonVariant.outline => _ButtonColors(
+          background: c.surfaceContainerLowest,
+          foreground: c.onSurface,
+          border: c.outlineVariant,
         ),
-      PremiumButtonVariant.ghost => const _ButtonColors(
+      PremiumButtonVariant.ghost => _ButtonColors(
           background: Colors.transparent,
-          foreground: AppColors.secondary,
+          foreground: c.secondary,
         ),
-      PremiumButtonVariant.dark => const _ButtonColors(
-          gradient: AppColors.heroGradient,
-          foreground: AppColors.onPrimary,
-          shadow: Color(0x33131F5D),
+      PremiumButtonVariant.dark => _ButtonColors(
+          gradient: c.heroGradient,
+          foreground: c.onPrimary,
+          shadow: const Color(0x33131F5D),
         ),
     };
   }
@@ -149,7 +150,7 @@ class _PremiumButtonState extends State<PremiumButton> {
 class _ButtonColors {
   const _ButtonColors({
     this.background,
-    this.foreground = AppColors.onSurface,
+    required this.foreground,
     this.gradient,
     this.border,
     this.shadow,

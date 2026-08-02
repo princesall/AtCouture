@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/theme/app_colors.dart';
+import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/subscription_service.dart';
@@ -46,9 +46,10 @@ class _StylistShellState extends State<StylistShell> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
     final unread = SubscriptionService.instance.unreadSystemMessagesCount(user.id);
+    final c = context.colors;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: c.background,
       body: SafeArea(
         bottom: false,
         child: Stack(
@@ -89,8 +90,8 @@ class _StylistShellState extends State<StylistShell> {
                       right: 20,
                       child: FloatingActionButton(
                         onPressed: () => _onNavTap(2),
-                        backgroundColor: AppColors.secondary,
-                        foregroundColor: AppColors.onSecondary,
+                        backgroundColor: c.secondary,
+                        foregroundColor: c.onSecondary,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         child: const Icon(Icons.add),
                       ),
@@ -113,7 +114,7 @@ class _StylistShellState extends State<StylistShell> {
                 right: 56,
                 child: Container(
                   width: 18, height: 18,
-                  decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: c.error, shape: BoxShape.circle),
                   alignment: Alignment.center,
                   child: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
                 ),

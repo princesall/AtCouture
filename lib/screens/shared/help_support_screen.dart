@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/build_context_colors.dart';
 
 /// Aide & Support — FAQ statique + contact direct. Accessible depuis les
 /// écrans de profil (pour l'instant : admin).
@@ -31,26 +31,27 @@ class HelpSupportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: c.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: c.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primary, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: c.primary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Aide & Support', style: AppTextStyles.titleMd.copyWith(color: AppColors.primary)),
+        title: Text('Aide & Support', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
-          Text('QUESTIONS FRÉQUENTES', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurfaceVariant, letterSpacing: 1.2)),
+          Text('QUESTIONS FRÉQUENTES', style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant, letterSpacing: 1.2)),
           const SizedBox(height: AppSpacing.sm),
           ..._faq.map((item) => _FaqTile(question: item.$1, answer: item.$2)),
 
           const SizedBox(height: AppSpacing.xl),
-          Text('NOUS CONTACTER', style: AppTextStyles.labelCaps.copyWith(color: AppColors.onSurfaceVariant, letterSpacing: 1.2)),
+          Text('NOUS CONTACTER', style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant, letterSpacing: 1.2)),
           const SizedBox(height: AppSpacing.sm),
           _ContactTile(
             icon: Icons.phone_rounded,
@@ -71,24 +72,25 @@ class _FaqTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
+        boxShadow: c.softShadow,
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           title: Text(question, style: AppTextStyles.bodyLg.copyWith(fontWeight: FontWeight.w600)),
-          iconColor: AppColors.primary,
-          collapsedIconColor: AppColors.onSurfaceVariant,
+          iconColor: c.primary,
+          collapsedIconColor: c.onSurfaceVariant,
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           expandedCrossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(answer, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+            Text(answer, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
           ],
         ),
       ),
@@ -105,19 +107,20 @@ class _ContactTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
-        boxShadow: AppColors.softShadow,
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
+        boxShadow: c.softShadow,
       ),
       child: ListTile(
-        leading: Icon(icon, color: AppColors.secondary, size: 22),
+        leading: Icon(icon, color: c.secondary, size: 22),
         title: Text(title, style: AppTextStyles.bodyLg),
-        subtitle: Text(subtitle, style: AppTextStyles.bodySm.copyWith(color: AppColors.onSurfaceVariant)),
+        subtitle: Text(subtitle, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
         onTap: onTap,
-        trailing: onTap == null ? null : const Icon(Icons.chevron_right, color: AppColors.onSurfaceVariant),
+        trailing: onTap == null ? null : Icon(Icons.chevron_right, color: c.onSurfaceVariant),
       ),
     );
   }
