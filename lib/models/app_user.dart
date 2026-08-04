@@ -120,7 +120,7 @@ class AppUser extends Equatable {
       companyId: map['companyId'] as String?,
       photoUrl: map['photoUrl'] as String?,
       plan: SubscriptionPlan.values.firstWhere(
-        (p) => p.name == map['plan'],
+        (p) => p.id == map['plan'],
         orElse: () => SubscriptionPlan.free,
       ),
       planExpiresAt: map['planExpiresAt'] != null
@@ -144,7 +144,7 @@ class AppUser extends Equatable {
       'atelierName': atelierName,
       'companyId': companyId,
       'photoUrl': photoUrl,
-      'plan': plan.name,
+      'plan': plan.id,
       'planExpiresAt': planExpiresAt?.toIso8601String(),
       'isActive': isActive,
       'mustChangePassword': mustChangePassword,

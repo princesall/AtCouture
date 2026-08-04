@@ -46,6 +46,34 @@ class SystemMessage {
         isRead: isRead ?? this.isRead,
       );
 
+  factory SystemMessage.fromMap(Map<String, dynamic> map, String id) {
+    return SystemMessage(
+      id: id,
+      userId: map['userId'] as String? ?? '',
+      type: SystemMessageType.values.firstWhere(
+        (t) => t.name == map['type'],
+        orElse: () => SystemMessageType.accountCreated,
+      ),
+      title: map['title'] as String? ?? '',
+      body: map['body'] as String? ?? '',
+      createdAt: map['createdAt'] != null
+          ? DateTime.tryParse(map['createdAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
+      isRead: map['isRead'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'userId': userId,
+      'type': type.name,
+      'title': title,
+      'body': body,
+      'createdAt': createdAt.toIso8601String(),
+      'isRead': isRead,
+    };
+  }
+
   factory SystemMessage.subscriptionApproved({
     required String id,
     required String userId,

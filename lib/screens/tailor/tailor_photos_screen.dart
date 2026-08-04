@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -12,6 +9,7 @@ import '../../core/widgets/common_widgets.dart';
 import '../../models/order.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/order_service.dart';
+import '../stylist/orders/order_list_widgets.dart' show SavedPhotoThumbnail;
 
 class TailorPhotosScreen extends StatefulWidget {
   const TailorPhotosScreen({super.key});
@@ -179,7 +177,7 @@ class _PhotoCard extends StatelessWidget {
                 itemCount: order.modelPhotos!.length,
                 separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
                 itemBuilder: (context, index) {
-                  return _PhotoThumbnail(
+                  return SavedPhotoThumbnail(
                     url: order.modelPhotos![index],
                     label: 'Modèle ${index + 1}',
                   );
@@ -205,7 +203,7 @@ class _PhotoCard extends StatelessWidget {
                 itemCount: order.fabricPhotos!.length,
                 separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
                 itemBuilder: (context, index) {
-                  return _PhotoThumbnail(
+                  return SavedPhotoThumbnail(
                     url: order.fabricPhotos![index],
                     label: 'Tissu ${index + 1}',
                   );
@@ -219,129 +217,3 @@ class _PhotoCard extends StatelessWidget {
   }
 }
 
-class _PhotoThumbnail extends StatelessWidget {
-  const _PhotoThumbnail({
-    required this.url,
-    required this.label,
-  });
-
-  final String url;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return GestureDetector(
-      onTap: () {
-        showDialog(
-          context: context,
-          builder: (context) => Dialog(
-            child: Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: _PhotoImage(url: url, width: 300, height: 300),
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-      child: Container(
-        width: 100,
-        height: 100,
-        decoration: BoxDecoration(
-          color: c.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-          border: Border.all(
-            color: c.outlineVariant.withValues(alpha: 0.3),
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          children: [
-            Positioned.fill(child: _PhotoImage(url: url, width: 100, height: 100)),
-            // Label
-            Positioned(
-              bottom: 4,
-              left: 4,
-              right: 4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 2,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Affiche une photo depuis une URL réseau ou un chemin de fichier local
-/// (celui renvoyé par image_picker côté styliste), avec un repli discret si
-/// le fichier n'existe plus (ex: démo réinstallée, cache vidé).
-class _PhotoImage extends StatelessWidget {
-  const _PhotoImage({required this.url, required this.width, required this.height});
-  final String url;
-  final double width;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    // Sur le web, image_picker renvoie une URL `blob:` (pas un vrai chemin de
-    // fichier) : `dart:io File` n'y fonctionne pas et fait planter l'écran.
-    // On charge alors la photo via Image.network, qui sait lire les blob:.
-    final isRemote = kIsWeb ||
-        url.startsWith('http://') ||
-        url.startsWith('https://') ||
-        url.startsWith('blob:');
-    final errorFallback = Container(
-      width: width,
-      height: height,
-      color: c.surfaceContainerLow,
-      alignment: Alignment.center,
-      child: Icon(Icons.broken_image_outlined, color: c.onSurfaceVariant),
-    );
-
-    if (isRemote) {
-      return Image.network(
-        url,
-        width: width,
-        height: height,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => errorFallback,
-      );
-    }
-    return Image.file(
-      File(url),
-      width: width,
-      height: height,
-      fit: BoxFit.cover,
-      errorBuilder: (_, _, _) => errorFallback,
-    );
-  }
-}

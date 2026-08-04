@@ -457,10 +457,15 @@ class StitchAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       child: Row(
         children: [
-          // Monogramme StyleConnect
-          SizedBox(
+          // Monogramme StyleConnect — badge blanc pour garantir le contraste en thème sombre
+          Container(
             width: 34,
             height: 34,
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: Image.asset(
               'assets/branding/logo_mark_transparent.png',
               fit: BoxFit.contain,

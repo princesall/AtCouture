@@ -4,14 +4,22 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
+import '../../models/app_user.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
+import '../shared/staff_account_actions.dart';
+import '../shared/tailor_orders_screen.dart';
 
 /// Vue globale de TOUS les couturiers de TOUS les ateliers,
 /// groupés par atelier, avec le nombre de commandes actives par couturier.
-class CompanyTailorsScreen extends StatelessWidget {
+class CompanyTailorsScreen extends StatefulWidget {
   const CompanyTailorsScreen({super.key});
 
+  @override
+  State<CompanyTailorsScreen> createState() => _CompanyTailorsScreenState();
+}
+
+class _CompanyTailorsScreenState extends State<CompanyTailorsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
@@ -51,6 +59,7 @@ class CompanyTailorsScreen extends StatelessWidget {
               isOwnerAtelier: isOwnerAtelier,
               tailors: tailors,
               index: e.key,
+              onChanged: () => setState(() {}),
             );
           }).toList(),
         ),
@@ -60,8 +69,32 @@ class CompanyTailorsScreen extends StatelessWidget {
 }
 
 class _AtelierGroup extends StatelessWidget {
-  const _AtelierGroup({required this.atelierName, required this.isOwnerAtelier, required this.tailors, required this.index});
-  final String atelierName; final bool isOwnerAtelier; final List<dynamic> tailors; final int index;
+  const _AtelierGroup({
+    required this.atelierName,
+    required this.isOwnerAtelier,
+    required this.tailors,
+    required this.index,
+    required this.onChanged,
+  });
+
+  final String atelierName;
+  final bool isOwnerAtelier;
+  final List<AppUser> tailors;
+  final int index;
+  final VoidCallback onChanged;
+
+  void _onTailorAction(BuildContext context, String action, AppUser tailor) {
+    switch (action) {
+      case 'edit':
+        showEditTailorDialog(context, tailor, onChanged);
+      case 'toggleActive':
+        toggleTailorActive(context, tailor, onChanged);
+      case 'resetLink':
+        sendAccountResetLink(context, tailor);
+      case 'delete':
+        confirmAndRemoveTailor(context, tailor, onChanged);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,35 +138,65 @@ class _AtelierGroup extends StatelessWidget {
             final t = e.value;
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: c.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
-                  boxShadow: c.softShadow,
+              child: GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => TailorOrdersScreen(tailor: t)),
                 ),
-                child: Row(children: [
-                  // Avatar
-                  Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(color: c.secondaryContainer.withValues(alpha: 0.3), shape: BoxShape.circle),
-                    child: Center(child: Text(
-                      (t.fullName as String).split(' ').take(2).map((p) => p[0]).join().toUpperCase(),
-                      style: AppTextStyles.labelCaps.copyWith(color: c.secondary),
-                    )),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: c.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
+                    boxShadow: c.softShadow,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(t.fullName as String, style: AppTextStyles.titleSm.copyWith(fontSize: 14)),
-                    Text(t.phone as String, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant, fontSize: 12)),
-                  ])),
-                  // Badge actif
-                  Container(
-                    width: 8, height: 8,
-                    decoration: BoxDecoration(color: c.statusDone, shape: BoxShape.circle),
-                  ),
-                ]),
+                  child: Row(children: [
+                    // Avatar
+                    Opacity(
+                      opacity: t.isActive ? 1 : 0.4,
+                      child: Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(color: c.secondaryContainer.withValues(alpha: 0.3), shape: BoxShape.circle),
+                        child: Center(child: Text(
+                          t.fullName.split(' ').take(2).map((p) => p[0]).join().toUpperCase(),
+                          style: AppTextStyles.labelCaps.copyWith(color: c.secondary),
+                        )),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(t.fullName, style: AppTextStyles.titleSm.copyWith(fontSize: 14)),
+                      Text(t.phone, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant, fontSize: 12)),
+                    ])),
+                    // Badge actif/suspendu — reflète le vrai statut du compte
+                    // (voir AppUser.isActive), pas une couleur figée.
+                    if (!t.isActive) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: c.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                        child: Text('Suspendu', style: AppTextStyles.labelXs.copyWith(color: c.error)),
+                      ),
+                      const SizedBox(width: 6),
+                    ] else ...[
+                      Container(
+                        width: 8, height: 8,
+                        decoration: BoxDecoration(color: c.statusDone, shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert_rounded, size: 18, color: c.onSurfaceVariant),
+                      onSelected: (action) => _onTailorAction(context, action, t),
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(value: 'edit', child: Text('Modifier')),
+                        PopupMenuItem(value: 'toggleActive', child: Text(t.isActive ? 'Suspendre' : 'Réactiver')),
+                        const PopupMenuItem(value: 'resetLink', child: Text('Envoyer un lien de réinitialisation')),
+                        const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+                      ],
+                    ),
+                  ]),
+                ),
               ).animate().fadeIn(delay: Duration(milliseconds: 40 * (index * 3 + e.key)), duration: 300.ms),
             );
           }),

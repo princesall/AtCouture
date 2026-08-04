@@ -1,3 +1,10 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:firebase_core/firebase_core.dart' hide FirebaseService;
+import 'package:flutter/foundation.dart';
+
 import '../models/app_user.dart';
 import '../models/atelier.dart';
 import '../models/client.dart';
@@ -5,12 +12,15 @@ import '../models/order.dart';
 import '../models/subscription_plan.dart';
 import '../models/user_role.dart';
 import 'auth_service.dart';
+import 'firebase_service.dart';
 import 'order_service.dart';
 
-/// Service simulant la base de données hiérarchique Entreprise → Ateliers → Couturiers.
-/// En mode démo (Firebase non connecté), tout vit en mémoire ici.
-/// Quand Firebase sera branché, ces mêmes méthodes liront/écriront dans Firestore
-/// en respectant EXACTEMENT la même hiérarchie (voir firestore.rules).
+/// Service de la hiérarchie Entreprise → Ateliers → Couturiers.
+/// En mode démo (Firebase non connecté), tout vit en mémoire ici. En mode
+/// Firebase, les mêmes listes deviennent un CACHE tenu à jour par des
+/// écoutes Firestore déclenchées à la demande (voir _ensureCompanySynced/
+/// _ensureAtelierTailorsSynced) — les mêmes getters synchrones continuent de
+/// fonctionner sans changement de signature pour les écrans appelants.
 ///
 /// ARCHITECTURE : le Chef d'Entreprise (companyOwner) possède TOUS les
 /// pouvoirs d'un Chef d'atelier classique, PLUS la gestion multi-ateliers.
@@ -18,11 +28,11 @@ import 'order_service.dart';
 /// (son "atelier personnel", créé automatiquement à l'activation du plan
 /// Entreprise) sans être obligé de déléguer à un Chef d'atelier. C'est lui
 /// qui crée les comptes des Chefs d'atelier ET des Couturiers.
-class CompanyService {
+class CompanyService extends ChangeNotifier {
   CompanyService._();
   static final CompanyService instance = CompanyService._();
 
-  // ── Données démo en mémoire ──────────────────────────────────────────────
+  // ── Données en mémoire (source de vérité démo, cache en mode Firestore) ──
   final List<Company> _companies = [];
 
   final List<Atelier> _ateliers = [];
@@ -54,6 +64,65 @@ class CompanyService {
   int _idCounter = 9000;
   String _nextId(String prefix) => '${prefix}_${_idCounter++}';
 
+  // ── Synchronisation Firestore (mode réel uniquement) ─────────────────────
+  // Une entreprise n'est écoutée qu'une fois, déclenché par la première
+  // lecture demandée pour elle (ateliersOfCompany/allOrdersOfCompany/...).
+  // Dès que la liste des ateliers d'une entreprise arrive, on enchaîne
+  // automatiquement la synchronisation des couturiers de CHACUN de ses
+  // ateliers (cascade auto-cicatrisante : peu importe l'ordre d'arrivée
+  // des snapshots).
+  final Set<String> _syncedCompanies = {};
+  final Set<String> _syncedAtelierTailors = {};
+  final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _subscriptions = [];
+
+  void _ensureCompanySynced(String companyId) {
+    if (!FirebaseService.isAvailable) return;
+    if (!_syncedCompanies.add(companyId)) return;
+
+    final firestore = FirebaseFirestore.instance;
+    _subscriptions.add(
+      firestore.collection('ateliers').where('companyId', isEqualTo: companyId).snapshots().listen((snap) {
+        _ateliers.removeWhere((a) => a.companyId == companyId);
+        final ateliers = snap.docs.map((d) => Atelier.fromMap(d.data(), d.id)).toList();
+        _ateliers.addAll(ateliers);
+        for (final atelier in ateliers) {
+          _ensureAtelierTailorsSynced(atelier.id);
+        }
+        notifyListeners();
+      }),
+    );
+    _subscriptions.add(
+      firestore
+          .collection('users')
+          .where('companyId', isEqualTo: companyId)
+          .where('role', isEqualTo: 'stylist')
+          .snapshots()
+          .listen((snap) {
+        _atelierHeads.removeWhere((u) => u.companyId == companyId);
+        _atelierHeads.addAll(snap.docs.map((d) => AppUser.fromMap(d.data(), d.id)));
+        notifyListeners();
+      }),
+    );
+  }
+
+  void _ensureAtelierTailorsSynced(String atelierId) {
+    if (!FirebaseService.isAvailable) return;
+    if (!_syncedAtelierTailors.add(atelierId)) return;
+
+    _subscriptions.add(
+      FirebaseFirestore.instance
+          .collection('users')
+          .where('atelierId', isEqualTo: atelierId)
+          .where('role', isEqualTo: 'tailor')
+          .snapshots()
+          .listen((snap) {
+        _tailors.removeWhere((t) => t.atelierId == atelierId);
+        _tailors.addAll(snap.docs.map((d) => AppUser.fromMap(d.data(), d.id)));
+        notifyListeners();
+      }),
+    );
+  }
+
   /// Pour l'Admin : liste de TOUTES les Entreprises de la plateforme
   List<Company> get allCompanies => List.unmodifiable(_companies);
 
@@ -68,24 +137,35 @@ class CompanyService {
 
   /// Tous les ateliers d'une Entreprise (vue consolidée du Chef d'Entreprise),
   /// y compris son propre atelier personnel.
-  List<Atelier> ateliersOfCompany(String companyId) =>
-      _ateliers.where((a) => a.companyId == companyId).toList();
+  List<Atelier> ateliersOfCompany(String companyId) {
+    _ensureCompanySynced(companyId);
+    return _ateliers.where((a) => a.companyId == companyId).toList();
+  }
 
-  /// L'atelier géré par un Chef Styliste précis (vue d'un seul atelier)
+  /// L'atelier géré par un Chef Styliste précis (vue d'un seul atelier).
+  /// Suppose que la synchronisation a déjà été déclenchée par ailleurs (ex:
+  /// ateliersOfCompany) — non appelé directement par l'UI aujourd'hui.
   Atelier? atelierOfStylist(String stylistId) =>
       _ateliers.where((a) => a.headStylistId == stylistId).firstOrNull;
 
   /// Tous les Chefs d'atelier d'une Entreprise donnée (hors le owner lui-même)
-  List<AppUser> atelierHeadsOfCompany(String companyId) =>
-      _atelierHeads.where((u) => u.companyId == companyId).toList();
+  List<AppUser> atelierHeadsOfCompany(String companyId) {
+    _ensureCompanySynced(companyId);
+    return _atelierHeads.where((u) => u.companyId == companyId).toList();
+  }
 
   /// Tous les couturiers rattachés à un atelier
-  List<AppUser> tailorsOfAtelier(String atelierId) =>
-      _tailors.where((t) => t.atelierId == atelierId).toList();
+  List<AppUser> tailorsOfAtelier(String atelierId) {
+    _ensureAtelierTailorsSynced(atelierId);
+    return _tailors.where((t) => t.atelierId == atelierId).toList();
+  }
 
   /// Tous les couturiers de TOUS les ateliers d'une Entreprise (vue globale)
   List<AppUser> allTailorsOfCompany(String companyId) {
     final atelierIds = ateliersOfCompany(companyId).map((a) => a.id).toSet();
+    for (final id in atelierIds) {
+      _ensureAtelierTailorsSynced(id);
+    }
     return _tailors.where((t) => atelierIds.contains(t.atelierId)).toList();
   }
 
@@ -113,6 +193,9 @@ class CompanyService {
   ({int totalAteliers, int totalTailors, int totalClients, int totalOrders, int totalRevenue})
       companyStats(String companyId) {
     final atelierIds = ateliersOfCompany(companyId).map((a) => a.id).toSet();
+    for (final id in atelierIds) {
+      _ensureAtelierTailorsSynced(id);
+    }
     final tailors = _tailors.where((t) => atelierIds.contains(t.atelierId));
     final totalClients = atelierIds.fold<int>(
         0, (sum, id) => sum + OrderService.instance.clientsOfAtelier(id).length);
@@ -129,13 +212,34 @@ class CompanyService {
     );
   }
 
+  // ── Création de comptes Firebase Auth pour un tiers ──────────────────────
+  // Un Chef d'Entreprise/d'atelier crée des comptes pour d'autres personnes
+  // (Chef d'atelier, Couturier) sans jamais perdre sa propre session — on
+  // passe par une DEUXIÈME instance FirebaseApp temporaire, jetée aussitôt
+  // après. Sans Cloud Functions (Admin SDK), c'est la seule façon sûre de
+  // créer un compte Firebase Auth pour quelqu'un d'autre depuis le client.
+  Future<fb_auth.User> _createSecondaryAuthUser(String email, String password) async {
+    final secondaryApp = await Firebase.initializeApp(
+      name: 'secondary_${DateTime.now().microsecondsSinceEpoch}',
+      options: Firebase.app().options,
+    );
+    try {
+      final secondaryAuth = fb_auth.FirebaseAuth.instanceFor(app: secondaryApp);
+      final credential = await secondaryAuth.createUserWithEmailAndPassword(email: email, password: password);
+      await secondaryAuth.signOut();
+      return credential.user!;
+    } finally {
+      await secondaryApp.delete();
+    }
+  }
 
-  // ── Écritures (démo, persistent en mémoire le temps de la session) ──────
+  // ── Écritures ─────────────────────────────────────────────────────────────
 
   /// Crée automatiquement la structure Company + l'atelier personnel du
   /// propriétaire quand son compte passe au plan Entreprise (appelé par
-  /// SubscriptionService.approveSubscriptionRequest). Le Chef d'Entreprise
-  /// garde ainsi IMMÉDIATEMENT un atelier à son nom pour ses propres clients.
+  /// SubscriptionService.approveSubscriptionRequest, donc par l'ADMIN — pas
+  /// par le propriétaire lui-même). Le Chef d'Entreprise garde ainsi
+  /// IMMÉDIATEMENT un atelier à son nom pour ses propres clients.
   ///
   /// IMPORTANT : `personalAtelierId`/`personalAtelierName` doivent être
   /// l'atelierId/atelierName QUE LE COMPTE UTILISAIT DÉJÀ avant de passer au
@@ -150,6 +254,15 @@ class CompanyService {
     required String personalAtelierId,
     required String personalAtelierName,
   }) async {
+    if (FirebaseService.isAvailable) {
+      return _createCompanyForNewOwnerFirebase(
+        ownerId: ownerId,
+        ownerName: ownerName,
+        personalAtelierId: personalAtelierId,
+        personalAtelierName: personalAtelierName,
+      );
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final existing = companyForOwner(ownerId);
@@ -179,6 +292,39 @@ class CompanyService {
     return company;
   }
 
+  Future<Company> _createCompanyForNewOwnerFirebase({
+    required String ownerId,
+    required String ownerName,
+    required String personalAtelierId,
+    required String personalAtelierName,
+  }) async {
+    final firestore = FirebaseFirestore.instance;
+
+    final existingSnap =
+        await firestore.collection('companies').where('ownerId', isEqualTo: ownerId).limit(1).get();
+    if (existingSnap.docs.isNotEmpty) {
+      final doc = existingSnap.docs.first;
+      return Company.fromMap(doc.data(), doc.id);
+    }
+
+    final companyRef = firestore.collection('companies').doc();
+    final company = Company(
+      id: companyRef.id,
+      name: '$ownerName & Associés',
+      ownerId: ownerId,
+      ownerName: ownerName,
+      atelierIds: [personalAtelierId],
+      createdAt: DateTime.now(),
+    );
+
+    final batch = firestore.batch();
+    batch.set(companyRef, company.toMap());
+    batch.update(firestore.collection('ateliers').doc(personalAtelierId), {'companyId': ownerId});
+    await batch.commit();
+
+    return company;
+  }
+
   /// Crée un nouveau Chef d'atelier + son Atelier, rattachés à l'Entreprise.
   /// Réservé au Chef d'Entreprise (vérifié côté UI ET règles serveur).
   Future<({AppUser user, String temporaryPassword})> createAtelierHead({
@@ -194,6 +340,38 @@ class CompanyService {
       return _atelierHeadIdempotencyCache[idempotencyKey]!;
     }
 
+    final result = FirebaseService.isAvailable
+        ? await _createAtelierHeadFirebase(
+            companyId: companyId,
+            fullName: fullName,
+            email: email,
+            phone: phone,
+            atelierName: atelierName,
+            address: address,
+          )
+        : await _createAtelierHeadDemo(
+            companyId: companyId,
+            fullName: fullName,
+            email: email,
+            phone: phone,
+            atelierName: atelierName,
+            address: address,
+          );
+
+    if (idempotencyKey != null) {
+      _atelierHeadIdempotencyCache[idempotencyKey] = result;
+    }
+    return result;
+  }
+
+  Future<({AppUser user, String temporaryPassword})> _createAtelierHeadDemo({
+    required String companyId,
+    required String fullName,
+    required String email,
+    required String phone,
+    required String atelierName,
+    String? address,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final now = DateTime.now();
@@ -220,6 +398,7 @@ class CompanyService {
       atelierName: atelierName,
       companyId: companyId,
       plan: SubscriptionPlan.enterprise,
+      mustChangePassword: true,
       createdAt: now,
     );
 
@@ -235,11 +414,55 @@ class CompanyService {
     }
 
     final temporaryPassword = AuthService.generateTemporaryPassword(newHead.email);
-    final result = (user: newHead, temporaryPassword: temporaryPassword);
-    if (idempotencyKey != null) {
-      _atelierHeadIdempotencyCache[idempotencyKey] = result;
-    }
-    return result;
+    return (user: newHead, temporaryPassword: temporaryPassword);
+  }
+
+  Future<({AppUser user, String temporaryPassword})> _createAtelierHeadFirebase({
+    required String companyId,
+    required String fullName,
+    required String email,
+    required String phone,
+    required String atelierName,
+    String? address,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    final temporaryPassword = AuthService.generateTemporaryPassword(normalizedEmail);
+    final authUser = await _createSecondaryAuthUser(normalizedEmail, temporaryPassword);
+    final uid = authUser.uid;
+
+    final now = DateTime.now();
+    final firestore = FirebaseFirestore.instance;
+    final atelierId = firestore.collection('ateliers').doc().id;
+
+    final newHead = AppUser(
+      id: uid,
+      email: normalizedEmail,
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      role: UserRole.stylist,
+      atelierId: atelierId,
+      atelierName: atelierName,
+      companyId: companyId,
+      plan: SubscriptionPlan.enterprise,
+      mustChangePassword: true,
+      createdAt: now,
+    );
+    final newAtelier = Atelier(
+      id: atelierId,
+      name: atelierName,
+      headStylistId: uid,
+      headStylistName: fullName.trim(),
+      companyId: companyId,
+      address: address,
+      createdAt: now,
+    );
+
+    final batch = firestore.batch();
+    batch.set(firestore.collection('users').doc(uid), newHead.toMap());
+    batch.set(firestore.collection('ateliers').doc(atelierId), newAtelier.toMap());
+    await batch.commit();
+
+    return (user: newHead, temporaryPassword: temporaryPassword);
   }
 
   /// Crée un nouveau Couturier rattaché à un atelier précis. Peut être
@@ -258,6 +481,35 @@ class CompanyService {
       return _tailorIdempotencyCache[idempotencyKey]!;
     }
 
+    final result = FirebaseService.isAvailable
+        ? await _createTailorFirebase(
+            atelierId: atelierId,
+            atelierName: atelierName,
+            fullName: fullName,
+            email: email,
+            phone: phone,
+          )
+        : await _createTailorDemo(
+            atelierId: atelierId,
+            atelierName: atelierName,
+            fullName: fullName,
+            email: email,
+            phone: phone,
+          );
+
+    if (idempotencyKey != null) {
+      _tailorIdempotencyCache[idempotencyKey] = result;
+    }
+    return result;
+  }
+
+  Future<({AppUser user, String temporaryPassword})> _createTailorDemo({
+    required String atelierId,
+    required String atelierName,
+    required String fullName,
+    required String email,
+    required String phone,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final now = DateTime.now();
@@ -271,6 +523,7 @@ class CompanyService {
       role: UserRole.tailor,
       atelierId: atelierId,
       atelierName: atelierName,
+      mustChangePassword: true,
       createdAt: now,
     );
 
@@ -285,14 +538,62 @@ class CompanyService {
     }
 
     final temporaryPassword = AuthService.generateTemporaryPassword(newTailor.email);
-    final result = (user: newTailor, temporaryPassword: temporaryPassword);
-    if (idempotencyKey != null) {
-      _tailorIdempotencyCache[idempotencyKey] = result;
-    }
-    return result;
+    return (user: newTailor, temporaryPassword: temporaryPassword);
+  }
+
+  Future<({AppUser user, String temporaryPassword})> _createTailorFirebase({
+    required String atelierId,
+    required String atelierName,
+    required String fullName,
+    required String email,
+    required String phone,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    final temporaryPassword = AuthService.generateTemporaryPassword(normalizedEmail);
+    final authUser = await _createSecondaryAuthUser(normalizedEmail, temporaryPassword);
+    final uid = authUser.uid;
+
+    final now = DateTime.now();
+    final newTailor = AppUser(
+      id: uid,
+      email: normalizedEmail,
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      role: UserRole.tailor,
+      atelierId: atelierId,
+      atelierName: atelierName,
+      mustChangePassword: true,
+      createdAt: now,
+    );
+
+    final firestore = FirebaseFirestore.instance;
+    final batch = firestore.batch();
+    batch.set(firestore.collection('users').doc(uid), newTailor.toMap());
+    batch.update(firestore.collection('ateliers').doc(atelierId), {
+      'tailorIds': FieldValue.arrayUnion([uid]),
+    });
+    await batch.commit();
+
+    return (user: newTailor, temporaryPassword: temporaryPassword);
   }
 
   Future<void> removeAtelierHead(String headId) async {
+    if (FirebaseService.isAvailable) {
+      final firestore = FirebaseFirestore.instance;
+      final atelierSnap = await firestore.collection('ateliers').where('headStylistId', isEqualTo: headId).get();
+      final batch = firestore.batch();
+      batch.delete(firestore.collection('users').doc(headId));
+      for (final doc in atelierSnap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+      // NOTE : le compte Firebase Auth du chef d'atelier reste techniquement
+      // actif (pas d'Admin SDK sans Cloud Functions), mais devient inerte —
+      // AuthService.signIn refuse la connexion dès que users/{uid} n'existe
+      // plus. Sera nettoyé proprement par une Cloud Function en Phase 3/4.
+      return;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final head = _atelierHeads.where((u) => u.id == headId).firstOrNull;
@@ -301,7 +602,84 @@ class CompanyService {
     _ateliers.removeWhere((a) => a.headStylistId == headId);
   }
 
+  /// Met à jour les informations d'un Chef d'atelier existant, et propage le
+  /// nom vers son Atelier (headStylistName y est dupliqué pour l'affichage —
+  /// voir Atelier.headStylistName — sinon la fiche atelier resterait figée
+  /// sur l'ancien nom après un renommage).
+  Future<void> updateAtelierHead({
+    required String headId,
+    required String fullName,
+    required String phone,
+    String? email,
+  }) async {
+    final trimmedName = fullName.trim();
+
+    if (FirebaseService.isAvailable) {
+      final firestore = FirebaseFirestore.instance;
+      final atelierSnap = await firestore.collection('ateliers').where('headStylistId', isEqualTo: headId).get();
+      final batch = firestore.batch();
+      batch.update(firestore.collection('users').doc(headId), {
+        'fullName': trimmedName,
+        'phone': phone.trim(),
+        'email': ?email?.trim(),
+      });
+      for (final doc in atelierSnap.docs) {
+        batch.update(doc.reference, {'headStylistName': trimmedName});
+      }
+      await batch.commit();
+      return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    final index = _atelierHeads.indexWhere((u) => u.id == headId);
+    if (index == -1) return;
+
+    final updatedHead = _atelierHeads[index].copyWith(
+      fullName: trimmedName,
+      phone: phone.trim(),
+      email: email?.trim(),
+    );
+    _atelierHeads[index] = updatedHead;
+
+    final atelierIndex = _ateliers.indexWhere((a) => a.headStylistId == headId);
+    if (atelierIndex != -1) {
+      _ateliers[atelierIndex] = _ateliers[atelierIndex].copyWith(headStylistName: trimmedName);
+    }
+  }
+
+  /// Suspend ou réactive le compte d'un Chef d'atelier — voir
+  /// setTailorActive pour le même mécanisme côté couturier.
+  Future<void> setAtelierHeadActive(String headId, bool isActive) async {
+    if (FirebaseService.isAvailable) {
+      await FirebaseFirestore.instance.collection('users').doc(headId).update({
+        'isActive': isActive,
+      });
+      return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    final index = _atelierHeads.indexWhere((u) => u.id == headId);
+    if (index == -1) return;
+    _atelierHeads[index] = _atelierHeads[index].copyWith(isActive: isActive);
+  }
+
   Future<void> removeTailor(String tailorId) async {
+    if (FirebaseService.isAvailable) {
+      final tailor = _tailors.where((t) => t.id == tailorId).firstOrNull;
+      final firestore = FirebaseFirestore.instance;
+      final batch = firestore.batch();
+      batch.delete(firestore.collection('users').doc(tailorId));
+      if (tailor != null) {
+        batch.update(firestore.collection('ateliers').doc(tailor.atelierId), {
+          'tailorIds': FieldValue.arrayRemove([tailorId]),
+        });
+      }
+      await batch.commit();
+      return;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final tailor = _tailors.where((t) => t.id == tailorId).firstOrNull;
@@ -323,6 +701,15 @@ class CompanyService {
     required String phone,
     String? email,
   }) async {
+    if (FirebaseService.isAvailable) {
+      await FirebaseFirestore.instance.collection('users').doc(tailorId).update({
+        'fullName': fullName.trim(),
+        'phone': phone.trim(),
+        'email': ?email?.trim(),
+      });
+      return;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final index = _tailors.indexWhere((t) => t.id == tailorId);
@@ -334,12 +721,35 @@ class CompanyService {
       phone: phone.trim(),
       email: email?.trim(),
     );
-    
+
     _tailors[index] = updatedTailor;
   }
 
+  /// Suspend ou réactive le compte d'un couturier, sans le supprimer (voir
+  /// removeTailor pour une suppression définitive) — utile pour une absence
+  /// temporaire (congé...) sans perdre son historique de commandes. Un
+  /// compte suspendu (isActive == false) se voit refuser la connexion par
+  /// AuthService.signIn, mais reste visible et réactivable à tout moment.
+  Future<void> setTailorActive(String tailorId, bool isActive) async {
+    if (FirebaseService.isAvailable) {
+      await FirebaseFirestore.instance.collection('users').doc(tailorId).update({
+        'isActive': isActive,
+      });
+      return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    final index = _tailors.indexWhere((t) => t.id == tailorId);
+    if (index == -1) return;
+    _tailors[index] = _tailors[index].copyWith(isActive: isActive);
+  }
+
   /// Recherche un compte (Chef d'atelier OU Couturier) par email, pour le
-  /// flux de connexion unique — voir AuthService.signIn.
+  /// flux de connexion unique — voir AuthService.signIn. Mode démo
+  /// uniquement : en mode Firebase, AuthService._signInFirebase authentifie
+  /// directement via Firebase Auth (qui connaît TOUS les comptes, quelle que
+  /// soit la méthode de création) sans passer par ce cache local.
   AppUser? findAccountByEmail(String email) {
     final normalized = email.trim().toLowerCase();
     final inHeads = _atelierHeads.where((u) => u.email.toLowerCase() == normalized).firstOrNull;
@@ -349,14 +759,16 @@ class CompanyService {
 
   /// Recherche un compte (Chef d'atelier OU Couturier) par ID — voir
   /// AuthService.findById pour les comptes "principaux" (admin, styliste
-  /// solo, chef d'entreprise).
+  /// solo, chef d'entreprise). Mode démo uniquement (voir AdminDemoData, qui
+  /// relira directement Firestore une fois migré).
   AppUser? findAccountById(String id) {
     final inHeads = _atelierHeads.where((u) => u.id == id).firstOrNull;
     if (inHeads != null) return inHeads;
     return _tailors.where((u) => u.id == id).firstOrNull;
   }
 
-  /// Met à jour un utilisateur existant dans _atelierHeads ou _tailors (utilisé par AdminDemoData)
+  /// Met à jour un utilisateur existant dans _atelierHeads ou _tailors
+  /// (utilisé par AdminDemoData). Mode démo uniquement.
   void updateUser(AppUser updatedUser) {
     final headsIndex = _atelierHeads.indexWhere((u) => u.id == updatedUser.id);
     if (headsIndex != -1) {

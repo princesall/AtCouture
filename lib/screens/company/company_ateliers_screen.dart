@@ -8,10 +8,13 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../models/app_user.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
 import '../../services/order_service.dart';
 import '../admin/admin_dashboard.dart' show StylistAvatar;
+import '../shared/staff_account_actions.dart';
+import '../shared/tailor_orders_screen.dart';
 
 /// Liste des Ateliers de l'Entreprise + création de nouveaux Chefs d'atelier
 /// ET de Couturiers. Le Chef d'Entreprise possède TOUS les pouvoirs d'un
@@ -94,6 +97,11 @@ class _AtelierCardState extends State<_AtelierCard> {
   Widget build(BuildContext context) {
     final a = widget.atelier;
     final c = context.colors;
+    // null pour l'atelier "personnel" du Chef d'Entreprise : il n'y a pas de
+    // compte Chef d'atelier séparé à gérer, la tête EST le compte connecté.
+    final AppUser? head = widget.isOwnerAtelier
+        ? null
+        : CompanyService.instance.findAccountById(a.headStylistId as String);
     return Container(
       decoration: BoxDecoration(
         color: c.surfaceContainerLowest,
@@ -129,9 +137,30 @@ class _AtelierCardState extends State<_AtelierCard> {
                     ),
                 ]),
                 const SizedBox(height: 2),
-                Text(widget.isOwnerAtelier ? 'Vous gérez directement cet atelier' : 'Chef : ${a.headStylistName}', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
+                Row(children: [
+                  Flexible(child: Text(widget.isOwnerAtelier ? 'Vous gérez directement cet atelier' : 'Chef : ${a.headStylistName}', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant), overflow: TextOverflow.ellipsis)),
+                  if (head != null && !head.isActive) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: c.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                      child: Text('Suspendu', style: AppTextStyles.labelXs.copyWith(color: c.error)),
+                    ),
+                  ],
+                ]),
                 if (a.address != null) Text(a.address as String, style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant.withValues(alpha: 0.7))),
               ])),
+              if (head != null)
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert_rounded, color: c.onSurfaceVariant),
+                  onSelected: (action) => _onHeadAction(context, action, head),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: 'edit', child: Text('Modifier')),
+                    PopupMenuItem(value: 'toggleActive', child: Text(head.isActive ? 'Suspendre' : 'Réactiver')),
+                    const PopupMenuItem(value: 'resetLink', child: Text('Envoyer un lien de réinitialisation')),
+                    const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+                  ],
+                ),
               Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: c.onSurfaceVariant),
             ]),
           ),
@@ -144,6 +173,32 @@ class _AtelierCardState extends State<_AtelierCard> {
         ),
       ]),
     ).animate().fadeIn(delay: Duration(milliseconds: 60 * widget.index), duration: 400.ms).slideY(begin: 0.04, end: 0);
+  }
+
+  void _onHeadAction(BuildContext context, String action, AppUser head) {
+    switch (action) {
+      case 'edit':
+        showEditAtelierHeadDialog(context, head, widget.onChanged);
+      case 'toggleActive':
+        toggleAtelierHeadActive(context, head, widget.onChanged);
+      case 'resetLink':
+        sendAccountResetLink(context, head);
+      case 'delete':
+        confirmAndRemoveAtelierHead(context, head, widget.onChanged);
+    }
+  }
+
+  void _onTailorAction(BuildContext context, String action, AppUser tailor) {
+    switch (action) {
+      case 'edit':
+        showEditTailorDialog(context, tailor, widget.onChanged);
+      case 'toggleActive':
+        toggleTailorActive(context, tailor, widget.onChanged);
+      case 'resetLink':
+        sendAccountResetLink(context, tailor);
+      case 'delete':
+        confirmAndRemoveTailor(context, tailor, widget.onChanged);
+    }
   }
 
   Widget _buildExpanded(dynamic a) {
@@ -200,14 +255,43 @@ class _AtelierCardState extends State<_AtelierCard> {
         else
           ...tailors.map((t) => Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: c.surfaceContainerLowest, borderRadius: BorderRadius.circular(10)),
-              child: Row(children: [
-                StylistAvatar(name: t.fullName, isOnline: false, size: 30),
-                const SizedBox(width: 10),
-                Expanded(child: Text(t.fullName, style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w600))),
-              ]),
+            child: GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => TailorOrdersScreen(tailor: t)),
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: c.surfaceContainerLowest, borderRadius: BorderRadius.circular(10)),
+                child: Row(children: [
+                  Opacity(
+                    opacity: t.isActive ? 1 : 0.4,
+                    child: StylistAvatar(name: t.fullName, isOnline: false, size: 30),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: Row(children: [
+                    Flexible(child: Text(t.fullName, style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+                    if (!t.isActive) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: c.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                        child: Text('Suspendu', style: AppTextStyles.labelXs.copyWith(color: c.error)),
+                      ),
+                    ],
+                  ])),
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert_rounded, size: 18, color: c.onSurfaceVariant),
+                    onSelected: (action) => _onTailorAction(context, action, t),
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: 'edit', child: Text('Modifier')),
+                      PopupMenuItem(value: 'toggleActive', child: Text(t.isActive ? 'Suspendre' : 'Réactiver')),
+                      const PopupMenuItem(value: 'resetLink', child: Text('Envoyer un lien de réinitialisation')),
+                      const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+                    ],
+                  ),
+                ]),
+              ),
             ),
           )),
       ]),

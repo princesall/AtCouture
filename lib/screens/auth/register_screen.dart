@@ -10,10 +10,12 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/auth_backdrop.dart';
+import '../../core/widgets/google_sign_in_button.dart';
 import '../../core/widgets/premium_button.dart';
 import '../../core/widgets/premium_text_field.dart';
 import '../../models/subscription_plan.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -68,6 +70,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
         SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.colors.error),
       );
     }
+  }
+
+  Future<void> _submitGoogle() async {
+    final auth = context.read<AuthProvider>();
+    final result = await auth.signInWithGoogle();
+
+    if (!mounted) return;
+    if (result == null) {
+      if (auth.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.colors.error),
+        );
+      }
+      return;
+    }
+    if (result is GoogleSignInNeedsProfile) {
+      context.push('/auth/complete-profile', extra: result);
+    }
+    // GoogleSignInExisting : AuthProvider est déjà authenticated, le router
+    // redirige automatiquement vers le bon espace.
   }
 
   @override
@@ -253,6 +275,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                                 ),
                               ),
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            Row(
+                              children: [
+                                Expanded(child: Divider(color: c.outlineVariant)),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                                  child: Text('OU', style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant)),
+                                ),
+                                Expanded(child: Divider(color: c.outlineVariant)),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            GoogleSignInButton(
+                              label: 'Continuer avec Google',
+                              isLoading: auth.isLoading,
+                              onPressed: auth.isLoading ? null : _submitGoogle,
                             ),
                           ],
                         ),

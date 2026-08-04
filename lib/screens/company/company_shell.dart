@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
+import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/subscription_service.dart';
@@ -83,6 +84,7 @@ class _CompanyShellState extends State<CompanyShell> {
               title: 'StyleConnect',
               onNotificationTap: () => SystemNotificationsScreen.show(context),
             ),
+            const OfflineBanner(),
             Expanded(
               child: IndexedStack(
                 index: _index,

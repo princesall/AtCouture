@@ -1,34 +1,45 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
+import 'package:flutter/foundation.dart';
+
 import '../models/client.dart';
 import '../models/order.dart';
 import '../models/order_status.dart';
+import 'firebase_service.dart';
 
-/// Service de gestion des commandes avec création automatique de clients
-/// Quand une commande est créée, le client est automatiquement créé s'il n'existe pas
-/// et la commande est liée au client via clientId
-class OrderService {
+/// Service de gestion des commandes avec création automatique de clients.
+/// Quand une commande est créée, le client est automatiquement créé s'il
+/// n'existe pas et la commande est liée au client via clientId.
+///
+/// Chaque méthode se branche sur FirebaseService.isAvailable : en mode
+/// Firebase, `_orders`/`_clients` deviennent un CACHE tenu à jour par des
+/// écoutes Firestore par atelier (voir _ensureAtelierSynced) — les mêmes
+/// getters synchrones qu'aujourd'hui continuent de fonctionner sans
+/// changement de signature. En mode démo (Firebase non connecté), ces
+/// mêmes listes restent la source de vérité en mémoire, comme avant.
+class OrderService extends ChangeNotifier {
   OrderService._();
   static final OrderService instance = OrderService._();
 
-  // ── Données démo en mémoire ──────────────────────────────────────────────
+  // ── Données en mémoire (source de vérité démo, cache en mode Firestore) ──
   final List<Order> _orders = [];
   final List<Client> _clients = [];
 
   // ── Idempotence ───────────────────────────────────────────────────────────
   // Le bouton "Créer" est désactivé pendant la soumission côté UI, mais ça ne
   // protège qu'un seul écran contre le double-tap — pas une relecture réseau
-  // (une fois Firestore branché) ni un appel concurrent depuis un autre point
-  // d'entrée. On mémorise donc le résultat par clé d'idempotence fournie par
-  // l'appelant (un UUID généré une seule fois par formulaire) : rejouer le
-  // même appel avec la même clé renvoie le résultat déjà produit au lieu de
-  // créer un doublon. Même principe à reproduire côté Firestore plus tard
-  // (ex: écrire dans un document dont l'ID dérive de la clé d'idempotence).
+  // ni un appel concurrent depuis un autre point d'entrée. On mémorise donc
+  // le résultat par clé d'idempotence fournie par l'appelant (un UUID généré
+  // une seule fois par formulaire) : rejouer le même appel avec la même clé
+  // renvoie le résultat déjà produit au lieu de créer un doublon. En mode
+  // Firestore, cette même clé sert D'ID DE DOCUMENT (voir _createOrderFirebase/
+  // addClient) : rejouer une écriture en attente côté hors-ligne devient un
+  // no-op au lieu d'un doublon, et l'ID n'est pas devinable (contrairement à
+  // l'ancien compteur séquentiel), ce qui sera nécessaire le jour où l'écran
+  // de suivi public lira une commande par son ID.
   final Map<String, ({Order order, bool isNewClient, Client? existingClient})> _orderIdempotencyCache = {};
   final Map<String, Client> _addClientIdempotencyCache = {};
-
-  // Initialiser les données de démo
-  void _initDemoData() {
-    // Plus de données de démo - application vide pour tests
-  }
 
   // ── Compteurs pour génération d'IDs démo ─────────────────────────────────
   int _orderIdCounter = 1000;
@@ -45,37 +56,78 @@ class OrderService {
     return true;
   }
 
+  // ── Synchronisation Firestore (mode réel uniquement) ─────────────────────
+  // Un atelier n'est écouté qu'une fois, déclenché par la première lecture
+  // demandée pour lui (ordersOfAtelier/clientsOfAtelier/createOrder/...) —
+  // pas d'écoute globale sur toute la collection, qui serait coûteuse et de
+  // toute façon refusée par firestore.rules (list scopé par atelierId).
+  final Set<String> _syncedAteliers = {};
+  final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _subscriptions = [];
+
+  void _ensureAtelierSynced(String atelierId) {
+    if (!FirebaseService.isAvailable) return;
+    if (!_syncedAteliers.add(atelierId)) return;
+
+    final firestore = FirebaseFirestore.instance;
+    _subscriptions.add(
+      firestore.collection('orders').where('atelierId', isEqualTo: atelierId).snapshots().listen((snap) {
+        _orders.removeWhere((o) => o.atelierId == atelierId);
+        _orders.addAll(snap.docs.map((d) => Order.fromMap(d.data(), d.id)));
+        notifyListeners();
+      }),
+    );
+    _subscriptions.add(
+      firestore.collection('clients').where('atelierId', isEqualTo: atelierId).snapshots().listen((snap) {
+        _clients.removeWhere((c) => c.atelierId == atelierId);
+        _clients.addAll(snap.docs.map((d) => Client.fromMap(d.data(), d.id)));
+        notifyListeners();
+      }),
+    );
+  }
+
   // ── Lectures ──────────────────────────────────────────────────────────────
 
   /// Toutes les commandes d'un atelier
   List<Order> ordersOfAtelier(String atelierId) {
-    _initDemoData();
+    _ensureAtelierSynced(atelierId);
     return _orders.where((o) => o.atelierId == atelierId).toList();
   }
 
-  /// Toutes les commandes d'un client
+  /// Toutes les commandes assignées à un couturier précis d'un atelier
+  /// donné — synchronise l'atelier au passage comme ordersOfAtelier, donc
+  /// utilisable même si aucun autre écran n'a encore chargé ses commandes.
+  List<Order> ordersOfTailor({required String atelierId, required String tailorId}) {
+    _ensureAtelierSynced(atelierId);
+    return _orders.where((o) => o.atelierId == atelierId && o.tailorId == tailorId).toList();
+  }
+
+  /// Toutes les commandes d'un client — suppose que l'atelier de ce client a
+  /// déjà été synchronisé via un appel précédent à ordersOfAtelier/
+  /// clientsOfAtelier (toujours le cas dans le parcours actuel : on affiche
+  /// la liste d'un atelier avant d'ouvrir le détail d'un de ses clients).
   List<Order> ordersOfClient(String clientId) {
-    _initDemoData();
     return _orders.where((o) => o.clientId == clientId).toList();
   }
 
-  /// Un client par son ID
+  /// Un client par son ID — même remarque que ordersOfClient ci-dessus.
   Client? clientById(String clientId) {
-    _initDemoData();
     return _clients.where((c) => c.id == clientId).firstOrNull;
   }
 
   /// Une commande par son ID — utilisé par l'écran de suivi public (sans
   /// compte) pour retrouver une commande à partir du numéro communiqué au
-  /// client.
+  /// client. NOTE : ne fonctionne qu'en mode démo pour l'instant — en mode
+  /// Firestore, firestore.rules exige un compte authentifié pour lire une
+  /// commande, donc l'écran /suivi restera vide tant qu'une authentification
+  /// anonyme + une règle de lecture publique scopée par ID (pas par liste)
+  /// n'auront pas été ajoutées volontairement, en suivi séparé.
   Order? orderById(String orderId) {
-    _initDemoData();
     return _orders.where((o) => o.id == orderId).firstOrNull;
   }
 
   /// Tous les clients d'un atelier
   List<Client> clientsOfAtelier(String atelierId) {
-    _initDemoData();
+    _ensureAtelierSynced(atelierId);
     return _clients.where((c) => c.atelierId == atelierId).toList();
   }
 
@@ -126,7 +178,7 @@ class OrderService {
     ).firstOrNull;
   }
 
-  // ── Écritures (démo, persistent en mémoire le temps de la session) ──────
+  // ── Écritures ─────────────────────────────────────────────────────────────
 
   /// Crée une nouvelle commande avec création automatique du client si nécessaire
   /// - Si le client existe déjà (même nom OU téléphone), on le réutilise
@@ -154,6 +206,31 @@ class OrderService {
       return _orderIdempotencyCache[idempotencyKey]!;
     }
 
+    if (FirebaseService.isAvailable) {
+      _ensureAtelierSynced(atelierId);
+      final result = await _createOrderFirebase(
+        clientName: clientName,
+        clientPhone: clientPhone,
+        atelierId: atelierId,
+        atelierName: atelierName,
+        clientEmail: clientEmail,
+        tailorId: tailorId,
+        measurements: measurements,
+        modelPhotos: modelPhotos,
+        fabricPhotos: fabricPhotos,
+        description: description,
+        price: price,
+        deposit: deposit,
+        dueDate: dueDate,
+        createdByName: createdByName,
+        orderDocId: idempotencyKey ?? FirebaseFirestore.instance.collection('orders').doc().id,
+      );
+      if (idempotencyKey != null) {
+        _orderIdempotencyCache[idempotencyKey] = result;
+      }
+      return result;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 400));
 
     final now = DateTime.now();
@@ -161,11 +238,7 @@ class OrderService {
 
     // 1. Chercher si le client existe déjà (par nom OU téléphone)
     var client = findClient(clientName, clientPhone, atelierId);
-    
-    // Si pas trouvé par nom+téléphone exact, chercher par téléphone seul
     client ??= findClientByPhone(clientPhone, atelierId);
-    
-    // Si pas trouvé par téléphone, chercher par nom seul
     client ??= findClientByName(clientName, atelierId);
 
     final isNewClient = client == null;
@@ -253,9 +326,130 @@ class OrderService {
     return result;
   }
 
+  /// Équivalent Firestore de createOrder ci-dessus. La recherche de client
+  /// existant se fait par une requête serveur directe (pas via le cache
+  /// local _clients, qui peut ne pas encore être synchronisé au moment de
+  /// cet appel) pour éviter de créer un doublon.
+  Future<({Order order, bool isNewClient, Client? existingClient})> _createOrderFirebase({
+    required String clientName,
+    required String clientPhone,
+    required String atelierId,
+    required String atelierName,
+    required String orderDocId,
+    String? clientEmail,
+    String? tailorId,
+    Map<String, double>? measurements,
+    List<String>? modelPhotos,
+    List<String>? fabricPhotos,
+    String? description,
+    int? price,
+    int? deposit,
+    DateTime? dueDate,
+    String? createdByName,
+  }) async {
+    final firestore = FirebaseFirestore.instance;
+    final clientsRef = firestore.collection('clients');
+    final trimmedName = clientName.trim();
+    final trimmedPhone = clientPhone.trim();
+
+    Future<QueryDocumentSnapshot<Map<String, dynamic>>?> search(String field, String value) async {
+      final snap = await clientsRef
+          .where('atelierId', isEqualTo: atelierId)
+          .where(field, isEqualTo: value)
+          .limit(1)
+          .get();
+      return snap.docs.firstOrNull;
+    }
+
+    var clientDoc = await search('phone', trimmedPhone);
+    clientDoc ??= await search('fullName', trimmedName);
+
+    final now = DateTime.now();
+    final isNewClient = clientDoc == null;
+    final existingClient = clientDoc != null ? Client.fromMap(clientDoc.data(), clientDoc.id) : null;
+
+    final clientRef = clientDoc?.reference ?? clientsRef.doc();
+    final client = existingClient ??
+        Client(
+          id: clientRef.id,
+          fullName: trimmedName,
+          phone: trimmedPhone,
+          email: clientEmail?.trim(),
+          atelierId: atelierId,
+          atelierName: atelierName,
+          createdAt: now,
+        );
+
+    final order = Order(
+      id: orderDocId,
+      clientName: trimmedName,
+      clientPhone: trimmedPhone,
+      clientEmail: clientEmail?.trim(),
+      clientId: client.id,
+      tailorId: tailorId,
+      atelierId: atelierId,
+      atelierName: atelierName,
+      status: OrderStatus.pending,
+      measurements: measurements,
+      modelPhotos: modelPhotos,
+      fabricPhotos: fabricPhotos,
+      description: description,
+      price: price,
+      deposit: deposit,
+      dueDate: dueDate,
+      createdAt: now,
+      statusHistory: [
+        OrderStatusChange(status: OrderStatus.pending, changedAt: now, changedByName: createdByName ?? 'Styliste'),
+      ],
+    );
+
+    final hasNewMeasurements = measurements != null && measurements.isNotEmpty;
+    final mergedMeasurements =
+        hasNewMeasurements ? {...?client.savedMeasurements, ...measurements} : client.savedMeasurements;
+    final measurementsChanged =
+        hasNewMeasurements && !_measurementsEqual(client.savedMeasurements, mergedMeasurements);
+
+    final updatedClient = client.copyWith(
+      orderIds: [...client.orderIds, orderDocId],
+      orderCount: client.orderCount + 1,
+      totalSpent: client.totalSpent + (price ?? 0),
+      savedMeasurements: mergedMeasurements,
+      measurementHistory: measurementsChanged
+          ? [
+              ...client.measurementHistory,
+              MeasurementSnapshot(measurements: mergedMeasurements!, recordedAt: now),
+            ]
+          : client.measurementHistory,
+    );
+
+    final batch = firestore.batch();
+    batch.set(firestore.collection('orders').doc(orderDocId), order.toMap());
+    batch.set(clientRef, updatedClient.toMap());
+    await batch.commit();
+
+    return (order: order, isNewClient: isNewClient, existingClient: existingClient);
+  }
+
   /// Met à jour (fusionne) les mesures enregistrées d'un client, que ce soit
   /// depuis sa fiche profil ou automatiquement lors d'une commande.
   Future<void> updateClientMeasurements(String clientId, Map<String, double> measurements) async {
+    if (FirebaseService.isAvailable) {
+      final ref = FirebaseFirestore.instance.collection('clients').doc(clientId);
+      final snap = await ref.get();
+      if (!snap.exists) return;
+      final client = Client.fromMap(snap.data()!, clientId);
+      final merged = {...?client.savedMeasurements, ...measurements};
+      final changed = !_measurementsEqual(client.savedMeasurements, merged);
+      final updates = <String, dynamic>{'savedMeasurements': merged};
+      if (changed) {
+        updates['measurementHistory'] = FieldValue.arrayUnion([
+          MeasurementSnapshot(measurements: merged, recordedAt: DateTime.now()).toMap(),
+        ]);
+      }
+      await ref.update(updates);
+      return;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final index = _clients.indexWhere((c) => c.id == clientId);
@@ -276,7 +470,7 @@ class OrderService {
     );
   }
 
-  /// Ajoute un client manuellement (utilisé par l'UI pour la démo)
+  /// Ajoute un client manuellement (utilisé par l'UI)
   Future<Client> addClient({
     required String atelierId,
     required String atelierName,
@@ -288,6 +482,29 @@ class OrderService {
   }) async {
     if (idempotencyKey != null && _addClientIdempotencyCache.containsKey(idempotencyKey)) {
       return _addClientIdempotencyCache[idempotencyKey]!;
+    }
+
+    if (FirebaseService.isAvailable) {
+      _ensureAtelierSynced(atelierId);
+      final firestore = FirebaseFirestore.instance;
+      final docRef = idempotencyKey != null
+          ? firestore.collection('clients').doc(idempotencyKey)
+          : firestore.collection('clients').doc();
+      final client = Client(
+        id: docRef.id,
+        fullName: fullName.trim(),
+        phone: phone.trim(),
+        email: email?.trim(),
+        notes: notes,
+        atelierId: atelierId,
+        atelierName: atelierName,
+        createdAt: DateTime.now(),
+      );
+      await docRef.set(client.toMap());
+      if (idempotencyKey != null) {
+        _addClientIdempotencyCache[idempotencyKey] = client;
+      }
+      return client;
     }
 
     await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -321,6 +538,15 @@ class OrderService {
     OrderStatus newStatus, {
     required String changedByName,
   }) async {
+    if (FirebaseService.isAvailable) {
+      final change = OrderStatusChange(status: newStatus, changedAt: DateTime.now(), changedByName: changedByName);
+      await FirebaseFirestore.instance.collection('orders').doc(orderId).update({
+        'status': newStatus.name,
+        'statusHistory': FieldValue.arrayUnion([change.toMap()]),
+      });
+      return;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final index = _orders.indexWhere((o) => o.id == orderId);
@@ -341,6 +567,11 @@ class OrderService {
   /// seulement à la création. Passer `tailorId: null` retire l'assignation
   /// actuelle (commande "non assignée").
   Future<void> assignTailor(String orderId, String? tailorId) async {
+    if (FirebaseService.isAvailable) {
+      await FirebaseFirestore.instance.collection('orders').doc(orderId).update({'tailorId': tailorId});
+      return;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final index = _orders.indexWhere((o) => o.id == orderId);
@@ -361,6 +592,35 @@ class OrderService {
     int? deposit,
     DateTime? dueDate,
   }) async {
+    if (FirebaseService.isAvailable) {
+      final ref = FirebaseFirestore.instance.collection('orders').doc(orderId);
+      final snap = await ref.get();
+      if (!snap.exists) return;
+      final order = Order.fromMap(snap.data()!, orderId);
+
+      final updates = <String, dynamic>{
+        'measurements': ?measurements,
+        'modelPhotos': ?modelPhotos,
+        'fabricPhotos': ?fabricPhotos,
+        'description': ?description,
+        'price': ?price,
+        'deposit': ?deposit,
+        'dueDate': ?dueDate?.toIso8601String(),
+      };
+      if (updates.isNotEmpty) await ref.update(updates);
+
+      if (price != null && order.clientId != null) {
+        final oldPrice = order.price ?? 0;
+        await FirebaseFirestore.instance.collection('clients').doc(order.clientId).update({
+          'totalSpent': FieldValue.increment(price - oldPrice),
+        });
+      }
+      if (measurements != null && measurements.isNotEmpty && order.clientId != null) {
+        await updateClientMeasurements(order.clientId!, measurements);
+      }
+      return;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 400));
 
     final index = _orders.indexWhere((o) => o.id == orderId);
@@ -398,6 +658,22 @@ class OrderService {
 
   /// Supprime une commande
   Future<void> deleteOrder(String orderId) async {
+    if (FirebaseService.isAvailable) {
+      final ref = FirebaseFirestore.instance.collection('orders').doc(orderId);
+      final snap = await ref.get();
+      if (!snap.exists) return;
+      final order = Order.fromMap(snap.data()!, orderId);
+      await ref.delete();
+      if (order.clientId != null) {
+        await FirebaseFirestore.instance.collection('clients').doc(order.clientId).update({
+          'orderIds': FieldValue.arrayRemove([orderId]),
+          'orderCount': FieldValue.increment(-1),
+          'totalSpent': FieldValue.increment(-(order.price ?? 0)),
+        });
+      }
+      return;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     final order = _orders.where((o) => o.id == orderId).firstOrNull;
@@ -435,7 +711,6 @@ class OrderService {
 
   /// Revenu total d'un atelier (somme des prix des commandes livrées)
   int atelierRevenue(String atelierId) {
-    _initDemoData();
     return ordersOfAtelier(atelierId)
         .where((o) => o.status == OrderStatus.completed)
         .fold(0, (sum, o) => sum + (o.price ?? 0));

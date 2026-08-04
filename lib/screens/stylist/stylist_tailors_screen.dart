@@ -9,7 +9,9 @@ import '../../core/widgets/common_widgets.dart';
 import '../../models/app_user.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
+import '../shared/staff_account_actions.dart';
 import '../shared/subscription_dialog.dart';
+import '../shared/tailor_orders_screen.dart';
 
 class StylistTailorsScreen extends StatefulWidget {
   const StylistTailorsScreen({super.key});
@@ -51,41 +53,55 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
     final emailController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Ajouter un couturier'),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom complet *',
-                  prefixIcon: Icon(Icons.person),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nom complet *',
+                    prefixIcon: Icon(Icons.person),
+                  ),
+                  validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Téléphone *',
-                  prefixIcon: Icon(Icons.phone),
+                const SizedBox(height: AppSpacing.md),
+                TextFormField(
+                  controller: phoneController,
+                  decoration: const InputDecoration(
+                    labelText: 'Téléphone *',
+                    prefixIcon: Icon(Icons.phone),
+                  ),
+                  keyboardType: TextInputType.phone,
+                  validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
                 ),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email (optionnel)',
-                  prefixIcon: Icon(Icons.email),
+                const SizedBox(height: AppSpacing.md),
+                TextFormField(
+                  controller: emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email *',
+                    prefixIcon: Icon(Icons.email),
+                    // Un vrai email (pas juste un contact du couturier) : la
+                    // seule façon de récupérer un accès en cas de mot de
+                    // passe oublié est le lien envoyé à CETTE adresse (voir
+                    // AuthService.sendPasswordResetEmail — aucun accès admin
+                    // ne permet de forcer un mot de passe sans ça).
+                    helperText: 'Le couturier doit pouvoir consulter cette boîte mail',
+                    helperMaxLines: 2,
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (v) => v == null || !v.contains('@') ? 'Email valide requis' : null,
                 ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [
@@ -95,18 +111,13 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              if (nameController.text.trim().isEmpty ||
-                  phoneController.text.trim().isEmpty) {
-                return;
-              }
+              if (!formKey.currentState!.validate()) return;
 
               final result = await CompanyService.instance.createTailor(
                 atelierId: user.atelierId!,
                 atelierName: user.atelierName!,
                 fullName: nameController.text.trim(),
-                email: emailController.text.trim().isEmpty
-                    ? 'couturier_${DateTime.now().millisecondsSinceEpoch}@demo.ml'
-                    : emailController.text.trim(),
+                email: emailController.text.trim(),
                 phone: phoneController.text.trim(),
               );
               final newTailor = result.user;
@@ -115,7 +126,10 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
               Navigator.pop(context);
               setState(() {});
 
-              // Afficher l'identifiant du couturier créé
+              // Afficher les identifiants de connexion du couturier créé.
+              // Seuls email + mot de passe servent à se connecter — l'UID
+              // interne (newTailor.id) n'a aucune utilité pour le couturier
+              // et n'est donc pas affiché ici.
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -126,11 +140,14 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                     children: [
                       Text('Nom: ${newTailor.fullName}'),
                       const SizedBox(height: 8),
-                      Text('Identifiant: ${newTailor.id}'),
-                      const SizedBox(height: 8),
                       Text('Email: ${newTailor.email}'),
                       const SizedBox(height: 8),
                       Text('Mot de passe temporaire: ${result.temporaryPassword}'),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Le couturier devra définir son propre mot de passe à sa première connexion.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ],
                   ),
                   actions: [
@@ -152,103 +169,6 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
   int _getCurrentTailorCount() {
     final user = context.read<AuthProvider>().user!;
     return CompanyService.instance.tailorsOfAtelier(user.atelierId!).length;
-  }
-
-  void _showEditTailorDialog(AppUser tailor) {
-    final nameController = TextEditingController(text: tailor.fullName);
-    final phoneController = TextEditingController(text: tailor.phone);
-    final emailController = TextEditingController(text: tailor.email);
-
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    'Modifier le couturier',
-                    style: AppTextStyles.headlineMd,
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const Divider(height: 24),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom complet *',
-                  prefixIcon: Icon(Icons.person),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Téléphone *',
-                  prefixIcon: Icon(Icons.phone),
-                ),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Annuler'),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (nameController.text.trim().isEmpty ||
-                            phoneController.text.trim().isEmpty) {
-                          return;
-                        }
-
-                        await CompanyService.instance.updateTailor(
-                          tailorId: tailor.id,
-                          fullName: nameController.text.trim(),
-                          email: emailController.text.trim().isEmpty
-                              ? null
-                              : emailController.text.trim(),
-                          phone: phoneController.text.trim(),
-                        );
-
-                        if (!context.mounted) return;
-                        Navigator.pop(context);
-                        setState(() {});
-                      },
-                      child: const Text('Enregistrer'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -339,37 +259,16 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                       final tailor = tailors[index];
                       return _TailorCard(
                         tailor: tailor,
-                        onEdit: canAdd 
-                            ? () => _showEditTailorDialog(tailor)
+                        onViewOrders: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => TailorOrdersScreen(tailor: tailor)),
+                        ),
+                        onToggleActive: () => toggleTailorActive(context, tailor, () => setState(() {})),
+                        onEdit: canAdd
+                            ? () => showEditTailorDialog(context, tailor, () => setState(() {}))
                             : null,
-                        onRemove: canAdd 
-                            ? () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Supprimer le couturier'),
-                                    content: Text('Voulez-vous vraiment supprimer ${tailor.fullName} ?'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('Annuler'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () async {
-                                          await CompanyService.instance.removeTailor(tailor.id);
-                                          if (!context.mounted) return;
-                                          Navigator.pop(context);
-                                          setState(() {});
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: c.error,
-                                        ),
-                                        child: const Text('Supprimer'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }
+                        onRemove: canAdd
+                            ? () => confirmAndRemoveTailor(context, tailor, () => setState(() {}))
                             : null,
                       ).animate().fadeIn(delay: (index * 50).ms).slideX();
                     },
@@ -384,62 +283,100 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
 class _TailorCard extends StatelessWidget {
   const _TailorCard({
     required this.tailor,
+    required this.onViewOrders,
+    required this.onToggleActive,
     required this.onEdit,
     required this.onRemove,
   });
 
   final AppUser tailor;
+  final VoidCallback onViewOrders;
+  final VoidCallback onToggleActive;
   final VoidCallback? onEdit;
   final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: c.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
-        boxShadow: c.softShadow,
-      ),
-      child: Row(
-        children: [
-          UserAvatar(initials: tailor.initials, size: 48),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tailor.fullName,
-                  style: AppTextStyles.titleMd,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  tailor.phone,
-                  style: AppTextStyles.bodySm.copyWith(
-                    color: c.onSurfaceVariant,
+    return GestureDetector(
+      onTap: onViewOrders,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: c.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
+          boxShadow: c.softShadow,
+        ),
+        child: Row(
+          children: [
+            Opacity(
+              opacity: tailor.isActive ? 1 : 0.4,
+              child: UserAvatar(initials: tailor.initials, size: 48),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          tailor.fullName,
+                          style: AppTextStyles.titleMd,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (!tailor.isActive) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: c.error.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            'Suspendu',
+                            style: AppTextStyles.labelXs.copyWith(color: c.error),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    tailor.phone,
+                    style: AppTextStyles.bodySm.copyWith(
+                      color: c.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          if (onEdit != null)
             IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              color: c.primary,
-              onPressed: onEdit,
+              icon: Icon(tailor.isActive ? Icons.pause_circle_outline : Icons.play_circle_outline),
+              color: tailor.isActive ? c.onSurfaceVariant : c.success,
+              tooltip: tailor.isActive ? 'Suspendre' : 'Réactiver',
+              onPressed: onToggleActive,
             ),
-          if (onRemove != null)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              color: c.error,
-              onPressed: onRemove,
-            ),
-        ],
+            if (onEdit != null)
+              IconButton(
+                icon: const Icon(Icons.edit_outlined),
+                color: c.primary,
+                tooltip: 'Modifier',
+                onPressed: onEdit,
+              ),
+            if (onRemove != null)
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                color: c.error,
+                tooltip: 'Supprimer',
+                onPressed: onRemove,
+              ),
+          ],
+        ),
       ),
     );
   }

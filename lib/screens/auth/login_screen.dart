@@ -10,9 +10,11 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/auth_backdrop.dart';
+import '../../core/widgets/google_sign_in_button.dart';
 import '../../core/widgets/premium_button.dart';
 import '../../core/widgets/premium_text_field.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -49,6 +51,26 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
     // La redirection est gérée automatiquement par go_router via AuthProvider
+  }
+
+  Future<void> _submitGoogle() async {
+    final auth = context.read<AuthProvider>();
+    final result = await auth.signInWithGoogle();
+
+    if (!mounted) return;
+    if (result == null) {
+      if (auth.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.colors.error),
+        );
+      }
+      return;
+    }
+    if (result is GoogleSignInNeedsProfile) {
+      context.push('/auth/complete-profile', extra: result);
+    }
+    // GoogleSignInExisting : AuthProvider est déjà authenticated, le router
+    // redirige automatiquement vers le bon espace.
   }
 
   @override
@@ -89,6 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         password: _password,
                                         auth: auth,
                                         onSubmit: _submit,
+                                        onGoogleSignIn: _submitGoogle,
                                       ),
                                     ),
                                   ),
@@ -106,6 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   password: _password,
                                   auth: auth,
                                   onSubmit: _submit,
+                                  onGoogleSignIn: _submitGoogle,
                                 ),
                               ],
                             ),
@@ -151,13 +175,21 @@ class _BrandPanel extends StatelessWidget {
           ),
         ).animate().fadeIn(delay: 100.ms),
         const SizedBox(height: 8),
-        Text(
-          'StyleConnect',
-          textAlign: textAlign,
-          style: AppTextStyles.displayLg.copyWith(
-            color: Colors.white,
-            fontSize: isWide ? 42 : 32,
+        Text.rich(
+          TextSpan(
+            style: AppTextStyles.displayLg.copyWith(
+              color: Colors.white,
+              fontSize: isWide ? 42 : 32,
+            ),
+            children: [
+              const TextSpan(text: 'Style'),
+              TextSpan(
+                text: 'Connect',
+                style: TextStyle(color: c.tertiaryFixedDim),
+              ),
+            ],
           ),
+          textAlign: textAlign,
         ).animate().fadeIn(delay: 180.ms).slideY(begin: 0.2, end: 0),
         const SizedBox(height: 8),
         Text(
@@ -237,6 +269,7 @@ class _LoginCard extends StatelessWidget {
     required this.password,
     required this.auth,
     required this.onSubmit,
+    required this.onGoogleSignIn,
   });
 
   final GlobalKey<FormState> formKey;
@@ -244,6 +277,7 @@ class _LoginCard extends StatelessWidget {
   final TextEditingController password;
   final AuthProvider auth;
   final Future<void> Function() onSubmit;
+  final Future<void> Function() onGoogleSignIn;
 
   @override
   Widget build(BuildContext context) {
@@ -297,8 +331,15 @@ class _LoginCard extends StatelessWidget {
                   prefixIcon: Icons.lock_outline_rounded,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => onSubmit(),
+                  // Pas de contrainte de longueur ici : contrairement à un
+                  // formulaire de création/changement de mot de passe, on ne
+                  // sait pas combien de caractères fait le VRAI mot de passe
+                  // du compte — bloquer localement un essai trop court
+                  // empêchait silencieusement l'envoi au serveur, donc
+                  // empêchait le message "Email ou mot de passe incorrect"
+                  // de jamais s'afficher pour ces essais-là.
                   validator: (v) =>
-                      v == null || v.length < 6 ? 'Minimum 6 caractères' : null,
+                      v == null || v.isEmpty ? 'Mot de passe requis' : null,
                 ).animate().fadeIn(delay: 380.ms).slideY(begin: 0.1, end: 0),
 
                 Align(
@@ -319,6 +360,24 @@ class _LoginCard extends StatelessWidget {
                   isLoading: auth.isLoading,
                   onPressed: auth.isLoading ? null : onSubmit,
                 ).animate().fadeIn(delay: 450.ms).scale(begin: const Offset(0.95, 0.95)),
+
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: c.outlineVariant)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                      child: Text('OU', style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant)),
+                    ),
+                    Expanded(child: Divider(color: c.outlineVariant)),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                GoogleSignInButton(
+                  label: 'Se connecter avec Google',
+                  isLoading: auth.isLoading,
+                  onPressed: auth.isLoading ? null : onGoogleSignIn,
+                ),
 
                 const SizedBox(height: 20),
 

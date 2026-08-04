@@ -1,7 +1,8 @@
-import 'dart:io';
-
-import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
+import 'package:firebase_core/firebase_core.dart' hide FirebaseService;
 import 'package:flutter/foundation.dart';
+
+import '../firebase_options.dart';
 
 /// Initialise Firebase si configuré, sinon mode démo local.
 class FirebaseService {
@@ -13,36 +14,17 @@ class FirebaseService {
   static Future<bool> initialize() async {
     if (_initialized) return _available;
 
-    // Firebase Web nécessite firebase_options.dart — ignoré en mode démo.
-    if (kIsWeb) {
-      _available = false;
-      _initialized = true;
-      if (kDebugMode) {
-        debugPrint('⚠ Mode démo Web — Firebase non configuré');
-      }
-      return false;
-    }
-
-    // Aucun GoogleService-Info.plist n'est fourni pour l'instant. Sur iOS,
-    // contrairement à Android, Firebase.initializeApp() sans ce fichier fait
-    // planter l'app nativement au lancement au lieu de lever une exception
-    // Dart récupérable par le catch ci-dessous. À retirer une fois un vrai
-    // projet Firebase configuré pour iOS.
-    if (Platform.isIOS) {
-      _available = false;
-      _initialized = true;
-      if (kDebugMode) {
-        debugPrint('⚠ Mode démo iOS — Firebase non configuré');
-      }
-      return false;
-    }
-
     try {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      // Persistance hors-ligne : activée par défaut sur mobile, mais doit
+      // être explicitement demandée sur Flutter Web (voir Settings.
+      // persistenceEnabled) — sans quoi Firestore ne fonctionne pas du tout
+      // en coupure réseau sur navigateur.
+      FirebaseFirestore.instance.settings = const Settings(persistenceEnabled: true);
       _available = true;
       _initialized = true;
       if (kDebugMode) {
-        debugPrint('✓ Firebase initialisé');
+        debugPrint('✓ Firebase initialisé (projet ${DefaultFirebaseOptions.currentPlatform.projectId})');
       }
     } catch (e) {
       _available = false;

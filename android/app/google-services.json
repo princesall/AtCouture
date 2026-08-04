@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "671589265068",
+    "project_id": "styleconnect-25e1c",
+    "storage_bucket": "styleconnect-25e1c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:671589265068:android:70ddfd05b591991450b909",
+        "android_client_info": {
+          "package_name": "com.styleconnect.styleconnect"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "671589265068-4tavehf7usfc729dlftlh4a5785mr103.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.styleconnect.styleconnect",
+            "certificate_hash": "d3836b1d28058e210cdee8dd1988c320c45fd443"
+          }
+        },
+        {
+          "client_id": "671589265068-p91e94hhi4b1av3v2rb7am68g32td077.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2SKoX64iSwoOVwq-aV4bt0jaEIxUQ2J8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "671589265068-p91e94hhi4b1av3v2rb7am68g32td077.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "671589265068-msfg1m3h1kj8na5roirp40daipe85q9r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.styleconnect.styleconnect"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

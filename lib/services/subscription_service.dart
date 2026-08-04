@@ -1,24 +1,27 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/subscription_plan.dart';
 import '../models/system_message.dart';
 import 'company_service.dart';
+import 'firebase_service.dart';
 
 /// Statut de transition d'un compte, calculé par rapport à son plan
 /// précédent connu. Affiché dans l'admin pour suivre qui vient de monter
 /// ou descendre de gamme.
 enum PlanTransitionStatus { upgraded, downgraded, unchanged, newAccount }
 
-/// Service central du cycle de vie des abonnements. En mode démo, persiste
-/// en mémoire. Quand Firebase sera branché, ces méthodes deviendront des
-/// transactions Firestore qui :
-///   1. Mettent à jour users/{uid}.plan + planExpiresAt
-///   2. Créent un document dans systemMessages/{id} pour notifier l'utilisateur
-///   3. Mettent à jour subscriptionRequests/{id}.status
-/// Le tout dans une seule transaction atomique pour garantir la cohérence.
+/// Service central du cycle de vie des abonnements. Se branche sur
+/// FirebaseService.isAvailable comme les autres services : écrit dans
+/// systemMessages/{id} (et met à jour subscriptionRequests/{id}.status) en
+/// mode Firebase, ou reste en mémoire en mode démo.
 class SubscriptionService {
   SubscriptionService._();
   static final SubscriptionService instance = SubscriptionService._();
 
-  /// Messages système en mémoire, indexés par userId
+  /// Messages système en mémoire, indexés par userId — source de vérité en
+  /// mode démo, cache tenu à jour par écoute Firestore en mode réel.
   final Map<String, List<SystemMessage>> _systemMessages = {};
 
   /// Historique du dernier plan connu par utilisateur, pour calculer
@@ -28,15 +31,42 @@ class SubscriptionService {
   int _messageIdCounter = 1000;
   String _nextMessageId() => 'sysmsg_${_messageIdCounter++}';
 
+  final Set<String> _syncedUsers = {};
+  final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _subscriptions = [];
+
+  void _ensureUserMessagesSynced(String userId) {
+    if (!FirebaseService.isAvailable) return;
+    if (!_syncedUsers.add(userId)) return;
+
+    _subscriptions.add(
+      FirebaseFirestore.instance
+          .collection('systemMessages')
+          .where('userId', isEqualTo: userId)
+          .snapshots()
+          .listen((snap) {
+        _systemMessages[userId] = snap.docs.map((d) => SystemMessage.fromMap(d.data(), d.id)).toList();
+      }),
+    );
+  }
+
   // ── Lecture ──────────────────────────────────────────────────────────────
 
-  List<SystemMessage> systemMessagesFor(String userId) =>
-      List.unmodifiable((_systemMessages[userId] ?? [])..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+  List<SystemMessage> systemMessagesFor(String userId) {
+    _ensureUserMessagesSynced(userId);
+    return List.unmodifiable((_systemMessages[userId] ?? [])..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+  }
 
-  int unreadSystemMessagesCount(String userId) =>
-      (_systemMessages[userId] ?? []).where((m) => !m.isRead).length;
+  int unreadSystemMessagesCount(String userId) {
+    _ensureUserMessagesSynced(userId);
+    return (_systemMessages[userId] ?? []).where((m) => !m.isRead).length;
+  }
 
   Future<void> markSystemMessageRead(String userId, String messageId) async {
+    if (FirebaseService.isAvailable) {
+      await FirebaseFirestore.instance.collection('systemMessages').doc(messageId).update({'isRead': true});
+      return;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 150));
 
     final list = _systemMessages[userId];
@@ -61,7 +91,9 @@ class SubscriptionService {
   ///     par l'appelant, qui sait où vit le AppUser en mémoire/démo)
   ///  2. Enregistre la transition (upgrade/downgrade) pour affichage admin
   ///  3. Envoie un message SYSTÈME automatique au compte concerné
-  ///  4. Si le plan accordé est Entreprise, crée le document Company associé
+  ///  4. Marque la demande (subscriptionRequests/{requestDocId}) comme
+  ///     approuvée, en mode Firebase uniquement
+  ///  5. Si le plan accordé est Entreprise, crée le document Company associé
   ///     pour que le compte apparaisse dans la liste "Entreprises" de l'admin
   Future<void> approveSubscriptionRequest({
     required String userId,
@@ -71,17 +103,27 @@ class SubscriptionService {
     required SubscriptionPlan requestedPlan,
     required DateTime newExpiryDate,
     required Future<void> Function(SubscriptionPlan plan, DateTime expiresAt) applyPlanToAccount,
+    String? requestDocId,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!FirebaseService.isAvailable) {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    }
 
     await applyPlanToAccount(requestedPlan, newExpiryDate);
     _lastKnownPlan[userId] = requestedPlan;
 
-    _addSystemMessage(SystemMessage.subscriptionApproved(
+    await _sendSystemMessage(SystemMessage.subscriptionApproved(
       id: _nextMessageId(),
       userId: userId,
       planName: requestedPlan.name,
     ));
+
+    if (FirebaseService.isAvailable && requestDocId != null) {
+      await FirebaseFirestore.instance.collection('subscriptionRequests').doc(requestDocId).update({
+        'status': 'approved',
+        'decidedAt': DateTime.now().toIso8601String(),
+      });
+    }
 
     // Transition vers Entreprise : créer automatiquement la structure
     // Company pour que ce compte apparaisse dans l'onglet Entreprises admin.
@@ -107,14 +149,24 @@ class SubscriptionService {
   Future<void> rejectSubscriptionRequest({
     required String userId,
     required SubscriptionPlan requestedPlan,
+    String? requestDocId,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (!FirebaseService.isAvailable) {
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
 
-    _addSystemMessage(SystemMessage.subscriptionRejected(
+    await _sendSystemMessage(SystemMessage.subscriptionRejected(
       id: _nextMessageId(),
       userId: userId,
       planName: requestedPlan.name,
     ));
+
+    if (FirebaseService.isAvailable && requestDocId != null) {
+      await FirebaseFirestore.instance.collection('subscriptionRequests').doc(requestDocId).update({
+        'status': 'rejected',
+        'decidedAt': DateTime.now().toIso8601String(),
+      });
+    }
   }
 
   /// Renouvellement manuel par l'admin (prolonge la date d'expiration).
@@ -122,20 +174,28 @@ class SubscriptionService {
     required String userId,
     required SubscriptionPlan plan,
     required DateTime newExpiryDate,
-    required void Function(SubscriptionPlan plan, DateTime expiresAt) applyPlanToAccount,
+    required Future<void> Function(SubscriptionPlan plan, DateTime expiresAt) applyPlanToAccount,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (!FirebaseService.isAvailable) {
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
 
-    applyPlanToAccount(plan, newExpiryDate);
+    await applyPlanToAccount(plan, newExpiryDate);
     _lastKnownPlan[userId] = plan;
-    _addSystemMessage(SystemMessage.subscriptionRenewed(
+    await _sendSystemMessage(SystemMessage.subscriptionRenewed(
       id: _nextMessageId(),
       userId: userId,
       planName: plan.name,
     ));
   }
 
-  void _addSystemMessage(SystemMessage message) {
+  Future<void> _sendSystemMessage(SystemMessage message) async {
+    if (FirebaseService.isAvailable) {
+      await FirebaseFirestore.instance.collection('systemMessages').doc().set(message.toMap());
+      return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 150));
     _systemMessages.putIfAbsent(message.userId, () => []).add(message);
   }
 
@@ -143,9 +203,7 @@ class SubscriptionService {
   /// l'app détecte qu'un plan vient d'expirer pour ce compte — voir
   /// AuthProvider qui vérifie planExpiresAt à chaque connexion).
   Future<void> notifyExpiration({required String userId, required SubscriptionPlan expiredPlan}) async {
-    await Future<void>.delayed(const Duration(milliseconds: 150));
-
-    _addSystemMessage(SystemMessage.subscriptionExpired(
+    await _sendSystemMessage(SystemMessage.subscriptionExpired(
       id: _nextMessageId(),
       userId: userId,
       planName: expiredPlan.name,

@@ -26,7 +26,7 @@ class AuthProvider extends ChangeNotifier {
     _status = AuthStatus.loading;
     notifyListeners();
 
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    await _authService.initialize();
 
     final current = _authService.currentUser;
     if (current != null) {
@@ -86,6 +86,71 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Connexion/inscription via Google. Retourne le résultat brut pour que
+  /// l'écran appelant décide quoi faire : GoogleSignInExisting signifie que
+  /// la connexion est déjà terminée (isAuthenticated devient true) ;
+  /// GoogleSignInNeedsProfile signifie qu'il faut rediriger vers l'écran de
+  /// complétion de profil avant de pouvoir finaliser le compte. Retourne
+  /// null en cas d'échec (voir errorMessage).
+  Future<GoogleSignInResult?> signInWithGoogle() async {
+    _setLoading();
+    try {
+      final result = await _authService.signInWithGoogle();
+      if (result is GoogleSignInExisting) {
+        _user = result.user;
+        _status = AuthStatus.authenticated;
+        _errorMessage = null;
+      } else {
+        // Compte Firebase Auth créé mais profil pas encore complété — pas
+        // encore "authentifié" au sens de l'app tant que users/{uid} n'existe pas.
+        _status = AuthStatus.unauthenticated;
+        _errorMessage = null;
+      }
+      notifyListeners();
+      return result;
+    } on AuthException catch (e) {
+      _setError(e.message);
+      return null;
+    } catch (_) {
+      _setError('Connexion Google impossible. Réessayez.');
+      return null;
+    }
+  }
+
+  /// Termine la création d'un compte démarré via Google (voir
+  /// signInWithGoogle / GoogleSignInNeedsProfile) une fois que le styliste a
+  /// renseigné le nom de son atelier et son téléphone.
+  Future<bool> completeGoogleSignUp({
+    required String uid,
+    required String email,
+    required String fullName,
+    required String atelierName,
+    required String phone,
+    String? photoUrl,
+  }) async {
+    _setLoading();
+    try {
+      _user = await _authService.completeGoogleSignUp(
+        uid: uid,
+        email: email,
+        fullName: fullName,
+        atelierName: atelierName,
+        phone: phone,
+        photoUrl: photoUrl,
+      );
+      _status = AuthStatus.authenticated;
+      _errorMessage = null;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      _setError(e.message);
+      return false;
+    } catch (_) {
+      _setError('Impossible de finaliser votre compte. Réessayez.');
+      return false;
+    }
+  }
+
   bool _isChangingPassword = false;
   bool get isChangingPassword => _isChangingPassword;
 
@@ -103,7 +168,7 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      await _authService.changePassword(
+      _user = await _authService.changePassword(
         email: _user!.email,
         currentPassword: currentPassword,
         newPassword: newPassword,
@@ -134,6 +199,9 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } on AuthException catch (e) {
       _setError(e.message);
+      return false;
+    } catch (_) {
+      _setError('Impossible d\'envoyer l\'email. Réessayez.');
       return false;
     }
   }
@@ -167,15 +235,14 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Rafraîchit l'utilisateur connecté depuis les données AuthService (après mise à jour admin)
-  void refreshUser() {
-    if (_user != null) {
-      // Récupérer l'utilisateur mis à jour depuis AuthService._demoUsers
-      final updatedUser = _authService.getUserById(_user!.id);
-      if (updatedUser != null) {
-        _user = updatedUser;
-        notifyListeners();
-      }
+  /// Rafraîchit l'utilisateur connecté depuis AuthService (après une action
+  /// admin, ex: approbation d'abonnement). En mode Firebase, relit Firestore.
+  Future<void> refreshUser() async {
+    if (_user == null) return;
+    final updatedUser = await _authService.getUserById(_user!.id);
+    if (updatedUser != null) {
+      _user = updatedUser;
+      notifyListeners();
     }
   }
 }

@@ -6,9 +6,12 @@ import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
+import 'providers/connectivity_provider.dart';
 import 'providers/theme_provider.dart';
 import 'router/app_router.dart';
+import 'services/company_service.dart';
 import 'services/firebase_service.dart';
+import 'services/order_service.dart';
 
 class StyleConnectApp extends StatefulWidget {
   const StyleConnectApp({super.key, required this.authProvider, required this.themeProvider});
@@ -41,6 +44,9 @@ class _StyleConnectAppState extends State<StyleConnectApp> {
       providers: [
         ChangeNotifierProvider.value(value: widget.authProvider),
         ChangeNotifierProvider.value(value: widget.themeProvider),
+        ChangeNotifierProvider.value(value: CompanyService.instance),
+        ChangeNotifierProvider.value(value: OrderService.instance),
+        ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) => MaterialApp.router(
@@ -80,7 +86,14 @@ Future<void> bootstrap() async {
   await authProvider.initialize();
 
   final themeProvider = ThemeProvider();
-  await themeProvider.initialize();
+  // Un blocage/échec de SharedPreferences (observé en pratique sur certains
+  // navigateurs/profils, ex: stockage partitionné ou bloqué par une
+  // extension) ne doit JAMAIS empêcher l'app de démarrer — sans ce délai,
+  // l'app resterait bloquée sur un écran blanc pour toujours si cet appel
+  // ne se termine pas. Le thème retombe simplement sur clair par défaut.
+  try {
+    await themeProvider.initialize().timeout(const Duration(seconds: 5));
+  } catch (_) {}
 
   runApp(StyleConnectApp(authProvider: authProvider, themeProvider: themeProvider));
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/build_context_colors.dart';
+import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/stitch_widgets.dart';
+import '../shared/system_notifications_screen.dart';
 import 'admin_dashboard.dart';
 import 'admin_messages_screen.dart';
 import 'admin_profile_screen.dart';
@@ -35,7 +37,11 @@ class _AdminShellState extends State<AdminShell> {
         child: Stack(children: [
           // ── AppBar ────────────────────────────────────────────────────
           Column(children: [
-            StitchAppBar(title: 'StyleConnect', onNotificationTap: () {}),
+            StitchAppBar(
+              title: 'StyleConnect',
+              onNotificationTap: () => SystemNotificationsScreen.show(context),
+            ),
+            const OfflineBanner(),
             // ── Contenu ─────────────────────────────────────────────────
             Expanded(
               child: IndexedStack(

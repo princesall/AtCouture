@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/build_context_colors.dart';
+import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/subscription_service.dart';
@@ -59,6 +60,7 @@ class _StylistShellState extends State<StylistShell> {
                 title: 'StyleConnect',
                 onNotificationTap: () => SystemNotificationsScreen.show(context),
               ),
+              const OfflineBanner(),
               Expanded(
                 child: Stack(children: [
                   // ── Contenu de l'onglet actif ────────────────────────────

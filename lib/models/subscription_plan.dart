@@ -116,6 +116,17 @@ enum SubscriptionPlan {
   });
 
   final String name;
+
+  /// Identifiant stable pour le stockage (Firestore, règles de sécurité) —
+  /// contrairement à `name` (libellé affiché, en français, utilisé partout
+  /// dans l'UI admin), ne doit jamais changer même si le libellé évolue.
+  String get id => switch (this) {
+        SubscriptionPlan.free => 'free',
+        SubscriptionPlan.starter => 'starter',
+        SubscriptionPlan.pro => 'pro',
+        SubscriptionPlan.enterprise => 'enterprise',
+      };
+
   final int price;
   final int maxTailors;
   final int maxClients;

@@ -1,0 +1,267 @@
+rules_version = '2';
+
+// StyleConnect — règles de sécurité Firestore.
+//
+// À déployer quand Firebase sera réellement branché (voir
+// lib/services/firebase_service.dart, lib/core/utils/plan_guard.dart et
+// lib/core/utils/plan_permissions.dart qui anticipent déjà ce fichier).
+//
+// Modèle de données (voir lib/models/*.dart) :
+//   users/{uid}        -> AppUser   (role, atelierId, companyId, plan...)
+//   companies/{id}      -> Company   (ownerId == uid du companyOwner)
+//   ateliers/{id}       -> Atelier   (headStylistId, companyId?, tailorIds[])
+//   orders/{id}         -> Order     (atelierId, tailorId?)
+//   clients/{id}        -> Client    (atelierId)
+//   systemMessages/{id} -> SystemMessage (userId = destinataire)
+//   subscriptionRequests/{id} -> SubscriptionRequest (userId, requestedPlan, status)
+//
+// Principe : chaque compte ne doit voir/modifier que les données qui lui
+// appartiennent (son propre atelier, son entreprise, les commandes qui lui
+// sont assignées). L'admin plateforme a un accès élargi pour la gestion des
+// comptes/abonnements, mais pas un accès d'écriture libre aux données
+// métier des ateliers.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function userDoc(id) {
+      return get(/databases/$(database)/documents/users/$(id)).data;
+    }
+
+    function myUser() {
+      return userDoc(uid());
+    }
+
+    function myRole() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(uid()))
+        ? myUser().role
+        : null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && myRole() == 'admin';
+    }
+
+    function isOwnUser(userId) {
+      return isSignedIn() && uid() == userId;
+    }
+
+    function atelierDoc(atelierId) {
+      return get(/databases/$(database)/documents/ateliers/$(atelierId)).data;
+    }
+
+    // Chef Styliste responsable de cet atelier précis.
+    function isAtelierHead(atelierId) {
+      return isSignedIn() && atelierDoc(atelierId).headStylistId == uid();
+    }
+
+    // Chef d'Entreprise propriétaire de l'entreprise à laquelle appartient
+    // cet atelier (companyId == uid du companyOwner, voir atelier.dart:31).
+    function isAtelierCompanyOwner(atelierId) {
+      return isSignedIn() && atelierDoc(atelierId).companyId == uid();
+    }
+
+    // Couturier rattaché à cet atelier (voir atelier.dart:34 tailorIds).
+    function isAtelierTailor(atelierId) {
+      return isSignedIn() && uid() in atelierDoc(atelierId).tailorIds;
+    }
+
+    // Un des trois rôles "staff" autorisés à gérer les données de cet atelier.
+    function managesAtelier(atelierId) {
+      return isAtelierHead(atelierId) || isAtelierCompanyOwner(atelierId);
+    }
+
+    // ── users/{userId} — AppUser ──────────────────────────────────────
+    match /users/{userId} {
+      // Lecture : soi-même, l'admin plateforme, ou le staff qui a besoin de
+      // voir les comptes de son atelier/entreprise (ex: companyOwner listant
+      // ses chefs de style, stylist listant ses couturiers).
+      allow read: if isOwnUser(userId)
+        || isAdmin()
+        || (isSignedIn() && resource.data.companyId == uid())
+        || (isSignedIn() && resource.data.atelierId != null
+            && managesAtelier(resource.data.atelierId));
+
+      // Création : uniquement l'auto-inscription "Chef Styliste" (voir
+      // AuthService.registerStylist — seul rôle en self-signup aujourd'hui),
+      // ou un membre du staff qui crée un compte Couturier pour son atelier
+      // (voir CompanyService — création de tailor par le stylist/companyOwner).
+      // Impossible de s'auto-attribuer le rôle admin ou un plan payant.
+      allow create: if isOwnUser(userId)
+        && request.resource.data.role == 'stylist'
+        && request.resource.data.plan == 'free'
+        && request.resource.data.isActive == true
+        || (
+          isSignedIn()
+          && request.resource.data.role == 'tailor'
+          && request.resource.data.atelierId != null
+          && managesAtelier(request.resource.data.atelierId)
+        )
+        || (
+          // Un Chef d'Entreprise crée le compte d'un nouveau Chef d'atelier
+          // sous sa propre entreprise (voir CompanyService.createAtelierHead).
+          isSignedIn()
+          && request.resource.data.role == 'stylist'
+          && request.resource.data.companyId == uid()
+          && myRole() == 'companyOwner'
+        )
+        || isAdmin();
+
+      // Mise à jour : l'utilisateur peut modifier son propre profil, mais
+      // jamais les champs sensibles (role, plan, companyId, atelierId) —
+      // ceux-ci ne changent que via l'admin (abonnement, rattachement à une
+      // entreprise). Voir plan_guard.dart. Le staff qui gère l'atelier d'un
+      // couturier peut aussi corriger ses coordonnées de base et le
+      // suspendre/réactiver (voir CompanyService.updateTailor/setTailorActive)
+      // — mais jamais changer son role/plan/atelierId. Idem pour le Chef
+      // d'Entreprise qui gère un Chef d'atelier qu'il a lui-même créé (voir
+      // CompanyService.updateAtelierHead/setAtelierHeadActive).
+      allow update: if isAdmin()
+        || (
+          isOwnUser(userId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['fullName', 'phone', 'photoUrl', 'mustChangePassword'])
+        )
+        || (
+          resource.data.role == 'tailor'
+          && managesAtelier(resource.data.atelierId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['fullName', 'phone', 'email', 'isActive'])
+        )
+        || (
+          resource.data.role == 'stylist'
+          && resource.data.companyId == uid()
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['fullName', 'phone', 'email', 'isActive'])
+        );
+
+      // Suppression : l'admin, ou le staff qui gère l'atelier d'un couturier
+      // (CompanyService.removeTailor), ou le Chef d'Entreprise qui retire un
+      // Chef d'atelier qu'il a lui-même créé (CompanyService.removeAtelierHead).
+      allow delete: if isAdmin()
+        || (resource.data.role == 'tailor' && managesAtelier(resource.data.atelierId))
+        || (resource.data.role == 'stylist' && resource.data.companyId == uid());
+    }
+
+    // ── companies/{companyId} — Company ───────────────────────────────
+    match /companies/{companyId} {
+      allow read: if isSignedIn() && (resource.data.ownerId == uid() || isAdmin());
+
+      // Auto-création par le Chef d'Entreprise, uniquement pour lui-même.
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == uid()
+        && myRole() == 'companyOwner';
+
+      allow update: if isAdmin() || (isSignedIn() && resource.data.ownerId == uid());
+      allow delete: if isAdmin();
+    }
+
+    // ── ateliers/{atelierId} — Atelier ────────────────────────────────
+    match /ateliers/{atelierId} {
+      allow read: if isSignedIn() && (
+        resource.data.headStylistId == uid()
+        || resource.data.companyId == uid()
+        || uid() in resource.data.tailorIds
+        || isAdmin()
+      );
+
+      // Création : un styliste crée son propre atelier (companyId absent),
+      // ou un Chef d'Entreprise crée un atelier sous sa propre entreprise.
+      allow create: if isSignedIn() && (
+        request.resource.data.headStylistId == uid()
+        || (myRole() == 'companyOwner' && request.resource.data.companyId == uid())
+      );
+
+      allow update: if isAdmin() || managesAtelier(atelierId);
+
+      // Suppression réservée au propriétaire (companyOwner) ou à l'admin —
+      // action destructrice, on évite de la laisser au simple chef d'atelier.
+      allow delete: if isAdmin() || isAtelierCompanyOwner(atelierId);
+    }
+
+    // ── orders/{orderId} — Order ──────────────────────────────────────
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (
+        managesAtelier(resource.data.atelierId)
+        || resource.data.tailorId == uid()
+        || isAdmin()
+      );
+
+      allow create: if isSignedIn() && managesAtelier(request.resource.data.atelierId);
+
+      // Le couturier assigné peut mettre à jour la commande (statut, photos)
+      // mais uniquement les commandes qui lui sont assignées, jamais en
+      // changeant son propre atelier/tailorId pour se réassigner ailleurs.
+      allow update: if isAdmin()
+        || managesAtelier(resource.data.atelierId)
+        || (
+          resource.data.tailorId == uid()
+          && request.resource.data.atelierId == resource.data.atelierId
+          && request.resource.data.tailorId == resource.data.tailorId
+        );
+
+      allow delete: if isAdmin() || managesAtelier(resource.data.atelierId);
+    }
+
+    // ── clients/{clientId} — Client ───────────────────────────────────
+    match /clients/{clientId} {
+      allow read, write: if isAdmin() || managesAtelier(resource.data.atelierId);
+      allow create: if isSignedIn() && managesAtelier(request.resource.data.atelierId);
+    }
+
+    // ── systemMessages/{messageId} — SystemMessage ────────────────────
+    match /systemMessages/{messageId} {
+      // Seul le destinataire (ou l'admin) peut lire ses propres notifications.
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == uid());
+
+      // Générées côté admin (approbation abonnement, désactivation de
+      // compte...), OU par le compte lui-même pour sa propre notification
+      // d'expiration détectée à la connexion (voir
+      // AuthService._checkExpirationAndNotify) — jamais pour le compte de
+      // quelqu'un d'autre.
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.userId == uid());
+
+      // Le destinataire peut seulement marquer "lu" — rien d'autre.
+      allow update: if isAdmin()
+        || (
+          isSignedIn() && resource.data.userId == uid()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    // ── subscriptionRequests/{id} — SubscriptionRequest ───────────────
+    match /subscriptionRequests/{requestId} {
+      // Le demandeur voit sa propre demande, l'admin voit tout (écran
+      // "EN ATTENTE" de admin_subscriptions_screen.dart).
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == uid());
+
+      // Un compte ne peut créer qu'une demande pour lui-même, à l'état
+      // "pending" — impossible de s'auto-approuver via un create forgé.
+      allow create: if isSignedIn()
+        && request.resource.data.userId == uid()
+        && request.resource.data.status == 'pending';
+
+      // Seul l'admin décide (approuve/refuse) — voir admin_demo_data.dart
+      // approveRequest/rejectRequest. Sera remplacé par la Cloud Function de
+      // paiement en Phase 4, mais le principe reste : jamais le client.
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Tout le reste est fermé par défaut.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

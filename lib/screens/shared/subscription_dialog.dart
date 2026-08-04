@@ -142,7 +142,7 @@ class _PlanPicker extends StatefulWidget {
 }
 
 class _PlanPickerState extends State<_PlanPicker> {
-  bool _annual = false;
+  final bool _annual = false;
 
   static final _plans = [SubscriptionPlan.starter, SubscriptionPlan.pro, SubscriptionPlan.enterprise];
 
@@ -264,72 +264,6 @@ class _PlanPickerState extends State<_PlanPicker> {
                 );
               }),
             ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: c.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.calendar_today_rounded, color: c.primary, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Facturation annuelle', style: AppTextStyles.titleSm),
-                      const SizedBox(height: 2),
-                      Text.rich(
-                        TextSpan(
-                          text: 'Économisez ',
-                          style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
-                          children: [
-                            TextSpan(
-                              text: 'jusqu\'à 20%',
-                              style: AppTextStyles.bodySm.copyWith(color: c.success, fontWeight: FontWeight.w700),
-                            ),
-                            const TextSpan(text: ' avec l\'abonnement annuel.'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Switch(
-                  value: _annual,
-                  onChanged: (value) => setState(() => _annual = value),
-                  activeThumbColor: Colors.white,
-                  activeTrackColor: c.primary,
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: c.success.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text('-20%', style: AppTextStyles.labelXs.copyWith(color: c.success)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.shield_outlined, size: 16, color: c.onSurfaceVariant),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  'Vous pourrez changer d\'abonnement à tout moment. Sans engagement. Annulez quand vous voulez.',
-                  style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
           ),
           const SizedBox(height: AppSpacing.sm),
           Center(
