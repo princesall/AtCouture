@@ -47,8 +47,21 @@ service cloud.firestore {
         : null;
     }
 
+    // Un compte suspendu par l'admin (isActive == false) perd tout accès aux
+    // données métier, immédiatement — même s'il détient encore un jeton
+    // Firebase Auth valide (session déjà ouverte avant la suspension). Ne
+    // JAMAIS utiliser ceci pour la lecture de users/{userId} par son
+    // propriétaire : c'est cette lecture-là (toujours autorisée, voir
+    // isOwnUser) qui permet à l'app de détecter la suspension et de se
+    // déconnecter (voir AuthService.watchAccountSuspension).
+    function isActiveUser() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(uid()))
+        && myUser().isActive == true;
+    }
+
     function isAdmin() {
-      return isSignedIn() && myRole() == 'admin';
+      return isActiveUser() && myRole() == 'admin';
     }
 
     function isOwnUser(userId) {
@@ -61,18 +74,18 @@ service cloud.firestore {
 
     // Chef Styliste responsable de cet atelier précis.
     function isAtelierHead(atelierId) {
-      return isSignedIn() && atelierDoc(atelierId).headStylistId == uid();
+      return isActiveUser() && atelierDoc(atelierId).headStylistId == uid();
     }
 
     // Chef d'Entreprise propriétaire de l'entreprise à laquelle appartient
     // cet atelier (companyId == uid du companyOwner, voir atelier.dart:31).
     function isAtelierCompanyOwner(atelierId) {
-      return isSignedIn() && atelierDoc(atelierId).companyId == uid();
+      return isActiveUser() && atelierDoc(atelierId).companyId == uid();
     }
 
     // Couturier rattaché à cet atelier (voir atelier.dart:34 tailorIds).
     function isAtelierTailor(atelierId) {
-      return isSignedIn() && uid() in atelierDoc(atelierId).tailorIds;
+      return isActiveUser() && uid() in atelierDoc(atelierId).tailorIds;
     }
 
     // Un des trois rôles "staff" autorisés à gérer les données de cet atelier.
@@ -109,7 +122,7 @@ service cloud.firestore {
         || (
           // Un Chef d'Entreprise crée le compte d'un nouveau Chef d'atelier
           // sous sa propre entreprise (voir CompanyService.createAtelierHead).
-          isSignedIn()
+          isActiveUser()
           && request.resource.data.role == 'stylist'
           && request.resource.data.companyId == uid()
           && myRole() == 'companyOwner'
@@ -140,6 +153,7 @@ service cloud.firestore {
         || (
           resource.data.role == 'stylist'
           && resource.data.companyId == uid()
+          && isActiveUser()
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['fullName', 'phone', 'email', 'isActive'])
         );
@@ -149,36 +163,39 @@ service cloud.firestore {
       // Chef d'atelier qu'il a lui-même créé (CompanyService.removeAtelierHead).
       allow delete: if isAdmin()
         || (resource.data.role == 'tailor' && managesAtelier(resource.data.atelierId))
-        || (resource.data.role == 'stylist' && resource.data.companyId == uid());
+        || (resource.data.role == 'stylist' && resource.data.companyId == uid() && isActiveUser());
     }
 
     // ── companies/{companyId} — Company ───────────────────────────────
     match /companies/{companyId} {
-      allow read: if isSignedIn() && (resource.data.ownerId == uid() || isAdmin());
+      allow read: if isAdmin() || (isActiveUser() && resource.data.ownerId == uid());
 
       // Auto-création par le Chef d'Entreprise, uniquement pour lui-même.
-      allow create: if isSignedIn()
+      allow create: if isActiveUser()
         && request.resource.data.ownerId == uid()
         && myRole() == 'companyOwner';
 
-      allow update: if isAdmin() || (isSignedIn() && resource.data.ownerId == uid());
+      allow update: if isAdmin() || (isActiveUser() && resource.data.ownerId == uid());
       allow delete: if isAdmin();
     }
 
     // ── ateliers/{atelierId} — Atelier ────────────────────────────────
     match /ateliers/{atelierId} {
-      allow read: if isSignedIn() && (
+      allow read: if isAdmin() || (isActiveUser() && (
         resource.data.headStylistId == uid()
         || resource.data.companyId == uid()
         || uid() in resource.data.tailorIds
-        || isAdmin()
-      );
+      ));
 
       // Création : un styliste crée son propre atelier (companyId absent),
       // ou un Chef d'Entreprise crée un atelier sous sa propre entreprise.
+      // NOTE : la branche headStylistId == uid() ne doit PAS exiger
+      // isActiveUser() — elle couvre l'inscription initiale, où users/{uid}
+      // est créé dans le MÊME batch (voir AuthService._createStylistAccount) :
+      // à ce stade, exists(users/{uid}) est encore faux pour les règles.
       allow create: if isSignedIn() && (
         request.resource.data.headStylistId == uid()
-        || (myRole() == 'companyOwner' && request.resource.data.companyId == uid())
+        || (isActiveUser() && myRole() == 'companyOwner' && request.resource.data.companyId == uid())
       );
 
       allow update: if isAdmin() || managesAtelier(atelierId);
@@ -248,7 +265,7 @@ service cloud.firestore {
 
       // Un compte ne peut créer qu'une demande pour lui-même, à l'état
       // "pending" — impossible de s'auto-approuver via un create forgé.
-      allow create: if isSignedIn()
+      allow create: if isActiveUser()
         && request.resource.data.userId == uid()
         && request.resource.data.status == 'pending';
 

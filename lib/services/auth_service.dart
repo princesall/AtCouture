@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -484,6 +485,8 @@ class AuthService {
   }
 
   Future<void> signOut() async {
+    stopWatchingAccountSuspension();
+
     if (FirebaseService.isAvailable) {
       await fb_auth.FirebaseAuth.instance.signOut();
       _currentUser = null;
@@ -492,6 +495,36 @@ class AuthService {
 
     await Future<void>.delayed(const Duration(milliseconds: 200));
     _currentUser = null;
+  }
+
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _suspensionSubscription;
+
+  /// Surveille en continu le document Firestore du compte connecté : si un
+  /// admin le suspend (isActive -> false) pendant que la session est déjà
+  /// ouverte, `onSuspended` est appelé pour permettre une déconnexion
+  /// immédiate — sans ça, `initialize()` ne revérifie isActive qu'au
+  /// prochain démarrage de l'app, et la suspension ne prendrait effet qu'à
+  /// la prochaine connexion (voir firestore.rules: isActiveUser(), qui
+  /// coupe déjà l'accès aux données métier mais pas la session elle-même).
+  void watchAccountSuspension(void Function() onSuspended) {
+    _suspensionSubscription?.cancel();
+    final user = _currentUser;
+    if (!FirebaseService.isAvailable || user == null) return;
+
+    _suspensionSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.id)
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists && doc.data()?['isActive'] == false) {
+        onSuspended();
+      }
+    });
+  }
+
+  void stopWatchingAccountSuspension() {
+    _suspensionSubscription?.cancel();
+    _suspensionSubscription = null;
   }
 
   /// Met à jour un utilisateur existant dans _demoUsers (utilisé par AdminDemoData).

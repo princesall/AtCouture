@@ -14,6 +14,7 @@ import '../../core/widgets/google_sign_in_button.dart';
 import '../../core/widgets/premium_button.dart';
 import '../../core/widgets/premium_text_field.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -29,10 +30,44 @@ class _LoginScreenState extends State<LoginScreen> {
   final _password = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // Cas où on atterrit ici suite à une déconnexion forcée décidée ailleurs
+    // (ex: suspension admin détectée en pleine session, voir
+    // AuthProvider._watchSuspension) plutôt qu'après un échec de connexion
+    // sur cet écran — le message d'erreur est déjà présent dans AuthProvider
+    // au premier build, personne ne l'a encore affiché.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showPendingError());
+  }
+
+  @override
   void dispose() {
     _email.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+  void _showPendingError() {
+    if (!mounted) return;
+    final auth = context.read<AuthProvider>();
+    final message = auth.errorMessage;
+    if (message == null) return;
+    _showErrorSnackBar(message);
+    auth.clearError();
+  }
+
+  // N'utilise JAMAIS `context.colors` (= context.watch<ThemeProvider>()) ici :
+  // cette méthode est appelée depuis un callback après un `await`, donc hors
+  // du cycle de build. `watch` lève une assertion dans ce cas ("Tried to
+  // listen to a value exposed with provider, from outside of the widget
+  // tree"), ce qui empêchait silencieusement l'affichage du message d'erreur
+  // (ex: "Ce compte a été suspendu") sans qu'aucune exception visible
+  // n'explique pourquoi rien ne semblait se passer à l'écran.
+  void _showErrorSnackBar(String message) {
+    final errorColor = context.read<ThemeProvider>().colors.error;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: errorColor),
+    );
   }
 
   Future<void> _submit() async {
@@ -43,12 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!mounted) return;
     if (!success && auth.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(auth.errorMessage!),
-          backgroundColor: context.colors.error,
-        ),
-      );
+      _showErrorSnackBar(auth.errorMessage!);
     }
     // La redirection est gérée automatiquement par go_router via AuthProvider
   }
@@ -60,9 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     if (result == null) {
       if (auth.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.colors.error),
-        );
+        _showErrorSnackBar(auth.errorMessage!);
       }
       return;
     }
