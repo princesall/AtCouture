@@ -83,11 +83,6 @@ service cloud.firestore {
       return isActiveUser() && atelierDoc(atelierId).companyId == uid();
     }
 
-    // Couturier rattaché à cet atelier (voir atelier.dart:34 tailorIds).
-    function isAtelierTailor(atelierId) {
-      return isActiveUser() && uid() in atelierDoc(atelierId).tailorIds;
-    }
-
     // Un des trois rôles "staff" autorisés à gérer les données de cet atelier.
     function managesAtelier(atelierId) {
       return isAtelierHead(atelierId) || isAtelierCompanyOwner(atelierId);
