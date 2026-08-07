@@ -5,7 +5,9 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
+import '../../core/utils/firebase_error_messages.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/plan_guard.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../models/client.dart';
 import '../../providers/auth_provider.dart';
@@ -105,7 +107,22 @@ class _CompanyClientsScreenState extends State<CompanyClientsScreen> {
       // ── Liste clients ─────────────────────────────────────────────────────
       Expanded(
         child: clients.isEmpty
-            ? Center(child: Text('Aucun client', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)))
+            ? Center(
+                child: EmptyState(
+                  title: 'Aucun client',
+                  subtitle: _atelierFilter == null && _search.isEmpty
+                      ? 'Ajoutez votre premier client depuis un de vos ateliers'
+                      : 'Aucun client ne correspond à ce filtre',
+                  icon: Icons.people_outline,
+                  action: _atelierFilter == null && _search.isEmpty
+                      ? ElevatedButton.icon(
+                          onPressed: () => _showAddClientSheet(context, user.id, ateliers),
+                          icon: const Icon(Icons.person_add_rounded, size: 18),
+                          label: const Text('Ajouter un client'),
+                        )
+                      : null,
+                ),
+              )
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
                 itemCount: clients.length,
@@ -117,6 +134,17 @@ class _CompanyClientsScreenState extends State<CompanyClientsScreen> {
   }
 
   void _showAddClientSheet(BuildContext ctx, String ownerId, List<dynamic> ateliers) {
+    final permissions = ctx.read<AuthProvider>().user!.permissions;
+    final currentCount = CompanyService.instance.allClientsOfCompany(ownerId).length;
+    if (!PlanGuard.requireCapacity(
+      context: ctx,
+      hasCapacity: permissions.canAddClient(currentCount),
+      resourceName: 'client',
+      lockedMessage: permissions.canAddClientMessage,
+    )) {
+      return;
+    }
+
     showModalBottomSheet(
       context: ctx,
       backgroundColor: ctx.colors.surfaceContainerLowest,
@@ -236,7 +264,7 @@ class _AddClientSheetState extends State<_AddClientSheet> {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur lors de l\'ajout du client : $e')),
+        SnackBar(content: Text(friendlyFirebaseError(e))),
       );
     }
   }

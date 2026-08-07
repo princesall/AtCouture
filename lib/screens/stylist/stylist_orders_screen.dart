@@ -155,6 +155,13 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
                               ? 'Créez votre première commande'
                               : 'Aucune commande avec ce statut',
                           icon: Icons.receipt_long_outlined,
+                          action: _selectedStatus == null
+                              ? ElevatedButton.icon(
+                                  onPressed: _showCreateOrderDialog,
+                                  icon: const Icon(Icons.add, size: 18),
+                                  label: const Text('Créer une commande'),
+                                )
+                              : null,
                         ),
                       )
                     : ListView.separated(

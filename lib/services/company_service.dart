@@ -73,7 +73,29 @@ class CompanyService extends ChangeNotifier {
   // des snapshots).
   final Set<String> _syncedCompanies = {};
   final Set<String> _syncedAtelierTailors = {};
+  bool _allCompaniesSynced = false;
   final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _subscriptions = [];
+
+  /// Écoute TOUTE la collection `companies` — nécessaire pour l'admin
+  /// (allCompanies), qui doit voir toutes les Entreprises de la plateforme
+  /// et pas seulement celle d'un companyId précis (contrairement à
+  /// _ensureCompanySynced, ciblé sur une seule entreprise pour l'espace
+  /// Chef d'Entreprise). Sans cette écoute, `allCompanies` restait toujours
+  /// vide en mode Firebase : rien ne remplissait jamais `_companies`.
+  void _ensureAllCompaniesSynced() {
+    if (!FirebaseService.isAvailable) return;
+    if (_allCompaniesSynced) return;
+    _allCompaniesSynced = true;
+
+    _subscriptions.add(
+      FirebaseFirestore.instance.collection('companies').snapshots().listen((snap) {
+        _companies
+          ..clear()
+          ..addAll(snap.docs.map((d) => Company.fromMap(d.data(), d.id)));
+        notifyListeners();
+      }),
+    );
+  }
 
   void _ensureCompanySynced(String companyId) {
     if (!FirebaseService.isAvailable) return;
@@ -124,7 +146,10 @@ class CompanyService extends ChangeNotifier {
   }
 
   /// Pour l'Admin : liste de TOUTES les Entreprises de la plateforme
-  List<Company> get allCompanies => List.unmodifiable(_companies);
+  List<Company> get allCompanies {
+    _ensureAllCompaniesSynced();
+    return List.unmodifiable(_companies);
+  }
 
   /// Pour l'Admin : liste de TOUS les ateliers de la plateforme
   List<Atelier> get allAteliers => List.unmodifiable(_ateliers);
@@ -147,6 +172,21 @@ class CompanyService extends ChangeNotifier {
   /// ateliersOfCompany) — non appelé directement par l'UI aujourd'hui.
   Atelier? atelierOfStylist(String stylistId) =>
       _ateliers.where((a) => a.headStylistId == stylistId).firstOrNull;
+
+  /// Lecture ponctuelle (pas d'écoute live) d'UN atelier par son ID — utilisé
+  /// par un Couturier pour retrouver le nom/téléphone de son propre Chef
+  /// d'atelier (voir TailorShell._TailorProfile), un cas d'usage qui ne
+  /// justifie pas d'ouvrir un abonnement Firestore permanent comme les autres
+  /// méthodes de ce service. Un couturier peut lire ce document précis (voir
+  /// firestore.rules : uid() in tailorIds).
+  Future<Atelier?> fetchAtelier(String atelierId) async {
+    if (!FirebaseService.isAvailable) {
+      return _ateliers.where((a) => a.id == atelierId).firstOrNull;
+    }
+    final doc = await FirebaseFirestore.instance.collection('ateliers').doc(atelierId).get();
+    if (!doc.exists) return null;
+    return Atelier.fromMap(doc.data()!, doc.id);
+  }
 
   /// Tous les Chefs d'atelier d'une Entreprise donnée (hors le owner lui-même)
   List<AppUser> atelierHeadsOfCompany(String companyId) {
@@ -383,6 +423,7 @@ class CompanyService extends ChangeNotifier {
       name: atelierName,
       headStylistId: headId,
       headStylistName: fullName,
+      headStylistPhone: phone.trim(),
       companyId: companyId,
       address: address,
       createdAt: now,
@@ -452,6 +493,7 @@ class CompanyService extends ChangeNotifier {
       name: atelierName,
       headStylistId: uid,
       headStylistName: fullName.trim(),
+      headStylistPhone: phone.trim(),
       companyId: companyId,
       address: address,
       createdAt: now,
@@ -460,6 +502,13 @@ class CompanyService extends ChangeNotifier {
     final batch = firestore.batch();
     batch.set(firestore.collection('users').doc(uid), newHead.toMap());
     batch.set(firestore.collection('ateliers').doc(atelierId), newAtelier.toMap());
+    // Tenu à jour en mode Firebase aussi (déjà fait côté démo ci-dessus) —
+    // Company.atelierIds n'est lu nulle part aujourd'hui (admin_companies_screen
+    // re-requête ateliersOfCompany en direct), mais laisser ce champ divergent
+    // de la réalité est un piège pour toute future fonctionnalité qui s'y fierait.
+    batch.update(firestore.collection('companies').doc(companyId), {
+      'atelierIds': FieldValue.arrayUnion([atelierId]),
+    });
     await batch.commit();
 
     return (user: newHead, temporaryPassword: temporaryPassword);
@@ -577,14 +626,41 @@ class CompanyService extends ChangeNotifier {
     return (user: newTailor, temporaryPassword: temporaryPassword);
   }
 
+  /// Supprime le compte d'un Chef d'atelier, mais PRÉSERVE son Atelier : au
+  /// lieu de le supprimer (ce qui rendrait ses commandes/clients définitivement
+  /// inaccessibles — firestore.rules résout les droits en relisant le document
+  /// atelier par ID, donc plus de document = plus d'accès pour personne, pas
+  /// même le Chef d'Entreprise), l'atelier est directement REPRIS par le Chef
+  /// d'Entreprise, exactement comme son atelier personnel. Ses couturiers,
+  /// clients et commandes restent donc intacts et pleinement accessibles.
+  /// Voir assignHeadToExistingAtelier pour transférer ensuite cet atelier
+  /// repris à un nouveau Chef d'atelier sans perdre son historique, et
+  /// confirmAndRemoveAtelierHead pour l'avertissement affiché à l'utilisateur.
   Future<void> removeAtelierHead(String headId) async {
     if (FirebaseService.isAvailable) {
       final firestore = FirebaseFirestore.instance;
       final atelierSnap = await firestore.collection('ateliers').where('headStylistId', isEqualTo: headId).get();
+
       final batch = firestore.batch();
       batch.delete(firestore.collection('users').doc(headId));
+
       for (final doc in atelierSnap.docs) {
-        batch.delete(doc.reference);
+        final companyId = doc.data()['companyId'] as String?;
+        if (companyId == null) {
+          // Ne devrait jamais arriver (un atelier de Chef d'atelier a
+          // toujours companyId) — filet de sécurité pour ne pas laisser un
+          // atelier orphelin sans propriétaire identifiable.
+          batch.delete(doc.reference);
+          continue;
+        }
+        final ownerDoc = await firestore.collection('users').doc(companyId).get();
+        final ownerName = ownerDoc.data()?['fullName'] as String? ?? 'Chef d\'Entreprise';
+        final ownerPhone = ownerDoc.data()?['phone'] as String?;
+        batch.update(doc.reference, {
+          'headStylistId': companyId,
+          'headStylistName': ownerName,
+          'headStylistPhone': ownerPhone,
+        });
       }
       await batch.commit();
       // NOTE : le compte Firebase Auth du chef d'atelier reste techniquement
@@ -599,7 +675,143 @@ class CompanyService extends ChangeNotifier {
     final head = _atelierHeads.where((u) => u.id == headId).firstOrNull;
     if (head == null) return;
     _atelierHeads.removeWhere((u) => u.id == headId);
-    _ateliers.removeWhere((a) => a.headStylistId == headId);
+
+    final companyId = head.companyId;
+    for (var i = 0; i < _ateliers.length; i++) {
+      if (_ateliers[i].headStylistId != headId) continue;
+      if (companyId == null) continue;
+      final owner = AuthService.findById(companyId);
+      _ateliers[i] = _ateliers[i].copyWith(
+        headStylistId: companyId,
+        headStylistName: owner?.fullName ?? 'Chef d\'Entreprise',
+        headStylistPhone: owner?.phone,
+      );
+    }
+  }
+
+  /// Assigne un nouveau Chef d'atelier à un atelier EXISTANT — typiquement un
+  /// atelier repris par le Chef d'Entreprise après le renvoi de son ancien
+  /// chef (voir removeAtelierHead). Contrairement à createAtelierHead, ne
+  /// crée PAS de nouvel atelier : le nouveau chef hérite immédiatement de
+  /// tout l'historique (couturiers, clients, commandes) déjà associé à cet
+  /// atelierId, au lieu de repartir d'un atelier vide.
+  Future<({AppUser user, String temporaryPassword})> assignHeadToExistingAtelier({
+    required String atelierId,
+    required String atelierName,
+    required String companyId,
+    required String fullName,
+    required String email,
+    required String phone,
+    String? idempotencyKey,
+  }) async {
+    if (idempotencyKey != null && _atelierHeadIdempotencyCache.containsKey(idempotencyKey)) {
+      return _atelierHeadIdempotencyCache[idempotencyKey]!;
+    }
+
+    final result = FirebaseService.isAvailable
+        ? await _assignHeadToExistingAtelierFirebase(
+            atelierId: atelierId,
+            atelierName: atelierName,
+            companyId: companyId,
+            fullName: fullName,
+            email: email,
+            phone: phone,
+          )
+        : await _assignHeadToExistingAtelierDemo(
+            atelierId: atelierId,
+            atelierName: atelierName,
+            companyId: companyId,
+            fullName: fullName,
+            email: email,
+            phone: phone,
+          );
+
+    if (idempotencyKey != null) {
+      _atelierHeadIdempotencyCache[idempotencyKey] = result;
+    }
+    return result;
+  }
+
+  Future<({AppUser user, String temporaryPassword})> _assignHeadToExistingAtelierDemo({
+    required String atelierId,
+    required String atelierName,
+    required String companyId,
+    required String fullName,
+    required String email,
+    required String phone,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    final now = DateTime.now();
+    final headId = _nextId('chef_atelier');
+
+    final newHead = AppUser(
+      id: headId,
+      email: email.trim().toLowerCase(),
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      role: UserRole.stylist,
+      atelierId: atelierId,
+      atelierName: atelierName,
+      companyId: companyId,
+      plan: SubscriptionPlan.enterprise,
+      mustChangePassword: true,
+      createdAt: now,
+    );
+    _atelierHeads.add(newHead);
+
+    final atelierIndex = _ateliers.indexWhere((a) => a.id == atelierId);
+    if (atelierIndex != -1) {
+      _ateliers[atelierIndex] = _ateliers[atelierIndex].copyWith(
+        headStylistId: headId,
+        headStylistName: fullName.trim(),
+        headStylistPhone: phone.trim(),
+      );
+    }
+
+    final temporaryPassword = AuthService.generateTemporaryPassword(newHead.email);
+    return (user: newHead, temporaryPassword: temporaryPassword);
+  }
+
+  Future<({AppUser user, String temporaryPassword})> _assignHeadToExistingAtelierFirebase({
+    required String atelierId,
+    required String atelierName,
+    required String companyId,
+    required String fullName,
+    required String email,
+    required String phone,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    final temporaryPassword = AuthService.generateTemporaryPassword(normalizedEmail);
+    final authUser = await _createSecondaryAuthUser(normalizedEmail, temporaryPassword);
+    final uid = authUser.uid;
+
+    final now = DateTime.now();
+    final newHead = AppUser(
+      id: uid,
+      email: normalizedEmail,
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      role: UserRole.stylist,
+      atelierId: atelierId,
+      atelierName: atelierName,
+      companyId: companyId,
+      plan: SubscriptionPlan.enterprise,
+      mustChangePassword: true,
+      createdAt: now,
+    );
+
+    final firestore = FirebaseFirestore.instance;
+    final batch = firestore.batch();
+    batch.set(firestore.collection('users').doc(uid), newHead.toMap());
+    batch.update(firestore.collection('ateliers').doc(atelierId), {
+      'headStylistId': uid,
+      'headStylistName': fullName.trim(),
+      'headStylistPhone': phone.trim(),
+    });
+    await batch.commit();
+
+    return (user: newHead, temporaryPassword: temporaryPassword);
   }
 
   /// Met à jour les informations d'un Chef d'atelier existant, et propage le
@@ -624,7 +836,7 @@ class CompanyService extends ChangeNotifier {
         'email': ?email?.trim(),
       });
       for (final doc in atelierSnap.docs) {
-        batch.update(doc.reference, {'headStylistName': trimmedName});
+        batch.update(doc.reference, {'headStylistName': trimmedName, 'headStylistPhone': phone.trim()});
       }
       await batch.commit();
       return;
@@ -644,7 +856,7 @@ class CompanyService extends ChangeNotifier {
 
     final atelierIndex = _ateliers.indexWhere((a) => a.headStylistId == headId);
     if (atelierIndex != -1) {
-      _ateliers[atelierIndex] = _ateliers[atelierIndex].copyWith(headStylistName: trimmedName);
+      _ateliers[atelierIndex] = _ateliers[atelierIndex].copyWith(headStylistName: trimmedName, headStylistPhone: phone.trim());
     }
   }
 
@@ -690,6 +902,57 @@ class CompanyService extends ChangeNotifier {
       final atelier = _ateliers[atelierIndex];
       _ateliers[atelierIndex] = atelier.copyWith(
         tailorIds: atelier.tailorIds.where((id) => id != tailorId).toList(),
+      );
+    }
+  }
+
+  /// Réassigne un couturier d'un atelier à un autre — utilisé par le Chef
+  /// d'Entreprise depuis la vue globale des couturiers (CompanyTailorsScreen)
+  /// pour redistribuer son équipe entre ses ateliers sans supprimer/recréer
+  /// le compte (ce qui perdrait son historique de commandes assignées).
+  Future<void> reassignTailor({
+    required String tailorId,
+    required String currentAtelierId,
+    required String newAtelierId,
+    required String newAtelierName,
+  }) async {
+    if (currentAtelierId == newAtelierId) return;
+
+    if (FirebaseService.isAvailable) {
+      final firestore = FirebaseFirestore.instance;
+      final batch = firestore.batch();
+      batch.update(firestore.collection('users').doc(tailorId), {
+        'atelierId': newAtelierId,
+        'atelierName': newAtelierName,
+      });
+      batch.update(firestore.collection('ateliers').doc(currentAtelierId), {
+        'tailorIds': FieldValue.arrayRemove([tailorId]),
+      });
+      batch.update(firestore.collection('ateliers').doc(newAtelierId), {
+        'tailorIds': FieldValue.arrayUnion([tailorId]),
+      });
+      await batch.commit();
+      return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    final index = _tailors.indexWhere((t) => t.id == tailorId);
+    if (index == -1) return;
+    _tailors[index] = _tailors[index].copyWith(atelierId: newAtelierId, atelierName: newAtelierName);
+
+    final oldAtelierIndex = _ateliers.indexWhere((a) => a.id == currentAtelierId);
+    if (oldAtelierIndex != -1) {
+      final atelier = _ateliers[oldAtelierIndex];
+      _ateliers[oldAtelierIndex] = atelier.copyWith(
+        tailorIds: atelier.tailorIds.where((id) => id != tailorId).toList(),
+      );
+    }
+    final newAtelierIndex = _ateliers.indexWhere((a) => a.id == newAtelierId);
+    if (newAtelierIndex != -1) {
+      final atelier = _ateliers[newAtelierIndex];
+      _ateliers[newAtelierIndex] = atelier.copyWith(
+        tailorIds: [...atelier.tailorIds, tailorId],
       );
     }
   }

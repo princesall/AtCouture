@@ -89,6 +89,60 @@ class PlanGuard {
   }
 }
 
+/// Écran de secours affiché QUAND UN ÉCRAN PREMIUM EST OUVERT DIRECTEMENT
+/// sans passer par son point d'entrée normal (qui filtre déjà via
+/// PlanGuard.requireFeature — voir ProfileTabContent). Deuxième ligne de
+/// défense pour CompanyCustomizationScreen/CompanyDataExportScreen/
+/// CompanyDedicatedManagerScreen : ces écrans n'ont aujourd'hui qu'un seul
+/// point d'entrée protégé, mais rien ne garantit que ça reste vrai si un
+/// futur lien direct est ajouté — jamais la SEULE protection, toujours en
+/// plus du point d'entrée existant.
+class PlanLockedScreen extends StatelessWidget {
+  const PlanLockedScreen({super.key, required this.title, required this.message});
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Scaffold(
+      backgroundColor: c.background,
+      appBar: AppBar(
+        title: Text(title),
+        backgroundColor: c.background,
+        foregroundColor: c.primary,
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 72, height: 72,
+                decoration: BoxDecoration(gradient: c.goldGradient, shape: BoxShape.circle),
+                child: Icon(Icons.lock_rounded, color: c.onTertiary, size: 32),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Fonctionnalité verrouillée',
+                style: AppTextStyles.titleMd.copyWith(color: c.primary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
+                textAlign: TextAlign.center,
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Petit badge "cadenas" à poser sur un bouton/icône désactivé par le plan,
 /// pour que l'utilisateur comprenne immédiatement pourquoi c'est grisé.
 class PlanLockBadge extends StatelessWidget {

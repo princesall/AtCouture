@@ -7,6 +7,7 @@ import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/premium_button.dart';
 import '../../core/widgets/premium_text_field.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 
 /// Dialogue générique de changement de mot de passe, utilisable depuis
 /// n'importe quel écran de profil (admin, styliste, entreprise, couturier).
@@ -55,8 +56,11 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
         const SnackBar(content: Text('Mot de passe mis à jour')),
       );
     } else if (auth.errorMessage != null) {
+      // Voir login_screen.dart : context.colors (context.watch<ThemeProvider>())
+      // ne doit jamais être appelé hors du cycle de build — ce dialogue est
+      // utilisé par TOUS les rôles (admin/styliste/entreprise/couturier).
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.colors.error),
+        SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.read<ThemeProvider>().colors.error),
       );
     }
   }

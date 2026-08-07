@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
+import '../../core/utils/firebase_error_messages.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/measurement_field_prompt.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -195,73 +197,99 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
     final emailController = TextEditingController();
-    
+    // Voir OrderService (principe d'idempotence) : sans clé stable, un
+    // double-tap ou un réseau lent qui fait rejouer la requête créait un
+    // client en double. Générée une seule fois ici, avant tout rebuild du
+    // dialogue (StatefulBuilder), pour rester la MÊME à chaque tentative.
+    final idempotencyKey = const Uuid().v4();
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Nouveau client'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom complet',
-                  prefixIcon: Icon(Icons.person),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Téléphone',
-                  prefixIcon: Icon(Icons.phone),
-                ),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email (optionnel)',
-                  prefixIcon: Icon(Icons.email),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.trim().isEmpty ||
+      builder: (dialogContext) {
+        var isSubmitting = false;
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            Future<void> submit() async {
+              if (isSubmitting ||
+                  nameController.text.trim().isEmpty ||
                   phoneController.text.trim().isEmpty) {
                 return;
               }
+              setDialogState(() => isSubmitting = true);
+              try {
+                await OrderService.instance.addClient(
+                  atelierId: user.atelierId!,
+                  atelierName: user.atelierName!,
+                  fullName: nameController.text.trim(),
+                  phone: phoneController.text.trim(),
+                  email: emailController.text.trim().isEmpty
+                      ? null
+                      : emailController.text.trim(),
+                  idempotencyKey: idempotencyKey,
+                );
+                if (!dialogContext.mounted) return;
+                Navigator.pop(dialogContext);
+                if (!mounted) return;
+                setState(() {}); // Refresh
+              } catch (e) {
+                if (!dialogContext.mounted) return;
+                setDialogState(() => isSubmitting = false);
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(content: Text(friendlyFirebaseError(e))),
+                );
+              }
+            }
 
-              await OrderService.instance.addClient(
-                atelierId: user.atelierId!,
-                atelierName: user.atelierName!,
-                fullName: nameController.text.trim(),
-                phone: phoneController.text.trim(),
-                email: emailController.text.trim().isEmpty
-                    ? null
-                    : emailController.text.trim(),
-              );
-
-              if (!context.mounted) return;
-              Navigator.pop(context);
-              setState(() {}); // Refresh
-            },
-            child: const Text('Créer'),
-          ),
-        ],
-      ),
+            return AlertDialog(
+              title: const Text('Nouveau client'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nom complet',
+                        prefixIcon: Icon(Icons.person),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    TextField(
+                      controller: phoneController,
+                      decoration: const InputDecoration(
+                        labelText: 'Téléphone',
+                        prefixIcon: Icon(Icons.phone),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    TextField(
+                      controller: emailController,
+                      decoration: const InputDecoration(
+                        labelText: 'Email (optionnel)',
+                        prefixIcon: Icon(Icons.email),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Annuler'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting ? null : submit,
+                  child: isSubmitting
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Créer'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -323,6 +351,13 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                           ? 'Commencez par ajouter votre premier client'
                           : 'Aucun client ne correspond à votre recherche',
                       icon: Icons.people_outline,
+                      action: _searchQuery.isEmpty
+                          ? ElevatedButton.icon(
+                              onPressed: _showAddClientDialog,
+                              icon: const Icon(Icons.person_add_rounded, size: 18),
+                              label: const Text('Ajouter un client'),
+                            )
+                          : null,
                     ),
                   )
                 : ListView.separated(
@@ -758,7 +793,7 @@ class _OrderCard extends StatelessWidget {
       case OrderStatus.completed:
         return c.secondary;
       case OrderStatus.problem:
-        return c.success;
+        return c.error;
     }
   }
 }

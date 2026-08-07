@@ -5,6 +5,7 @@ import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
+import '../../core/utils/plan_guard.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/company_customization_service.dart';
@@ -25,6 +26,7 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
   late Color _accentColor;
   late String _companyId;
   bool _isSaving = false;
+  bool _isLoading = true;
 
   List<Color> _palette(AppColorPalette c) => [
     c.primary,
@@ -40,9 +42,21 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
     super.initState();
     final user = context.read<AuthProvider>().user!;
     _companyId = user.companyId ?? user.id;
-    final branding = CompanyCustomizationService.instance.brandingFor(_companyId);
-    _brandNameController = TextEditingController(text: branding.brandName ?? user.atelierName ?? '');
-    _accentColor = branding.accentColor ?? context.read<ThemeProvider>().colors.primary;
+    // Valeurs par défaut affichées pendant le chargement — remplacées ci-
+    // dessous dès que la personnalisation déjà enregistrée arrive de Firestore.
+    _brandNameController = TextEditingController(text: user.atelierName ?? '');
+    _accentColor = context.read<ThemeProvider>().colors.primary;
+    _loadBranding();
+  }
+
+  Future<void> _loadBranding() async {
+    final branding = await CompanyCustomizationService.instance.brandingFor(_companyId);
+    if (!mounted) return;
+    setState(() {
+      if (branding.brandName != null) _brandNameController.text = branding.brandName!;
+      if (branding.accentColor != null) _accentColor = branding.accentColor!;
+      _isLoading = false;
+    });
   }
 
   @override
@@ -67,6 +81,10 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
 
   @override
   Widget build(BuildContext context) {
+    final permissions = context.watch<AuthProvider>().user!.permissions;
+    if (!permissions.hasCustomization) {
+      return PlanLockedScreen(title: 'Personnalisation', message: permissions.customizationLockedMessage);
+    }
     final c = context.colors;
     return Scaffold(
       backgroundColor: c.background,
@@ -77,7 +95,9 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
         elevation: 0,
       ),
       body: SafeArea(
-        child: Padding(
+        child: _isLoading
+            ? Center(child: CircularProgressIndicator(color: c.primary))
+            : Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
@@ -6,6 +7,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/build_context_colors.dart';
+import '../../../core/utils/firebase_error_messages.dart';
 import '../../../core/utils/measurement_field_prompt.dart';
 import '../../../core/utils/plan_permissions.dart';
 import '../../../models/app_user.dart';
@@ -124,6 +126,18 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
       return;
     }
 
+    // digitsOnly empêche déjà un signe négatif à la saisie, mais un prix/
+    // acompte incohérent (acompte > prix) faussait silencieusement le
+    // calcul du solde restant et des revenus de l'atelier.
+    final price = _priceController.text.trim().isEmpty ? null : int.tryParse(_priceController.text.trim());
+    final deposit = _depositController.text.trim().isEmpty ? null : int.tryParse(_depositController.text.trim());
+    if (price != null && deposit != null && deposit > price) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('L\'acompte ne peut pas dépasser le prix total')),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     // Parser les mesures (seulement si le plan le permet)
@@ -188,8 +202,8 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
         modelPhotos: _modelPhotos.isEmpty ? null : _modelPhotos.map((f) => f.path).toList(),
         fabricPhotos: _fabricPhotos.isEmpty ? null : _fabricPhotos.map((f) => f.path).toList(),
         description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-        price: _priceController.text.trim().isEmpty ? null : int.tryParse(_priceController.text.trim()),
-        deposit: _depositController.text.trim().isEmpty ? null : int.tryParse(_depositController.text.trim()),
+        price: price,
+        deposit: deposit,
         dueDate: dueDate,
         createdByName: widget.user.fullName,
         idempotencyKey: _idempotencyKey,
@@ -201,7 +215,7 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur lors de la création de la commande : $e')),
+        SnackBar(content: Text(friendlyFirebaseError(e))),
       );
     }
   }
@@ -408,6 +422,9 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
                       controller: _priceController,
                       decoration: const InputDecoration(labelText: 'Prix total (${AppConstants.currency})', prefixText: '${AppConstants.currency} '),
                       keyboardType: TextInputType.number,
+                      // digitsOnly empêche déjà tout signe négatif à la
+                      // saisie — voir aussi la vérification dans _submit.
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -416,6 +433,7 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
                       controller: _depositController,
                       decoration: const InputDecoration(labelText: 'Acompte (${AppConstants.currency})', prefixText: '${AppConstants.currency} '),
                       keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     ),
                   ),
                 ],

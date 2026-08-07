@@ -11,6 +11,7 @@ import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/premium_button.dart';
 import '../../core/widgets/premium_text_field.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/auth_service.dart';
 
 /// Dernière étape après une première connexion Google (voir
@@ -63,8 +64,10 @@ class _GoogleProfileCompletionScreenState extends State<GoogleProfileCompletionS
 
     if (!mounted) return;
     if (!success && auth.errorMessage != null) {
+      // Voir login_screen.dart : context.colors (context.watch<ThemeProvider>())
+      // ne doit jamais être appelé hors du cycle de build.
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.colors.error),
+        SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.read<ThemeProvider>().colors.error),
       );
     }
   }

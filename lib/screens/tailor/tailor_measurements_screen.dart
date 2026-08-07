@@ -24,7 +24,7 @@ class _TailorMeasurementsScreenState extends State<TailorMeasurementsScreen> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
     final c = context.colors;
-    final orders = OrderService.instance.ordersOfAtelier(user.atelierId!);
+    final orders = OrderService.instance.ordersOfTailor(atelierId: user.atelierId!, tailorId: user.id);
 
     // Filtrer les commandes qui ont des mesures
     final ordersWithMeasurements = orders.where((o) => 
@@ -181,7 +181,7 @@ class _MeasurementCard extends StatelessWidget {
       case OrderStatus.completed:
         return c.secondary;
       case OrderStatus.problem:
-        return c.success;
+        return c.error;
     }
   }
 

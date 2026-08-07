@@ -8,6 +8,7 @@ import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/premium_button.dart';
 import '../../core/widgets/premium_text_field.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 
 /// Étape obligatoire pour tout compte créé avec un mot de passe temporaire
 /// (Couturier créé par un styliste, ou Chef d'atelier créé par un Chef
@@ -48,8 +49,10 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
 
     if (!mounted) return;
     if (!success && auth.errorMessage != null) {
+      // Voir login_screen.dart : context.colors (context.watch<ThemeProvider>())
+      // ne doit jamais être appelé hors du cycle de build.
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.colors.error),
+        SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.read<ThemeProvider>().colors.error),
       );
     }
     // Succès : mustChangePassword passe à false côté AuthProvider, le

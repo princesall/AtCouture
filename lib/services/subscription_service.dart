@@ -129,8 +129,12 @@ class SubscriptionService {
     // Company pour que ce compte apparaisse dans l'onglet Entreprises admin.
     // On réutilise le MÊME atelierId qu'avant l'upgrade pour que les clients/
     // commandes déjà créés restent visibles (voir createCompanyForNewOwner).
-    if (requestedPlan == SubscriptionPlan.enterprise &&
-        CompanyService.instance.companyForOwner(userId) == null) {
+    // NOTE : pas de vérification "déjà une entreprise ?" ici — companyForOwner
+    // ne lit que le cache local (_companies), jamais synchronisé à cet
+    // endroit en mode Firebase, donc toujours faussement vide à cet instant.
+    // La vraie protection anti-doublon vit DANS createCompanyForNewOwner, qui
+    // relit Firestore en direct avant de créer quoi que ce soit.
+    if (requestedPlan == SubscriptionPlan.enterprise) {
       await CompanyService.instance.createCompanyForNewOwner(
         ownerId: userId,
         ownerName: userFullName,

@@ -28,6 +28,16 @@ class _AdminMessagesScreenState extends State<AdminMessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Réagit en direct à l'arrivée d'un nouveau message Firestore pendant
+    // que cet écran est déjà ouvert (voir SupportMessageService, désormais
+    // un ChangeNotifier) — pas seulement après une action locale.
+    return ListenableBuilder(
+      listenable: SupportMessageService.instance,
+      builder: (context, _) => _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     final c = context.colors;
     if (_selected != null) {
       return _MessageDetailScreen(

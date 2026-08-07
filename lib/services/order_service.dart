@@ -62,7 +62,36 @@ class OrderService extends ChangeNotifier {
   // pas d'écoute globale sur toute la collection, qui serait coûteuse et de
   // toute façon refusée par firestore.rules (list scopé par atelierId).
   final Set<String> _syncedAteliers = {};
+  final Set<String> _syncedTailorScopes = {};
   final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _subscriptions = [];
+
+  /// Écoute dédiée pour un Couturier : contrairement à _ensureAtelierSynced
+  /// (qui ne filtre QUE par atelierId), cette requête filtre AUSSI par
+  /// tailorId côté serveur. C'est indispensable : firestore.rules n'autorise
+  /// un simple couturier à lire que les commandes où tailorId == uid() —
+  /// une requête liste qui ne contraint QUE atelierId est rejetée en bloc par
+  /// Firestore (il ne peut pas garantir que CHAQUE document retourné
+  /// satisferait la règle), pas filtrée document par document après coup.
+  /// Sans ce filtre serveur, tout couturier voyait un tableau de bord/
+  /// mesures/photos perpétuellement vides, sans aucune erreur visible.
+  void _ensureTailorOrdersSynced(String atelierId, String tailorId) {
+    if (!FirebaseService.isAvailable) return;
+    final scopeKey = '$atelierId|$tailorId';
+    if (!_syncedTailorScopes.add(scopeKey)) return;
+
+    _subscriptions.add(
+      FirebaseFirestore.instance
+          .collection('orders')
+          .where('atelierId', isEqualTo: atelierId)
+          .where('tailorId', isEqualTo: tailorId)
+          .snapshots()
+          .listen((snap) {
+        _orders.removeWhere((o) => o.atelierId == atelierId && o.tailorId == tailorId);
+        _orders.addAll(snap.docs.map((d) => Order.fromMap(d.data(), d.id)));
+        notifyListeners();
+      }),
+    );
+  }
 
   void _ensureAtelierSynced(String atelierId) {
     if (!FirebaseService.isAvailable) return;
@@ -94,10 +123,12 @@ class OrderService extends ChangeNotifier {
   }
 
   /// Toutes les commandes assignées à un couturier précis d'un atelier
-  /// donné — synchronise l'atelier au passage comme ordersOfAtelier, donc
-  /// utilisable même si aucun autre écran n'a encore chargé ses commandes.
+  /// donné — synchronise via une requête filtrée par tailorId (voir
+  /// _ensureTailorOrdersSynced), pas _ensureAtelierSynced : un couturier n'a
+  /// pas le droit de lister toutes les commandes de l'atelier, seulement les
+  /// siennes. Utilisable même si aucun autre écran n'a encore rien chargé.
   List<Order> ordersOfTailor({required String atelierId, required String tailorId}) {
-    _ensureAtelierSynced(atelierId);
+    _ensureTailorOrdersSynced(atelierId, tailorId);
     return _orders.where((o) => o.atelierId == atelierId && o.tailorId == tailorId).toList();
   }
 

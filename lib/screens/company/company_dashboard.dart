@@ -7,6 +7,7 @@ import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../models/atelier.dart';
 import '../../models/order.dart';
@@ -44,11 +45,11 @@ class CompanyDashboard extends StatelessWidget {
         const SizedBox(height: 32),
         _buildSectionRow(c, 'Clients récents', onSeeAll: () => onNavTap?.call(2)),
         const SizedBox(height: 16),
-        _buildRecentClients(c, clients),
+        _buildRecentClients(c, clients, onNavTap),
         const SizedBox(height: 32),
         _buildSectionRow(c, 'Commandes récentes', onSeeAll: () => onNavTap?.call(3)),
         const SizedBox(height: 16),
-        _buildRecentOrders(c, recentOrders.take(4).toList()),
+        _buildRecentOrders(c, recentOrders.take(4).toList(), onNavTap),
         const SizedBox(height: 32),
         _buildQuickActions(onNavTap),
       ],
@@ -178,9 +179,20 @@ class CompanyDashboard extends StatelessWidget {
   }
 
   // ── Clients récents ───────────────────────────────────────────────────────
-  Widget _buildRecentClients(AppColorPalette c, List<Client> clients) {
+  Widget _buildRecentClients(AppColorPalette c, List<Client> clients, ValueChanged<int>? onNavTap) {
     final recent = clients.take(3).toList();
-    if (recent.isEmpty) return _EmptyHint(label: 'Aucun client pour le moment');
+    if (recent.isEmpty) {
+      return EmptyState(
+        title: 'Aucun client pour le moment',
+        subtitle: 'Ajoutez votre premier client pour le voir apparaître ici',
+        icon: Icons.people_outline,
+        action: ElevatedButton.icon(
+          onPressed: () => onNavTap?.call(2),
+          icon: const Icon(Icons.person_add_rounded, size: 18),
+          label: const Text('Ajouter un client'),
+        ),
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(color: c.surfaceContainerLowest, borderRadius: BorderRadius.circular(18), boxShadow: c.premiumShadow),
@@ -212,8 +224,19 @@ class CompanyDashboard extends StatelessWidget {
   }
 
   // ── Commandes récentes ────────────────────────────────────────────────────
-  Widget _buildRecentOrders(AppColorPalette c, List<Order> orders) {
-    if (orders.isEmpty) return _EmptyHint(label: 'Aucune commande pour le moment');
+  Widget _buildRecentOrders(AppColorPalette c, List<Order> orders, ValueChanged<int>? onNavTap) {
+    if (orders.isEmpty) {
+      return EmptyState(
+        title: 'Aucune commande pour le moment',
+        subtitle: 'Les commandes se créent depuis un atelier — ouvrez-en un pour commencer',
+        icon: Icons.receipt_long_outlined,
+        action: ElevatedButton.icon(
+          onPressed: () => onNavTap?.call(1),
+          icon: const Icon(Icons.storefront_outlined, size: 18),
+          label: const Text('Voir mes ateliers'),
+        ),
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(color: c.surfaceContainerLowest, borderRadius: BorderRadius.circular(18), boxShadow: c.premiumShadow),
@@ -259,14 +282,4 @@ class CompanyDashboard extends StatelessWidget {
       ]),
     ]).animate().fadeIn(delay: 500.ms);
   }
-}
-
-class _EmptyHint extends StatelessWidget {
-  const _EmptyHint({required this.label});
-  final String label;
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 12),
-    child: Text(label, style: AppTextStyles.bodySm.copyWith(color: context.colors.onSurfaceVariant)),
-  );
 }

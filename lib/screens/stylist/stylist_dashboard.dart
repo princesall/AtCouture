@@ -6,6 +6,7 @@ import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/plan_guard.dart';
+import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../models/order_status.dart';
 import '../../providers/auth_provider.dart';
@@ -218,15 +219,21 @@ class StylistDashboard extends StatelessWidget {
 
     if (recentOrders.isEmpty) {
       return Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: c.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(20),
           boxShadow: c.premiumShadow,
         ),
-        child: Text(
-          'Aucune commande récente',
-          style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
+        child: EmptyState(
+          title: 'Aucune commande pour l\'instant',
+          subtitle: 'Créez votre première commande pour la voir apparaître ici',
+          icon: Icons.receipt_long_outlined,
+          action: ElevatedButton.icon(
+            onPressed: () => onNavTap?.call(2),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Créer une commande'),
+          ),
         ),
       ).animate().fadeIn(delay: 500.ms, duration: 500.ms);
     }

@@ -9,6 +9,7 @@ class Atelier extends Equatable {
     required this.name,
     required this.headStylistId,
     required this.headStylistName,
+    this.headStylistPhone,
     this.companyId,
     this.address,
     this.tailorIds = const [],
@@ -25,6 +26,14 @@ class Atelier extends Equatable {
   /// envoie aux couturiers de sa maison).
   final String headStylistId;
   final String headStylistName;
+
+  /// Dupliqué ici (comme headStylistName) pour que les couturiers de cet
+  /// atelier puissent contacter leur chef directement (voir
+  /// TailorShell._TailorProfile) sans avoir besoin de lire son document
+  /// users/{headStylistId} — les règles Firestore ne le leur permettent pas
+  /// (seul un membre du staff qui GÈRE l'atelier peut lire ce doc, pas un
+  /// simple couturier rattaché).
+  final String? headStylistPhone;
 
   /// Si non-null, cet atelier appartient à une Entreprise (plan Entreprise).
   /// `companyId` == l'UID du Chef d'Entreprise propriétaire (companyOwner).
@@ -44,6 +53,7 @@ class Atelier extends Equatable {
     String? name,
     String? headStylistId,
     String? headStylistName,
+    String? headStylistPhone,
     String? companyId,
     String? address,
     List<String>? tailorIds,
@@ -57,6 +67,7 @@ class Atelier extends Equatable {
       name: name ?? this.name,
       headStylistId: headStylistId ?? this.headStylistId,
       headStylistName: headStylistName ?? this.headStylistName,
+      headStylistPhone: headStylistPhone ?? this.headStylistPhone,
       companyId: companyId ?? this.companyId,
       address: address ?? this.address,
       tailorIds: tailorIds ?? this.tailorIds,
@@ -73,6 +84,7 @@ class Atelier extends Equatable {
       name: map['name'] as String? ?? '',
       headStylistId: map['headStylistId'] as String? ?? '',
       headStylistName: map['headStylistName'] as String? ?? '',
+      headStylistPhone: map['headStylistPhone'] as String?,
       companyId: map['companyId'] as String?,
       address: map['address'] as String?,
       tailorIds: List<String>.from(map['tailorIds'] as List? ?? []),
@@ -88,6 +100,7 @@ class Atelier extends Equatable {
       'name': name,
       'headStylistId': headStylistId,
       'headStylistName': headStylistName,
+      'headStylistPhone': headStylistPhone,
       'companyId': companyId,
       'address': address,
       'tailorIds': tailorIds,

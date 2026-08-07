@@ -271,11 +271,23 @@ class _StylistCardState extends State<_StylistCard> {
                 Text(s.user.atelierName ?? '', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 8),
                 Row(children: [
-                  // Badge plan
+                  // Badge plan — un Chef d'atelier créé par une Entreprise
+                  // (companyId non-null) n'est PAS un abonné distinct : son
+                  // plan "enterprise" codé en dur n'existe que pour lui
+                  // donner les mêmes droits que son entreprise, l'abonnement
+                  // réel est celui du Chef d'Entreprise. Lui afficher le même
+                  // badge "ENTERPRISE" que son patron laissait croire à deux
+                  // abonnements distincts (voir aussi le comptage KPI admin).
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: planBg, borderRadius: BorderRadius.circular(999)),
-                    child: Text(s.user.plan.name.toUpperCase(), style: AppTextStyles.labelXs.copyWith(color: planColor)),
+                    decoration: BoxDecoration(
+                      color: s.user.companyId != null ? c.surfaceContainerHigh : planBg,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      s.user.companyId != null ? 'CHEF D\'ATELIER' : s.user.plan.name.toUpperCase(),
+                      style: AppTextStyles.labelXs.copyWith(color: s.user.companyId != null ? c.onSurfaceVariant : planColor),
+                    ),
                   ),
                   const SizedBox(width: 6),
                   _TransitionBadge(userId: s.user.id, plan: s.user.plan),
@@ -481,6 +493,7 @@ class _PlanChangeSheet extends StatefulWidget {
 class _PlanChangeSheetState extends State<_PlanChangeSheet> {
   SubscriptionPlan? _selected;
   bool _done = false;
+  bool _isSubmitting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -523,13 +536,19 @@ class _PlanChangeSheetState extends State<_PlanChangeSheet> {
         )),
         const SizedBox(height: 12),
         SizedBox(width: double.infinity, child: ElevatedButton(
-          onPressed: _selected == null ? null : () async {
+          onPressed: _selected == null || _isSubmitting ? null : () async {
+            setState(() => _isSubmitting = true);
             await AdminDemoData.applyManualPlanChange(widget.entry.user.id, _selected!);
             if (!mounted) return;
-            setState(() => _done = true);
+            setState(() {
+              _done = true;
+              _isSubmitting = false;
+            });
           },
           style: ElevatedButton.styleFrom(backgroundColor: c.primary, foregroundColor: c.onPrimary, disabledBackgroundColor: c.surfaceContainerHigh, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
-          child: Text('APPLIQUER LE CHANGEMENT', style: AppTextStyles.labelCaps.copyWith(color: _selected == null ? c.onSurfaceVariant : c.onPrimary)),
+          child: _isSubmitting
+              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: c.onPrimary))
+              : Text('APPLIQUER LE CHANGEMENT', style: AppTextStyles.labelCaps.copyWith(color: _selected == null ? c.onSurfaceVariant : c.onPrimary)),
         )),
       ]),
     );

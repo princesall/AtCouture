@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -7,8 +8,10 @@ import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/stitch_widgets.dart';
+import '../../models/atelier.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/company_service.dart';
 import '../../services/subscription_service.dart';
 import '../shared/contact_support_screen.dart';
 import '../shared/system_notifications_screen.dart';
@@ -107,7 +110,26 @@ class _TailorShellState extends State<TailorShell> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Onglet Profil Couturier
 // ─────────────────────────────────────────────────────────────────────────────
-class _TailorProfile extends StatelessWidget {
+class _TailorProfile extends StatefulWidget {
+  @override
+  State<_TailorProfile> createState() => _TailorProfileState();
+}
+
+class _TailorProfileState extends State<_TailorProfile> {
+  Atelier? _atelier;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = context.read<AuthProvider>().user!;
+    if (user.atelierId != null) {
+      CompanyService.instance.fetchAtelier(user.atelierId!).then((a) {
+        if (!mounted) return;
+        setState(() => _atelier = a);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
@@ -146,6 +168,27 @@ class _TailorProfile extends StatelessWidget {
                 subtitle: Text(user.atelierName ?? '—', style: AppTextStyles.bodyLg),
               ),
             ),
+            // Contact direct du Chef d'atelier — n'apparaît que si son
+            // numéro est connu (voir Atelier.headStylistPhone, dupliqué
+            // depuis son compte car un couturier ne peut pas lire le
+            // document users/{headStylistId} d'après firestore.rules).
+            if (_atelier?.headStylistPhone != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: c.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
+                  boxShadow: c.softShadow,
+                ),
+                child: ListTile(
+                  leading: Icon(Icons.support_agent_rounded, color: c.secondary, size: 22),
+                  title: Text('Contacter mon chef d\'atelier', style: AppTextStyles.labelCaps),
+                  subtitle: Text('${_atelier!.headStylistName} · ${_atelier!.headStylistPhone}', style: AppTextStyles.bodyLg),
+                  trailing: Icon(Icons.call_outlined, color: c.primary),
+                  onTap: () => launchUrl(Uri.parse('tel:${_atelier!.headStylistPhone}')),
+                ),
+              ),
             Container(
               decoration: BoxDecoration(
                 color: c.surfaceContainerLowest,

@@ -9,6 +9,7 @@ import '../../core/utils/formatters.dart';
 import '../../data/admin_demo_data.dart';
 import '../../models/subscription_plan.dart';
 import 'admin_dashboard.dart';
+import 'subscription_request_card.dart';
 
 class AdminSubscriptionsScreen extends StatefulWidget {
   const AdminSubscriptionsScreen({super.key});
@@ -180,9 +181,6 @@ class _PendingTab extends StatefulWidget {
   State<_PendingTab> createState() => _PendingTabState();
 }
 class _PendingTabState extends State<_PendingTab> {
-  final Set<String> _approved = {};
-  final Set<String> _rejected = {};
-
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -198,83 +196,10 @@ class _PendingTabState extends State<_PendingTab> {
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-      children: pending.map((s) {
-        final id = s.user.id;
-        final isApproved = _approved.contains(id);
-        final isRejected = _rejected.contains(id);
-
-        if (isApproved || isRejected) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isApproved ? c.statusDoneBg : c.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isApproved ? c.statusDone.withValues(alpha: 0.3) : c.outlineVariant.withValues(alpha: 0.3)),
-              ),
-              child: Row(children: [
-                Icon(isApproved ? Icons.check_circle_rounded : Icons.cancel_rounded, color: isApproved ? c.statusDone : c.onSurfaceVariant, size: 20),
-                const SizedBox(width: 12),
-                Text(isApproved ? '${s.user.fullName} — Approuvé' : '${s.user.fullName} — Refusé', style: AppTextStyles.bodySm.copyWith(fontWeight: FontWeight.w600, color: isApproved ? c.statusDone : c.onSurfaceVariant)),
-              ]),
-            ),
-          );
-        }
-
-        final req = s.subscriptionRequest!;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: c.surfaceContainerLowest, borderRadius: BorderRadius.circular(20), border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)), boxShadow: c.softShadow),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                StylistAvatar(name: s.user.fullName, isOnline: s.isOnline),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(s.user.fullName, style: AppTextStyles.titleSm),
-                  Text(s.user.atelierName ?? '', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
-                ])),
-              ]),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: c.primaryFixed.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-                child: Row(children: [
-                  Icon(Icons.swap_horiz_rounded, color: c.primary, size: 20),
-                  const SizedBox(width: 10),
-                  Text('${s.user.plan.name} → ${req.requestedPlan.name}', style: AppTextStyles.titleSm.copyWith(color: c.primary, fontSize: 14)),
-                  const Spacer(),
-                  Text(req.requestedPlan.priceLabel, style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
-                ]),
-              ),
-              const SizedBox(height: 14),
-              Row(children: [
-                Expanded(child: OutlinedButton(
-                  onPressed: () async {
-                    await AdminDemoData.rejectRequest(id);
-                    if (!mounted) return;
-                    setState(() => _rejected.add(id));
-                  },
-                  style: OutlinedButton.styleFrom(foregroundColor: c.error, side: BorderSide(color: c.error.withValues(alpha: 0.4)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 12)),
-                  child: Text('REFUSER', style: AppTextStyles.labelCaps.copyWith(color: c.error)),
-                )),
-                const SizedBox(width: 12),
-                Expanded(child: ElevatedButton(
-                  onPressed: () async {
-                    await AdminDemoData.approveRequest(id);
-                    if (!mounted) return;
-                    setState(() => _approved.add(id));
-                  },
-                  style: ElevatedButton.styleFrom(backgroundColor: c.primary, foregroundColor: c.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 12), elevation: 0),
-                  child: Text('APPROUVER', style: AppTextStyles.labelCaps.copyWith(color: c.onPrimary)),
-                )),
-              ]),
-            ]),
-          ).animate().fadeIn(delay: const Duration(milliseconds: 80), duration: 400.ms),
-        );
-      }).toList(),
+      children: pending.map((s) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: SubscriptionRequestCard(entry: s),
+      ).animate().fadeIn(delay: const Duration(milliseconds: 80), duration: 400.ms)).toList(),
     );
   }
 }
@@ -365,28 +290,42 @@ class _ExpiringTabState extends State<_ExpiringTab> {
     final c = context.colors;
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: c.surfaceContainerLowest,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Renouveler l\'abonnement', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
-        content: Text(
-          'Renouveler le plan ${s.user.plan.name} de ${s.user.fullName} pour 12 mois ?',
-          style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('ANNULER', style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant))),
-          ElevatedButton(
-            onPressed: () async {
-              await AdminDemoData.renewSubscription(s.user.id);
-              if (!context.mounted) return;
-              Navigator.pop(context);
-              setState(() {});
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: c.primary, foregroundColor: c.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), elevation: 0),
-            child: Text('CONFIRMER', style: AppTextStyles.labelCaps.copyWith(color: c.onPrimary)),
-          ),
-        ],
-      ),
+      builder: (dialogContext) {
+        var isSubmitting = false;
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              backgroundColor: c.surfaceContainerLowest,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text('Renouveler l\'abonnement', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
+              content: Text(
+                'Renouveler le plan ${s.user.plan.name} de ${s.user.fullName} pour 12 mois ?',
+                style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                  child: Text('ANNULER', style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant)),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting ? null : () async {
+                    setDialogState(() => isSubmitting = true);
+                    await AdminDemoData.renewSubscription(s.user.id);
+                    if (!dialogContext.mounted) return;
+                    Navigator.pop(dialogContext);
+                    if (!mounted) return;
+                    setState(() {});
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: c.primary, foregroundColor: c.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), elevation: 0),
+                  child: isSubmitting
+                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: c.onPrimary))
+                      : Text('CONFIRMER', style: AppTextStyles.labelCaps.copyWith(color: c.onPrimary)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

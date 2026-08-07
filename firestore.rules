@@ -53,7 +53,7 @@ service cloud.firestore {
     // JAMAIS utiliser ceci pour la lecture de users/{userId} par son
     // propriétaire : c'est cette lecture-là (toujours autorisée, voir
     // isOwnUser) qui permet à l'app de détecter la suspension et de se
-    // déconnecter (voir AuthService.watchAccountSuspension).
+    // déconnecter (voir AuthService.watchOwnUserDoc).
     function isActiveUser() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/users/$(uid()))
@@ -141,14 +141,22 @@ service cloud.firestore {
       allow update: if isAdmin()
         || (
           isOwnUser(userId)
+          && isActiveUser()
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['fullName', 'phone', 'photoUrl', 'mustChangePassword'])
         )
         || (
           resource.data.role == 'tailor'
           && managesAtelier(resource.data.atelierId)
+          // Champ atelierId/atelierName modifiable UNIQUEMENT si l'acteur
+          // gère AUSSI l'atelier de destination (voir
+          // CompanyService.reassignTailor) — en pratique, seul le Chef
+          // d'Entreprise gère plusieurs ateliers à la fois (isAtelierCompanyOwner),
+          // donc seul lui peut réellement bouger un couturier entre deux
+          // ateliers différents.
+          && managesAtelier(request.resource.data.atelierId)
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['fullName', 'phone', 'email', 'isActive'])
+               .hasOnly(['fullName', 'phone', 'email', 'isActive', 'atelierId', 'atelierName'])
         )
         || (
           resource.data.role == 'stylist'
@@ -170,10 +178,18 @@ service cloud.firestore {
     match /companies/{companyId} {
       allow read: if isAdmin() || (isActiveUser() && resource.data.ownerId == uid());
 
-      // Auto-création par le Chef d'Entreprise, uniquement pour lui-même.
-      allow create: if isActiveUser()
-        && request.resource.data.ownerId == uid()
-        && myRole() == 'companyOwner';
+      // Auto-création par le Chef d'Entreprise, uniquement pour lui-même —
+      // OU par l'admin, qui crée la structure Company pour le compte du
+      // NOUVEAU propriétaire lors de l'approbation d'un abonnement Entreprise
+      // (voir CompanyService.createCompanyForNewOwner, appelé par
+      // AdminDemoData._applyPlan avec l'admin comme uid() actif, pas le
+      // futur owner — sans ce fallback, cette écriture était toujours
+      // rejetée en prod et le passage au plan Entreprise ne fonctionnait
+      // jamais).
+      allow create: if isAdmin()
+        || (isActiveUser()
+            && request.resource.data.ownerId == uid()
+            && myRole() == 'companyOwner');
 
       allow update: if isAdmin() || (isActiveUser() && resource.data.ownerId == uid());
       allow delete: if isAdmin();
@@ -198,7 +214,23 @@ service cloud.firestore {
         || (isActiveUser() && myRole() == 'companyOwner' && request.resource.data.companyId == uid())
       );
 
-      allow update: if isAdmin() || managesAtelier(atelierId);
+      // Mise à jour : companyId n'est JAMAIS modifiable par un non-admin (empêcherait
+      // de détacher un atelier vers une autre entreprise). headStylistId/
+      // headStylistName (transfert de gestion — voir CompanyService.
+      // assignHeadToExistingAtelier / removeAtelierHead) réservés au Chef
+      // d'Entreprise : un simple Chef d'atelier ne gère que ses couturiers et
+      // les infos de base de SON atelier, jamais qui le dirige.
+      allow update: if isAdmin()
+        || (
+          isAtelierCompanyOwner(atelierId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['name', 'address', 'tailorIds', 'headStylistId', 'headStylistName', 'headStylistPhone'])
+        )
+        || (
+          isAtelierHead(atelierId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['name', 'address', 'tailorIds'])
+        );
 
       // Suppression réservée au propriétaire (companyOwner) ou à l'admin —
       // action destructrice, on évite de la laisser au simple chef d'atelier.
@@ -221,7 +253,8 @@ service cloud.firestore {
       allow update: if isAdmin()
         || managesAtelier(resource.data.atelierId)
         || (
-          resource.data.tailorId == uid()
+          isActiveUser()
+          && resource.data.tailorId == uid()
           && request.resource.data.atelierId == resource.data.atelierId
           && request.resource.data.tailorId == resource.data.tailorId
         );
@@ -233,6 +266,21 @@ service cloud.firestore {
     match /clients/{clientId} {
       allow read, write: if isAdmin() || managesAtelier(resource.data.atelierId);
       allow create: if isSignedIn() && managesAtelier(request.resource.data.atelierId);
+    }
+
+    // ── supportMessages/{messageId} — SupportMessage ───────────────────
+    // Signalement d'un compte à l'admin + réponse éventuelle — voir
+    // SupportMessageService/ContactSupportScreen/AdminMessagesScreen.
+    match /supportMessages/{messageId} {
+      // L'expéditeur voit ses propres messages, l'admin voit tout.
+      allow read: if isAdmin() || (isSignedIn() && resource.data.senderId == uid());
+
+      // Un compte ne peut créer un signalement que pour lui-même.
+      allow create: if isActiveUser() && request.resource.data.senderId == uid();
+
+      // Seul l'admin répond / marque comme lu — jamais l'expéditeur.
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // ── systemMessages/{messageId} — SystemMessage ────────────────────
@@ -274,6 +322,23 @@ service cloud.firestore {
       // paiement en Phase 4, mais le principe reste : jamais le client.
       allow update: if isAdmin();
       allow delete: if isAdmin();
+    }
+
+    // ── companyBranding/{companyId} — CompanyBranding ─────────────────
+    // Personnalisation (nom + couleur) appliquée aux PDF générés (factures,
+    // devis) — voir CompanyCustomizationService/OrderPdf. Document ID ==
+    // companyId == uid() du Chef d'Entreprise propriétaire.
+    match /companyBranding/{companyId} {
+      // Lecture ouverte à tout le staff de cette entreprise (un Chef
+      // d'atelier ou Couturier qui génère un PDF a besoin de lire cette
+      // marque), pas seulement au propriétaire.
+      allow read: if isAdmin()
+        || (isActiveUser() && (uid() == companyId || myUser().companyId == companyId));
+
+      // Écriture réservée au Chef d'Entreprise propriétaire (seul point
+      // d'entrée aujourd'hui : CompanyCustomizationScreen, gardé par
+      // permissions.hasCustomization).
+      allow write: if isAdmin() || (isActiveUser() && uid() == companyId);
     }
 
     // Tout le reste est fermé par défaut.

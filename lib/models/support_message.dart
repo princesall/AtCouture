@@ -45,4 +45,31 @@ class SupportMessage {
       repliedAt: repliedAt ?? this.repliedAt,
     );
   }
+
+  factory SupportMessage.fromMap(Map<String, dynamic> map, String id) {
+    return SupportMessage(
+      id: id,
+      senderId: map['senderId'] as String? ?? '',
+      senderName: map['senderName'] as String? ?? '',
+      senderRole: map['senderRole'] as String? ?? '',
+      content: map['content'] as String? ?? '',
+      sentAt: DateTime.tryParse(map['sentAt'] as String? ?? '') ?? DateTime.now(),
+      isRead: map['isRead'] as bool? ?? false,
+      reply: map['reply'] as String?,
+      repliedAt: map['repliedAt'] != null ? DateTime.tryParse(map['repliedAt'] as String) : null,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'senderId': senderId,
+      'senderName': senderName,
+      'senderRole': senderRole,
+      'content': content,
+      'sentAt': sentAt.toIso8601String(),
+      'isRead': isRead,
+      'reply': reply,
+      'repliedAt': repliedAt?.toIso8601String(),
+    };
+  }
 }

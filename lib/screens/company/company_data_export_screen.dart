@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
+import '../../core/utils/plan_guard.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
 
@@ -19,6 +20,9 @@ class CompanyDataExportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    if (!user.permissions.hasApiExport) {
+      return PlanLockedScreen(title: 'Export de données', message: user.permissions.apiExportLockedMessage);
+    }
     final companyId = user.companyId ?? user.id;
     final ateliers = CompanyService.instance.ateliersOfCompany(companyId);
     final clients = CompanyService.instance.allClientsOfCompany(companyId);

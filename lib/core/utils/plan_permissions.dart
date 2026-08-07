@@ -156,6 +156,11 @@ class PlanPermissions {
       ? 'Votre abonnement a expiré. Renouvelez-le pour retrouver votre gestionnaire dédié.'
       : 'Gestionnaire dédié disponible avec le plan Entreprise';
 
+  String get canAddAtelierMessage {
+    if (isUnlimitedAteliers) return '';
+    return 'Limite de $maxAteliers atelier${maxAteliers > 1 ? 's' : ''} atteinte pour votre plan.';
+  }
+
   String get canAddTailorMessage {
     if (isUnlimitedTailors) return '';
     return 'Limite de $maxTailorsPerAtelier couturier${maxTailorsPerAtelier > 1 ? 's' : ''} atteinte pour votre plan.';

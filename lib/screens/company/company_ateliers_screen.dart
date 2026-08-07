@@ -6,7 +6,9 @@ import 'package:uuid/uuid.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
+import '../../core/utils/firebase_error_messages.dart';
 import '../../core/utils/formatters.dart';
+import '../../core/utils/plan_guard.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../models/app_user.dart';
 import '../../providers/auth_provider.dart';
@@ -47,7 +49,16 @@ class _CompanyAteliersScreenState extends State<CompanyAteliersScreen> {
           ])),
           if (permissions.canCreateAtelierHead)
             GestureDetector(
-              onTap: () => _showCreateAtelierSheet(context, user.id),
+              onTap: () {
+                if (PlanGuard.requireCapacity(
+                  context: context,
+                  hasCapacity: permissions.canAddAtelier(ateliers.length),
+                  resourceName: 'atelier',
+                  lockedMessage: permissions.canAddAtelierMessage,
+                )) {
+                  _showCreateAtelierSheet(context, user.id);
+                }
+              },
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(gradient: c.heroGradient, borderRadius: BorderRadius.circular(14),
@@ -66,6 +77,12 @@ class _CompanyAteliersScreenState extends State<CompanyAteliersScreen> {
             atelier: ateliers[i],
             index: i,
             isOwnerAtelier: ateliers[i].headStylistId == user.id,
+            // Le vrai atelier personnel du Chef d'Entreprise est celui créé
+            // à l'activation du plan Entreprise, lié à SON PROPRE atelierId
+            // — à distinguer d'un atelier repris après le renvoi d'un chef
+            // (même headStylistId == user.id, mais un id d'atelier différent).
+            isTruePersonalAtelier: ateliers[i].id == user.atelierId,
+            companyId: user.id,
             onChanged: () => setState(() {}),
           ),
         ),
@@ -85,20 +102,39 @@ class _CompanyAteliersScreenState extends State<CompanyAteliersScreen> {
 }
 
 class _AtelierCard extends StatefulWidget {
-  const _AtelierCard({required this.atelier, required this.index, required this.isOwnerAtelier, required this.onChanged});
-  final dynamic atelier; final int index; final bool isOwnerAtelier; final VoidCallback onChanged;
+  const _AtelierCard({
+    required this.atelier,
+    required this.index,
+    required this.isOwnerAtelier,
+    required this.isTruePersonalAtelier,
+    required this.companyId,
+    required this.onChanged,
+  });
+  final dynamic atelier;
+  final int index;
+  final bool isOwnerAtelier;
+  final bool isTruePersonalAtelier;
+  final String companyId;
+  final VoidCallback onChanged;
   @override
   State<_AtelierCard> createState() => _AtelierCardState();
 }
 class _AtelierCardState extends State<_AtelierCard> {
   bool _expanded = false;
 
+  /// Atelier géré directement par le Chef d'Entreprise, mais PAS son vrai
+  /// atelier personnel — repris après le renvoi d'un chef (voir
+  /// CompanyService.removeAtelierHead). Sans chef dédié tant que le Chef
+  /// d'Entreprise n'en a pas nommé un nouveau (voir assignHeadToExistingAtelier).
+  bool get _isReclaimed => widget.isOwnerAtelier && !widget.isTruePersonalAtelier;
+
   @override
   Widget build(BuildContext context) {
     final a = widget.atelier;
     final c = context.colors;
-    // null pour l'atelier "personnel" du Chef d'Entreprise : il n'y a pas de
-    // compte Chef d'atelier séparé à gérer, la tête EST le compte connecté.
+    // null pour l'atelier "personnel" du Chef d'Entreprise ET pour un atelier
+    // repris (_isReclaimed) : dans les deux cas, il n'y a pas de compte Chef
+    // d'atelier séparé à gérer, la tête EST le compte connecté.
     final AppUser? head = widget.isOwnerAtelier
         ? null
         : CompanyService.instance.findAccountById(a.headStylistId as String);
@@ -119,17 +155,29 @@ class _AtelierCardState extends State<_AtelierCard> {
               Container(
                 width: 52, height: 52,
                 decoration: BoxDecoration(
-                  gradient: widget.isOwnerAtelier ? c.goldGradient : null,
-                  color: widget.isOwnerAtelier ? null : c.primaryFixed.withValues(alpha: 0.35),
+                  gradient: widget.isOwnerAtelier ? (_isReclaimed ? null : c.goldGradient) : null,
+                  color: _isReclaimed
+                      ? c.error.withValues(alpha: 0.12)
+                      : (widget.isOwnerAtelier ? null : c.primaryFixed.withValues(alpha: 0.35)),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(widget.isOwnerAtelier ? Icons.star_rounded : Icons.storefront_rounded, color: widget.isOwnerAtelier ? c.onTertiary : c.primary, size: 24),
+                child: Icon(
+                  _isReclaimed ? Icons.person_off_outlined : (widget.isOwnerAtelier ? Icons.star_rounded : Icons.storefront_rounded),
+                  color: _isReclaimed ? c.error : (widget.isOwnerAtelier ? c.onTertiary : c.primary),
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   Expanded(child: Text(a.name as String, style: AppTextStyles.titleSm, maxLines: 1, overflow: TextOverflow.ellipsis)),
-                  if (widget.isOwnerAtelier)
+                  if (_isReclaimed)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(color: c.error.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
+                      child: Text('SANS CHEF', style: AppTextStyles.labelXs.copyWith(color: c.error, fontSize: 8)),
+                    )
+                  else if (widget.isOwnerAtelier)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(gradient: c.goldGradient, borderRadius: BorderRadius.circular(999)),
@@ -138,7 +186,9 @@ class _AtelierCardState extends State<_AtelierCard> {
                 ]),
                 const SizedBox(height: 2),
                 Row(children: [
-                  Flexible(child: Text(widget.isOwnerAtelier ? 'Vous gérez directement cet atelier' : 'Chef : ${a.headStylistName}', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant), overflow: TextOverflow.ellipsis)),
+                  Flexible(child: Text(
+                    _isReclaimed ? 'Repris — géré par vous en attendant un nouveau chef' : (widget.isOwnerAtelier ? 'Vous gérez directement cet atelier' : 'Chef : ${a.headStylistName}'),
+                    style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant), overflow: TextOverflow.ellipsis)),
                   if (head != null && !head.isActive) ...[
                     const SizedBox(width: 6),
                     Container(
@@ -159,6 +209,14 @@ class _AtelierCardState extends State<_AtelierCard> {
                     PopupMenuItem(value: 'toggleActive', child: Text(head.isActive ? 'Suspendre' : 'Réactiver')),
                     const PopupMenuItem(value: 'resetLink', child: Text('Envoyer un lien de réinitialisation')),
                     const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+                  ],
+                )
+              else if (_isReclaimed)
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert_rounded, color: c.onSurfaceVariant),
+                  onSelected: (action) => _onReclaimedAction(context, action, a),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: 'assignHead', child: Text('Assigner un nouveau chef')),
                   ],
                 ),
               Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded, color: c.onSurfaceVariant),
@@ -184,7 +242,24 @@ class _AtelierCardState extends State<_AtelierCard> {
       case 'resetLink':
         sendAccountResetLink(context, head);
       case 'delete':
-        confirmAndRemoveAtelierHead(context, head, widget.onChanged);
+        confirmAndRemoveAtelierHead(context, head, widget.onChanged, atelierId: widget.atelier.id as String);
+    }
+  }
+
+  void _onReclaimedAction(BuildContext context, String action, dynamic atelier) {
+    if (action == 'assignHead') {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: context.colors.surfaceContainerLowest,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        builder: (_) => _AssignHeadSheet(
+          atelierId: atelier.id as String,
+          atelierName: atelier.name as String,
+          companyId: widget.companyId,
+          onAssigned: widget.onChanged,
+        ),
+      );
     }
   }
 
@@ -299,6 +374,17 @@ class _AtelierCardState extends State<_AtelierCard> {
   }
 
   void _showAddTailorSheet(BuildContext context, dynamic atelier) {
+    final permissions = context.read<AuthProvider>().user!.permissions;
+    final currentCount = CompanyService.instance.tailorsOfAtelier(atelier.id as String).length;
+    if (!PlanGuard.requireCapacity(
+      context: context,
+      hasCapacity: permissions.canAddTailor(currentCount),
+      resourceName: 'couturier',
+      lockedMessage: permissions.canAddTailorMessage,
+    )) {
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: context.colors.surfaceContainerLowest,
@@ -380,7 +466,7 @@ class _CreateAtelierSheetState extends State<_CreateAtelierSheet> {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur lors de la création de l\'atelier : $e')),
+        SnackBar(content: Text(friendlyFirebaseError(e))),
       );
     }
   }
@@ -419,6 +505,101 @@ class _CreateAtelierSheetState extends State<_CreateAtelierSheet> {
           child: _isSubmitting
               ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: c.onPrimary))
               : Text('CRÉER L\'ATELIER', style: AppTextStyles.labelCaps.copyWith(color: c.onPrimary, letterSpacing: 1.2)),
+        )),
+      ])),
+    );
+  }
+}
+
+// ── Bottom sheet assignation d'un chef à un atelier EXISTANT (repris) ───────
+class _AssignHeadSheet extends StatefulWidget {
+  const _AssignHeadSheet({
+    required this.atelierId,
+    required this.atelierName,
+    required this.companyId,
+    required this.onAssigned,
+  });
+  final String atelierId;
+  final String atelierName;
+  final String companyId;
+  final VoidCallback onAssigned;
+  @override
+  State<_AssignHeadSheet> createState() => _AssignHeadSheetState();
+}
+class _AssignHeadSheetState extends State<_AssignHeadSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _headName = TextEditingController();
+  final _email = TextEditingController();
+  final _phone = TextEditingController();
+  bool _assigned = false;
+  bool _isSubmitting = false;
+  final String _idempotencyKey = const Uuid().v4();
+  String _temporaryPassword = '';
+
+  @override
+  void dispose() {
+    _headName.dispose(); _email.dispose(); _phone.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_isSubmitting || !_formKey.currentState!.validate()) return;
+    setState(() => _isSubmitting = true);
+    try {
+      final result = await CompanyService.instance.assignHeadToExistingAtelier(
+        atelierId: widget.atelierId,
+        atelierName: widget.atelierName,
+        companyId: widget.companyId,
+        fullName: _headName.text,
+        email: _email.text,
+        phone: _phone.text,
+        idempotencyKey: _idempotencyKey,
+      );
+      if (!mounted) return;
+      setState(() {
+        _assigned = true;
+        _temporaryPassword = result.temporaryPassword;
+      });
+      widget.onAssigned();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(friendlyFirebaseError(e))),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    if (_assigned) {
+      return SuccessConfirmationSheet(
+        title: 'Chef assigné !',
+        message: '${_headName.text} gère maintenant "${widget.atelierName}" — avec tout son historique '
+            '(couturiers, clients, commandes) déjà intact. Il peut se connecter avec :\n${_email.text}\n'
+            'Mot de passe temporaire : $_temporaryPassword',
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Form(key: _formKey, child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Nouveau Chef d\'atelier', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
+        Text('Pour : ${widget.atelierName} (avec son historique existant)', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
+        const SizedBox(height: 20),
+        TextFormField(controller: _headName, decoration: const InputDecoration(labelText: 'NOM COMPLET', hintText: 'Prénom Nom'), validator: (v) => v == null || v.isEmpty ? 'Requis' : null),
+        const SizedBox(height: 14),
+        TextFormField(controller: _email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'EMAIL', hintText: 'chef@atelier.ml'), validator: (v) => v == null || !v.contains('@') ? 'Email invalide' : null),
+        const SizedBox(height: 14),
+        TextFormField(controller: _phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'TÉLÉPHONE', hintText: '+223 70 00 00 00'), validator: (v) => v == null || v.isEmpty ? 'Requis' : null),
+        const SizedBox(height: 24),
+        SizedBox(width: double.infinity, child: ElevatedButton(
+          onPressed: _isSubmitting ? null : _submit,
+          style: ElevatedButton.styleFrom(backgroundColor: c.primary, foregroundColor: c.onPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
+          child: _isSubmitting
+              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: c.onPrimary))
+              : Text('ASSIGNER LE CHEF', style: AppTextStyles.labelCaps.copyWith(color: c.onPrimary, letterSpacing: 1.2)),
         )),
       ])),
     );
@@ -470,7 +651,7 @@ class _CreateTailorSheetState extends State<_CreateTailorSheet> {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur lors de l\'ajout du couturier : $e')),
+        SnackBar(content: Text(friendlyFirebaseError(e))),
       );
     }
   }

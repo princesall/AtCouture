@@ -32,7 +32,7 @@ class AuthProvider extends ChangeNotifier {
     if (current != null) {
       _user = current;
       _status = AuthStatus.authenticated;
-      _watchSuspension();
+      _watchOwnUser();
     } else {
       _status = AuthStatus.unauthenticated;
     }
@@ -45,7 +45,7 @@ class AuthProvider extends ChangeNotifier {
       _user = await _authService.signIn(email: email, password: password);
       _status = AuthStatus.authenticated;
       _errorMessage = null;
-      _watchSuspension();
+      _watchOwnUser();
       notifyListeners();
       return true;
     } on AuthException catch (e) {
@@ -77,7 +77,7 @@ class AuthProvider extends ChangeNotifier {
       );
       _status = AuthStatus.authenticated;
       _errorMessage = null;
-      _watchSuspension();
+      _watchOwnUser();
       notifyListeners();
       return true;
     } on AuthException catch (e) {
@@ -103,7 +103,7 @@ class AuthProvider extends ChangeNotifier {
         _user = result.user;
         _status = AuthStatus.authenticated;
         _errorMessage = null;
-        _watchSuspension();
+        _watchOwnUser();
       } else {
         // Compte Firebase Auth créé mais profil pas encore complété — pas
         // encore "authentifié" au sens de l'app tant que users/{uid} n'existe pas.
@@ -144,7 +144,7 @@ class AuthProvider extends ChangeNotifier {
       );
       _status = AuthStatus.authenticated;
       _errorMessage = null;
-      _watchSuspension();
+      _watchOwnUser();
       notifyListeners();
       return true;
     } on AuthException catch (e) {
@@ -218,16 +218,23 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Démarre la surveillance temps réel du compte connecté : si un admin le
-  /// suspend pendant que la session est déjà ouverte, force une déconnexion
-  /// immédiate au lieu d'attendre la prochaine connexion (voir
-  /// AuthService.watchAccountSuspension).
-  void _watchSuspension() {
-    _authService.watchAccountSuspension(() {
-      _authService.signOut();
-      _user = null;
-      _status = AuthStatus.unauthenticated;
-      _errorMessage = 'Votre compte a été suspendu par un administrateur.';
+  /// Démarre la surveillance temps réel du compte connecté (voir
+  /// AuthService.watchOwnUserDoc) : si un admin le suspend pendant que la
+  /// session est déjà ouverte, force une déconnexion immédiate au lieu
+  /// d'attendre la prochaine connexion ; sinon, tient `user` à jour en
+  /// permanence (ex: un upgrade de plan approuvé par l'admin en session
+  /// débloque désormais les fonctionnalités immédiatement, sans reconnexion).
+  void _watchOwnUser() {
+    _authService.watchOwnUserDoc((updatedUser) {
+      if (!updatedUser.isActive) {
+        _authService.signOut();
+        _user = null;
+        _status = AuthStatus.unauthenticated;
+        _errorMessage = 'Votre compte a été suspendu par un administrateur.';
+        notifyListeners();
+        return;
+      }
+      _user = updatedUser;
       notifyListeners();
     });
   }

@@ -191,6 +191,22 @@ abstract final class AdminDemoData {
   static int getStylistClientCount(AppUser user) => _statsFor(user).clients;
   static int getStylistRevenue(AppUser user) => _statsFor(user).revenue;
 
+  /// Compte UNIQUEMENT vers les totaux AGRÉGÉS de la plateforme (couturiers,
+  /// commandes, revenus, abonnements payants) — PAS vers totalStylists
+  /// (headcount de comptes, où un Chef d'atelier compte légitimement comme
+  /// un compte à part). Un Chef d'atelier créé par une Entreprise (role
+  /// stylist + companyId non-null) n'est PAS un abonné distinct à ce niveau :
+  /// son activité ET son "abonnement" hérité (plan enterprise codé en dur à
+  /// sa création, jamais facturé séparément) sont déjà comptés via son Chef
+  /// d'Entreprise (_statsFor sur un companyOwner agrège TOUTE l'entreprise,
+  /// tous ateliers confondus). Sans ce filtre, chaque Chef d'atelier était
+  /// compté une deuxième fois dans totalTailors/activeOrders/monthlyRevenue,
+  /// et une Entreprise avec N Chefs d'atelier gonflait `subscriptionRevenue`
+  /// — le vrai revenu d'abonnement de StyleConnect — de (1+N) fois son
+  /// abonnement réellement facturé.
+  static bool _countsTowardPlatformTotals(AppUser user) =>
+      user.role == UserRole.companyOwner || user.companyId == null;
+
   // KPIs globaux - Calculés dynamiquement à partir des vraies données de
   // TOUS les stylistes existants (jamais d'ID d'atelier codé en dur : les
   // ateliers/companyId réels sont générés à l'inscription/l'upgrade).
@@ -199,22 +215,29 @@ abstract final class AdminDemoData {
     return _stylists.length;
   }
 
-  static int get totalTailors =>
-      stylists.fold(0, (sum, s) => sum + getStylistTailorCount(s.user));
-  static int get activeOrders =>
-      stylists.fold(0, (sum, s) => sum + getStylistOrderCount(s.user));
-  static int get monthlyRevenue =>
-      stylists.fold(0, (sum, s) => sum + getStylistRevenue(s.user));
+  static int get totalTailors => stylists
+      .where((s) => _countsTowardPlatformTotals(s.user))
+      .fold(0, (sum, s) => sum + getStylistTailorCount(s.user));
+  static int get activeOrders => stylists
+      .where((s) => _countsTowardPlatformTotals(s.user))
+      .fold(0, (sum, s) => sum + getStylistOrderCount(s.user));
+  static int get monthlyRevenue => stylists
+      .where((s) => _countsTowardPlatformTotals(s.user))
+      .fold(0, (sum, s) => sum + getStylistRevenue(s.user));
 
   /// Abonnés PAYANTS actuellement actifs (plan payant + non expiré),
   /// groupés par plan. Le plan Découverte (gratuit) n'est jamais compté.
   /// Un compte dont l'abonnement a expiré retombe sur les droits Découverte
   /// (voir AppUser.permissions) : il n'est donc plus compté ici tant qu'il
   /// n'a pas renouvelé, même si son champ `plan` affiche encore l'ancien plan.
+  /// Un Chef d'atelier (voir _countsTowardPlatformTotals) n'est jamais compté
+  /// non plus : une Entreprise = un seul abonnement, quel que soit son nombre
+  /// de Chefs d'atelier.
   static Map<SubscriptionPlan, int> get paidSubscribersByPlan {
     final counts = <SubscriptionPlan, int>{};
     for (final s in stylists) {
       final user = s.user;
+      if (!_countsTowardPlatformTotals(user)) continue;
       if (user.plan == SubscriptionPlan.free) continue;
       if (user.permissions.isExpired) continue;
       counts[user.plan] = (counts[user.plan] ?? 0) + 1;

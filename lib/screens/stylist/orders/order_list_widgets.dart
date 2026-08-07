@@ -31,7 +31,7 @@ Color orderStatusColor(AppColorPalette c, OrderStatus status) {
     case OrderStatus.completed:
       return c.secondary;
     case OrderStatus.problem:
-      return c.success;
+      return c.error;
   }
 }
 

@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
+import '../../core/utils/plan_guard.dart';
 import '../../providers/auth_provider.dart';
 
 /// Gestionnaire dédié — plan Entreprise uniquement (permissions.hasDedicatedManager).
@@ -16,6 +17,9 @@ class CompanyDedicatedManagerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    if (!user.permissions.hasDedicatedManager) {
+      return PlanLockedScreen(title: 'Gestionnaire dédié', message: user.permissions.dedicatedManagerLockedMessage);
+    }
     final c = context.colors;
 
     return Scaffold(

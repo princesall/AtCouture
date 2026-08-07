@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
+import '../../core/utils/firebase_error_messages.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../models/order.dart';
@@ -28,7 +29,7 @@ class _TailorDashboardState extends State<TailorDashboard> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
     final c = context.colors;
-    final orders = OrderService.instance.ordersOfAtelier(user.atelierId!)
+    final orders = OrderService.instance.ordersOfTailor(atelierId: user.atelierId!, tailorId: user.id)
       ..sort((a, b) => (a.dueDate ?? DateTime(9999)).compareTo(b.dueDate ?? DateTime(9999)));
 
     final inProgress = orders.where((o) => o.status == OrderStatus.inProgress).toList();
@@ -45,7 +46,7 @@ class _TailorDashboardState extends State<TailorDashboard> {
     return Column(
       children: [
         _buildGreeting(user.firstName, user.atelierName),
-        _buildStatRow(orders.length, inProgress.length, urgent.length),
+        _buildStatRow(orders.length, inProgress.length, urgent.length, done.length),
         _buildFilterChips(orders.length, inProgress.length, urgent.length, done.length),
         Expanded(
           child: filtered.isEmpty
@@ -94,37 +95,55 @@ class _TailorDashboardState extends State<TailorDashboard> {
     );
   }
 
-  Widget _buildStatRow(int total, int inProgress, int urgent) {
+  Widget _buildStatRow(int total, int inProgress, int urgent, int done) {
     final c = context.colors;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: SizedBox(
-              height: 92,
-              child: StatCard(label: 'À FAIRE', value: '$total', icon: Icons.checklist_rounded),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: SizedBox(
-              height: 92,
-              child: StatCard(
-                label: 'EN COURS', value: '$inProgress', icon: Icons.pending_actions_rounded,
-                valueColor: c.statusInProgress,
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 92,
+                  child: StatCard(label: 'À FAIRE', value: '$total', icon: Icons.checklist_rounded),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: SizedBox(
-              height: 92,
-              child: StatCard(
-                label: 'URGENT', value: '$urgent', icon: Icons.priority_high_rounded,
-                valueColor: c.error, isAlert: urgent > 0,
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 92,
+                  child: StatCard(
+                    label: 'EN COURS', value: '$inProgress', icon: Icons.pending_actions_rounded,
+                    valueColor: c.statusInProgress,
+                  ),
+                ),
               ),
-            ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 92,
+                  child: StatCard(
+                    label: 'URGENT', value: '$urgent', icon: Icons.priority_high_rounded,
+                    valueColor: c.error, isAlert: urgent > 0,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 92,
+                  child: StatCard(
+                    label: 'TERMINÉ', value: '$done', icon: Icons.check_circle_outline_rounded,
+                    valueColor: c.statusDone,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -266,9 +285,16 @@ class _TailorDashboardState extends State<TailorDashboard> {
 
   Future<void> _updateStatus(Order order, OrderStatus status) async {
     final changedBy = context.read<AuthProvider>().user!.fullName;
-    await OrderService.instance.updateOrderStatus(order.id, status, changedByName: changedBy);
-    if (!mounted) return;
-    setState(() {});
+    try {
+      await OrderService.instance.updateOrderStatus(order.id, status, changedByName: changedBy);
+      if (!mounted) return;
+      setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(friendlyFirebaseError(e))),
+      );
+    }
   }
 
   void _showStatusHistory(Order order) {

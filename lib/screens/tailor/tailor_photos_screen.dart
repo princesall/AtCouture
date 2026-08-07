@@ -24,7 +24,7 @@ class _TailorPhotosScreenState extends State<TailorPhotosScreen> {
     final user = context.watch<AuthProvider>().user!;
     final c = context.colors;
     final permissions = user.permissions;
-    final orders = OrderService.instance.ordersOfAtelier(user.atelierId!);
+    final orders = OrderService.instance.ordersOfTailor(atelierId: user.atelierId!, tailorId: user.id);
 
     // Filtrer les commandes qui ont des photos
     final ordersWithPhotos = orders.where((o) => 

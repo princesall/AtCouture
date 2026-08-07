@@ -21,7 +21,9 @@ class MeasurementSnapshot extends Equatable {
         measurements: (map['measurements'] as Map).map(
           (key, value) => MapEntry(key as String, (value as num).toDouble()),
         ),
-        recordedAt: DateTime.parse(map['recordedAt'] as String),
+        // tryParse plutôt que parse : un historique de mesures avec une date
+        // absente/corrompue ne doit jamais faire planter Client.fromMap.
+        recordedAt: DateTime.tryParse(map['recordedAt'] as String? ?? '') ?? DateTime.now(),
       );
 
   @override

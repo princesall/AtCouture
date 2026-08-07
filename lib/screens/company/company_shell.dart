@@ -97,7 +97,7 @@ class _CompanyShellState extends State<CompanyShell> {
                   CompanyAteliersScreen(),
                   CompanyClientsScreen(),
                   CompanyTailorsScreen(),
-                  CompanyOrdersScreen(),
+                  CompanyOrdersScreen(onNavTap: _onNavTap),
                   ProfileTabContent(),
                 ],
               ),

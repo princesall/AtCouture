@@ -10,6 +10,7 @@ import '../../core/utils/order_messages.dart';
 import '../../core/utils/order_pdf.dart';
 import '../../core/utils/plan_guard.dart';
 import '../../core/utils/whatsapp_launcher.dart';
+import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../models/order.dart';
 import '../../models/order_status.dart';
@@ -20,7 +21,13 @@ import '../../services/company_service.dart';
 /// Vue globale de TOUTES les commandes de TOUS les ateliers,
 /// filtrables par atelier et par statut, avec couturier assigné visible.
 class CompanyOrdersScreen extends StatefulWidget {
-  const CompanyOrdersScreen({super.key});
+  const CompanyOrdersScreen({super.key, this.onNavTap});
+
+  /// Callback vers CompanyShell pour changer d'onglet (ex: renvoyer vers
+  /// "Ateliers" quand il n'y a encore aucune commande — les commandes se
+  /// créent depuis un atelier précis, pas depuis cette vue consolidée).
+  final ValueChanged<int>? onNavTap;
+
   @override
   State<CompanyOrdersScreen> createState() => _CompanyOrdersScreenState();
 }
@@ -115,7 +122,22 @@ class _CompanyOrdersScreenState extends State<CompanyOrdersScreen> {
       // ── Liste commandes ───────────────────────────────────────────────────
       Expanded(
         child: orders.isEmpty
-            ? Center(child: Text('Aucune commande', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)))
+            ? Center(
+                child: EmptyState(
+                  title: 'Aucune commande',
+                  subtitle: _atelierFilter == null && _statusFilter == 0
+                      ? 'Les commandes se créent depuis un atelier — ouvrez-en un pour commencer'
+                      : 'Aucune commande ne correspond à ce filtre',
+                  icon: Icons.receipt_long_outlined,
+                  action: _atelierFilter == null && _statusFilter == 0
+                      ? ElevatedButton.icon(
+                          onPressed: () => widget.onNavTap?.call(1),
+                          icon: const Icon(Icons.storefront_outlined, size: 18),
+                          label: const Text('Voir mes ateliers'),
+                        )
+                      : null,
+                ),
+              )
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
                 itemCount: orders.length,

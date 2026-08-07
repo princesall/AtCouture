@@ -25,7 +25,7 @@ abstract final class OrderPdf {
     required String filenamePrefix,
     String? companyId,
   }) async {
-    final branding = CompanyCustomizationService.instance.brandingFor(companyId);
+    final branding = await CompanyCustomizationService.instance.brandingFor(companyId);
     final brandName = branding.brandName ?? 'StyleConnect';
     final accent = branding.accentColor == null
         ? PdfColors.indigo

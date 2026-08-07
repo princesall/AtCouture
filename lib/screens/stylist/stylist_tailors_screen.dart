@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
+import '../../core/utils/firebase_error_messages.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../models/app_user.dart';
 import '../../providers/auth_provider.dart';
@@ -54,115 +56,141 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
     final phoneController = TextEditingController();
     final emailController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    // Voir OrderService (principe d'idempotence) : sans clé stable, un
+    // double-tap ou un réseau lent qui fait rejouer la requête créait un
+    // compte couturier en double avec un mot de passe temporaire différent.
+    final idempotencyKey = const Uuid().v4();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ajouter un couturier'),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nom complet *',
-                    prefixIcon: Icon(Icons.person),
-                  ),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                TextFormField(
-                  controller: phoneController,
-                  decoration: const InputDecoration(
-                    labelText: 'Téléphone *',
-                    prefixIcon: Icon(Icons.phone),
-                  ),
-                  keyboardType: TextInputType.phone,
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                TextFormField(
-                  controller: emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email *',
-                    prefixIcon: Icon(Icons.email),
-                    // Un vrai email (pas juste un contact du couturier) : la
-                    // seule façon de récupérer un accès en cas de mot de
-                    // passe oublié est le lien envoyé à CETTE adresse (voir
-                    // AuthService.sendPasswordResetEmail — aucun accès admin
-                    // ne permet de forcer un mot de passe sans ça).
-                    helperText: 'Le couturier doit pouvoir consulter cette boîte mail',
-                    helperMaxLines: 2,
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (v) => v == null || !v.contains('@') ? 'Email valide requis' : null,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
+      builder: (dialogContext) {
+        var isSubmitting = false;
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            Future<void> submit() async {
+              if (isSubmitting || !formKey.currentState!.validate()) return;
+              setDialogState(() => isSubmitting = true);
 
-              final result = await CompanyService.instance.createTailor(
-                atelierId: user.atelierId!,
-                atelierName: user.atelierName!,
-                fullName: nameController.text.trim(),
-                email: emailController.text.trim(),
-                phone: phoneController.text.trim(),
-              );
-              final newTailor = result.user;
+              try {
+                final result = await CompanyService.instance.createTailor(
+                  atelierId: user.atelierId!,
+                  atelierName: user.atelierName!,
+                  fullName: nameController.text.trim(),
+                  email: emailController.text.trim(),
+                  phone: phoneController.text.trim(),
+                  idempotencyKey: idempotencyKey,
+                );
+                final newTailor = result.user;
 
-              if (!context.mounted) return;
-              Navigator.pop(context);
-              setState(() {});
+                if (!dialogContext.mounted) return;
+                Navigator.pop(dialogContext);
+                if (!mounted) return;
+                setState(() {});
 
-              // Afficher les identifiants de connexion du couturier créé.
-              // Seuls email + mot de passe servent à se connecter — l'UID
-              // interne (newTailor.id) n'a aucune utilité pour le couturier
-              // et n'est donc pas affiché ici.
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Couturier ajouté'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Nom: ${newTailor.fullName}'),
-                      const SizedBox(height: 8),
-                      Text('Email: ${newTailor.email}'),
-                      const SizedBox(height: 8),
-                      Text('Mot de passe temporaire: ${result.temporaryPassword}'),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Le couturier devra définir son propre mot de passe à sa première connexion.',
-                        style: Theme.of(context).textTheme.bodySmall,
+                // Afficher les identifiants de connexion du couturier créé.
+                // Seuls email + mot de passe servent à se connecter — l'UID
+                // interne (newTailor.id) n'a aucune utilité pour le couturier
+                // et n'est donc pas affiché ici.
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Couturier ajouté'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Nom: ${newTailor.fullName}'),
+                        const SizedBox(height: 8),
+                        Text('Email: ${newTailor.email}'),
+                        const SizedBox(height: 8),
+                        Text('Mot de passe temporaire: ${result.temporaryPassword}'),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Le couturier devra définir son propre mot de passe à sa première connexion.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('OK'),
                       ),
                     ],
                   ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('OK'),
-                    ),
-                  ],
+                );
+              } catch (e) {
+                if (!dialogContext.mounted) return;
+                setDialogState(() => isSubmitting = false);
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(content: Text(friendlyFirebaseError(e))),
+                );
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Ajouter un couturier'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Nom complet *',
+                          prefixIcon: Icon(Icons.person),
+                        ),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      TextFormField(
+                        controller: phoneController,
+                        decoration: const InputDecoration(
+                          labelText: 'Téléphone *',
+                          prefixIcon: Icon(Icons.phone),
+                        ),
+                        keyboardType: TextInputType.phone,
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      TextFormField(
+                        controller: emailController,
+                        decoration: const InputDecoration(
+                          labelText: 'Email *',
+                          prefixIcon: Icon(Icons.email),
+                          // Un vrai email (pas juste un contact du couturier) : la
+                          // seule façon de récupérer un accès en cas de mot de
+                          // passe oublié est le lien envoyé à CETTE adresse (voir
+                          // AuthService.sendPasswordResetEmail — aucun accès admin
+                          // ne permet de forcer un mot de passe sans ça).
+                          helperText: 'Le couturier doit pouvoir consulter cette boîte mail',
+                          helperMaxLines: 2,
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (v) => v == null || !v.contains('@') ? 'Email valide requis' : null,
+                      ),
+                    ],
+                  ),
                 ),
-              );
-            },
-            child: const Text('Ajouter'),
-          ),
-        ],
-      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Annuler'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting ? null : submit,
+                  child: isSubmitting
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Ajouter'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

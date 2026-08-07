@@ -83,13 +83,30 @@ Future<void> confirmAndRemoveTailor(BuildContext context, AppUser tailor, VoidCa
   );
 }
 
-Future<void> confirmAndRemoveAtelierHead(BuildContext context, AppUser head, VoidCallback onChanged) {
+Future<void> confirmAndRemoveAtelierHead(
+  BuildContext context,
+  AppUser head,
+  VoidCallback onChanged, {
+  required String atelierId,
+}) {
+  // Contexte réel de CET atelier précis, pour que l'avertissement ne soit
+  // pas une formule générique — le Chef d'Entreprise doit savoir concrètement
+  // ce qu'il reprend avant de confirmer (voir CompanyService.removeAtelierHead,
+  // qui préserve l'atelier plutôt que de le supprimer).
+  final tailorCount = CompanyService.instance.tailorsOfAtelier(atelierId).length;
+  final orderCount = CompanyService.instance.ordersOfAtelier(atelierId).length;
+  final details = (tailorCount > 0 || orderCount > 0)
+      ? ' Cet atelier compte actuellement ${tailorCount > 0 ? '$tailorCount couturier${tailorCount > 1 ? 's' : ''}' : 'aucun couturier'}'
+          '${orderCount > 0 ? ' et $orderCount commande${orderCount > 1 ? 's' : ''}' : ''}.'
+      : '';
+
   return _confirmAndRemove(
     context,
     head,
     label: 'ce chef d\'atelier',
-    extraWarning: 'Son atelier sera également supprimé (ses couturiers et données restent, '
-        'mais l\'atelier lui-même disparaît).',
+    extraWarning: 'Son atelier ne sera PAS supprimé : vous en reprendrez directement la gestion '
+        '(comme votre atelier personnel), avec ses couturiers, clients et commandes intacts.$details '
+        'Vous pourrez ensuite nommer un nouveau chef pour cet atelier depuis l\'écran "Mes Ateliers".',
     remove: CompanyService.instance.removeAtelierHead,
     onChanged: onChanged,
   );

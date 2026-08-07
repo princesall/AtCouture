@@ -212,6 +212,78 @@ class AuthService {
     return user;
   }
 
+  /// Envoie un code de vérification par SMS au numéro donné (format E.164,
+  /// ex: +22370000000) — confirme qu'un numéro est réel avant de finaliser
+  /// une inscription styliste (voir RegisterScreen). `onCodeSent` reçoit le
+  /// verificationId à repasser à `verifyPhoneCode`. `onAutoVerified` couvre
+  /// le cas Android où le SMS est lu et validé automatiquement, sans que
+  /// l'utilisateur ait besoin de saisir le code lui-même.
+  Future<void> sendPhoneVerificationCode({
+    required String phoneNumber,
+    required void Function(String verificationId) onCodeSent,
+    required void Function(AuthException error) onError,
+    required Future<void> Function() onAutoVerified,
+  }) async {
+    if (!FirebaseService.isAvailable) {
+      throw AuthException('Vérification par SMS indisponible en mode démo.');
+    }
+    await fb_auth.FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: phoneNumber,
+      verificationCompleted: (credential) async {
+        try {
+          await _consumePhoneCredential(credential);
+          await onAutoVerified();
+        } on AuthException catch (e) {
+          onError(e);
+        }
+      },
+      verificationFailed: (e) => onError(AuthException(_firebaseAuthErrorMessage(e))),
+      codeSent: (verificationId, _) => onCodeSent(verificationId),
+      codeAutoRetrievalTimeout: (_) {},
+      timeout: const Duration(seconds: 60),
+    );
+  }
+
+  /// Vérifie le code entré par l'utilisateur. Ne crée AUCUN compte durable :
+  /// il n'existe pas d'API Firebase pour "juste vérifier" un code sans se
+  /// connecter, donc on se connecte brièvement avec l'identifiant téléphone
+  /// (c'est CET appel qui valide réellement le code — il échoue avec
+  /// invalid-verification-code si le code est faux), puis on supprime
+  /// immédiatement ce compte jetable. Le vrai compte (email/mot de passe)
+  /// est créé séparément juste après, par registerStylist — inchangé, avec
+  /// un UID totalement différent.
+  Future<void> verifyPhoneCode({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    final credential = fb_auth.PhoneAuthProvider.credential(
+      verificationId: verificationId,
+      smsCode: smsCode,
+    );
+    await _consumePhoneCredential(credential);
+  }
+
+  Future<void> _consumePhoneCredential(fb_auth.PhoneAuthCredential credential) async {
+    fb_auth.UserCredential result;
+    try {
+      result = await fb_auth.FirebaseAuth.instance.signInWithCredential(credential);
+    } on fb_auth.FirebaseAuthException catch (e) {
+      throw AuthException(switch (e.code) {
+        'invalid-verification-code' => 'Code de vérification incorrect.',
+        'invalid-verification-id' || 'session-expired' => 'Code expiré, demandez-en un nouveau.',
+        _ => _firebaseAuthErrorMessage(e),
+      });
+    }
+    try {
+      await result.user?.delete();
+    } catch (_) {
+      // Si la suppression échoue (rare), se déconnecter suffit : ce compte
+      // fantôme sans aucune donnée applicative associée est inerte, pas une
+      // fuite de sécurité.
+      await fb_auth.FirebaseAuth.instance.signOut();
+    }
+  }
+
   /// Crée le compte Firebase Auth du styliste ET, dans la même écriture
   /// atomique, son propre document ateliers/{id} — les règles Firestore
   /// (orders/clients) exigent qu'un atelier existe pour autoriser l'accès à
@@ -485,7 +557,7 @@ class AuthService {
   }
 
   Future<void> signOut() async {
-    stopWatchingAccountSuspension();
+    stopWatchingOwnUserDoc();
 
     if (FirebaseService.isAvailable) {
       await fb_auth.FirebaseAuth.instance.signOut();
@@ -497,34 +569,38 @@ class AuthService {
     _currentUser = null;
   }
 
-  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _suspensionSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _ownUserSubscription;
 
-  /// Surveille en continu le document Firestore du compte connecté : si un
-  /// admin le suspend (isActive -> false) pendant que la session est déjà
-  /// ouverte, `onSuspended` est appelé pour permettre une déconnexion
-  /// immédiate — sans ça, `initialize()` ne revérifie isActive qu'au
-  /// prochain démarrage de l'app, et la suspension ne prendrait effet qu'à
-  /// la prochaine connexion (voir firestore.rules: isActiveUser(), qui
-  /// coupe déjà l'accès aux données métier mais pas la session elle-même).
-  void watchAccountSuspension(void Function() onSuspended) {
-    _suspensionSubscription?.cancel();
+  /// Surveille en continu le document Firestore du compte connecté et
+  /// notifie l'appelant à CHAQUE changement, pas seulement isActive : un
+  /// plan changé par l'admin pendant que la session est déjà ouverte doit
+  /// débloquer les nouvelles fonctionnalités immédiatement, sans attendre une
+  /// reconnexion — jusqu'ici seul AuthProvider.initialize() relisait ce
+  /// document, une seule fois au démarrage du shell (StylistShell/
+  /// CompanyShell/TailorShell), donc un upgrade approuvé en session restait
+  /// invisible côté permissions malgré la notification système déjà reçue.
+  /// Sert aussi à détecter une suspension en direct (c'est l'appelant qui
+  /// vérifie updatedUser.isActive et décide de déconnecter, voir
+  /// AuthProvider._watchOwnUser) — voir firestore.rules: isActiveUser(), qui
+  /// coupe déjà l'accès aux données métier mais pas la session elle-même.
+  void watchOwnUserDoc(void Function(AppUser user) onUpdate) {
+    _ownUserSubscription?.cancel();
     final user = _currentUser;
     if (!FirebaseService.isAvailable || user == null) return;
 
-    _suspensionSubscription = FirebaseFirestore.instance
+    _ownUserSubscription = FirebaseFirestore.instance
         .collection('users')
         .doc(user.id)
         .snapshots()
         .listen((doc) {
-      if (doc.exists && doc.data()?['isActive'] == false) {
-        onSuspended();
-      }
+      if (!doc.exists) return;
+      onUpdate(AppUser.fromMap(doc.data()!, doc.id));
     });
   }
 
-  void stopWatchingAccountSuspension() {
-    _suspensionSubscription?.cancel();
-    _suspensionSubscription = null;
+  void stopWatchingOwnUserDoc() {
+    _ownUserSubscription?.cancel();
+    _ownUserSubscription = null;
   }
 
   /// Met à jour un utilisateur existant dans _demoUsers (utilisé par AdminDemoData).

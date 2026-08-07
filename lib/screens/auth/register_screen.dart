@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
@@ -15,6 +16,7 @@ import '../../core/widgets/premium_button.dart';
 import '../../core/widgets/premium_text_field.dart';
 import '../../models/subscription_plan.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -24,6 +26,8 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
+enum _RegisterStep { form, verifyPhone }
+
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -32,7 +36,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+  final _codeController = TextEditingController();
+  // Instance dédiée plutôt que via AuthProvider (même principe que
+  // staff_account_actions.dart:sendAccountResetLink) : la vérification
+  // téléphone se connecte brièvement à un compte Firebase Auth JETABLE en
+  // interne (voir AuthService._consumePhoneCredential) — on ne veut surtout
+  // pas que ça touche l'état "utilisateur connecté" de l'app avant que le
+  // VRAI compte (email/mot de passe) soit créé.
+  final _authService = AuthService();
   XFile? _logoFile;
+
+  _RegisterStep _step = _RegisterStep.form;
+  String? _verificationId;
+  bool _isSubmitting = false;
+
+  /// Normalise en E.164 pour Firebase Phone Auth — le champ n'affiche que le
+  /// numéro local ("70 00 00 00"), sans indicatif.
+  String _e164Phone(String raw) {
+    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    final local = digits.startsWith('223') ? digits.substring(3) : digits;
+    return '+223$local';
+  }
 
   Future<void> _pickLogo() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 800);
@@ -48,12 +72,86 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
+    _codeController.dispose();
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+  void _showError(String message) {
+    if (!mounted) return;
+    // Ne JAMAIS utiliser context.colors (= context.watch<ThemeProvider>())
+    // ici : ces callbacks s'exécutent après un await, hors du cycle de build —
+    // `watch` y lève une assertion Provider qui avalait silencieusement ce
+    // SnackBar (même bug déjà corrigé dans login_screen.dart).
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: context.read<ThemeProvider>().colors.error),
+    );
+  }
 
+  /// Valide le formulaire puis déclenche l'envoi du SMS — la création du
+  /// compte n'a lieu qu'une fois le code confirmé (voir _verifyCodeAndRegister).
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate() || _isSubmitting) return;
+    await _sendCode();
+  }
+
+  Future<void> _sendCode() async {
+    setState(() => _isSubmitting = true);
+    try {
+      await _authService.sendPhoneVerificationCode(
+        phoneNumber: _e164Phone(_phoneController.text),
+        onCodeSent: (verificationId) {
+          if (!mounted) return;
+          setState(() {
+            _verificationId = verificationId;
+            _step = _RegisterStep.verifyPhone;
+            _isSubmitting = false;
+          });
+        },
+        onError: (e) {
+          if (!mounted) return;
+          setState(() => _isSubmitting = false);
+          _showError(e.message);
+        },
+        onAutoVerified: () async {
+          // Android a lu et validé le SMS tout seul — pas besoin de
+          // demander le code à l'utilisateur, on enchaîne directement.
+          await _completeRegistration();
+        },
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      _showError(e.message);
+    }
+  }
+
+  void _resendCode() => _sendCode();
+
+  void _editPhoneNumber() {
+    setState(() {
+      _step = _RegisterStep.form;
+      _verificationId = null;
+      _codeController.clear();
+    });
+  }
+
+  Future<void> _verifyCodeAndRegister() async {
+    if (_isSubmitting || _codeController.text.trim().length < 6) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await _authService.verifyPhoneCode(
+        verificationId: _verificationId!,
+        smsCode: _codeController.text.trim(),
+      );
+      await _completeRegistration();
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      _showError(e.message);
+    }
+  }
+
+  Future<void> _completeRegistration() async {
     final auth = context.read<AuthProvider>();
     final success = await auth.register(
       fullName: _nameController.text,
@@ -65,11 +163,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
 
     if (!mounted) return;
+    setState(() => _isSubmitting = false);
     if (!success && auth.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.colors.error),
-      );
+      _showError(auth.errorMessage!);
     }
+    // Succès : AuthProvider passe authenticated, le router redirige seul.
   }
 
   Future<void> _submitGoogle() async {
@@ -80,7 +178,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (result == null) {
       if (auth.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.colors.error),
+          SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.read<ThemeProvider>().colors.error),
         );
       }
       return;
@@ -173,7 +271,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 480),
-                      child: Form(
+                      child: _step == _RegisterStep.form
+                          ? Form(
                         key: _formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,7 +394,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ],
                         ),
-                      ),
+                      )
+                          : _buildVerifyStep(c),
                     ),
                   ),
                 ),
@@ -304,6 +404,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // ── Étape 2 : vérification du numéro par SMS ────────────────────────────
+  Widget _buildVerifyStep(AppColorPalette c) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.sms_outlined, color: c.primary, size: 40),
+        const SizedBox(height: AppSpacing.md),
+        Text('Vérifiez votre numéro', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
+        const SizedBox(height: 4),
+        Text(
+          'Entrez le code à 6 chiffres envoyé par SMS au ${_e164Phone(_phoneController.text)}.',
+          style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        PremiumTextField(
+          controller: _codeController,
+          label: 'Code de vérification',
+          hint: '123456',
+          prefixIcon: Icons.lock_clock_outlined,
+          keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.done,
+          enabled: !_isSubmitting,
+          onSubmitted: (_) => _verifyCodeAndRegister(),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        PremiumButton(
+          label: 'Vérifier et créer mon compte',
+          variant: PremiumButtonVariant.gold,
+          isLoading: _isSubmitting,
+          onPressed: _isSubmitting ? null : _verifyCodeAndRegister,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton(
+              onPressed: _isSubmitting ? null : _editPhoneNumber,
+              child: Text('Modifier le numéro', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
+            ),
+            TextButton(
+              onPressed: _isSubmitting ? null : _resendCode,
+              child: Text('Renvoyer le code', style: AppTextStyles.bodySm.copyWith(color: c.secondary)),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

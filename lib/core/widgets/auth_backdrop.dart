@@ -1,107 +1,41 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../theme/build_context_colors.dart';
 
-/// Fond animé des écrans d'authentification — dégradé Indigo profond avec
-/// quelques halos doux (or / terracotta / blanc) qui dérivent lentement.
-/// Remplace le rectangle à dégradé plat par quelque chose qui respire, sans
-/// jamais distraire du formulaire (mouvement lent, opacité faible).
-class AuthBackdrop extends StatefulWidget {
+/// Fond des écrans d'authentification — photo d'atelier de couture (machine
+/// à coudre, ciseaux, mètre ruban) avec un voile sombre dégradé par-dessus
+/// pour garder le texte de marque (blanc) et la carte de connexion lisibles
+/// quel que soit l'endroit où ils tombent selon la largeur d'écran.
+class AuthBackdrop extends StatelessWidget {
   const AuthBackdrop({super.key});
 
   @override
-  State<AuthBackdrop> createState() => _AuthBackdropState();
-}
-
-class _AuthBackdropState extends State<AuthBackdrop>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 16),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final c = context.colors;
-    return DecoratedBox(
-      decoration: BoxDecoration(gradient: c.heroGradient),
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          final t = _controller.value * 2 * math.pi;
-          return Stack(
-            clipBehavior: Clip.none,
-            children: [
-              _Glow(
-                top: -70 + math.sin(t) * 14,
-                left: -60 + math.cos(t) * 10,
-                size: 240,
-                color: c.tertiaryFixed.withValues(alpha: 0.22),
-              ),
-              _Glow(
-                top: 60 + math.cos(t * 0.8) * 16,
-                right: -80 + math.sin(t * 0.8) * 10,
-                size: 280,
-                color: c.secondaryFixed.withValues(alpha: 0.16),
-              ),
-              _Glow(
-                bottom: -90 + math.sin(t * 0.6) * 12,
-                left: 40 + math.cos(t * 0.6) * 16,
-                size: 220,
-                color: Colors.white.withValues(alpha: 0.07),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _Glow extends StatelessWidget {
-  const _Glow({
-    required this.size,
-    required this.color,
-    this.top,
-    this.left,
-    this.right,
-    this.bottom,
-  });
-
-  final double size;
-  final Color color;
-  final double? top;
-  final double? left;
-  final double? right;
-  final double? bottom;
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      top: top,
-      left: left,
-      right: right,
-      bottom: bottom,
-      child: IgnorePointer(
-        child: Container(
-          width: size,
-          height: size,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/branding/login_background.jpg',
+          fit: BoxFit.cover,
+        ),
+        // Plus sombre en haut/à gauche (panneau de marque, texte blanc sans
+        // fond opaque derrière), plus léger en bas/à droite (la carte de
+        // connexion a déjà son propre fond quasi opaque, elle a besoin de
+        // moins de voile pour rester lisible).
+        DecoratedBox(
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(
-              colors: [color, color.withValues(alpha: 0)],
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.black.withValues(alpha: 0.68),
+                Colors.black.withValues(alpha: 0.42),
+                Colors.black.withValues(alpha: 0.22),
+              ],
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

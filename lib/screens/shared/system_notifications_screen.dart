@@ -28,6 +28,25 @@ class SystemNotificationsScreen extends StatefulWidget {
 
 class _SystemNotificationsScreenState extends State<SystemNotificationsScreen> {
   @override
+  void initState() {
+    super.initState();
+    // Marquer "lu" est un effet de bord (écriture Firestore) : ne doit
+    // jamais se déclencher depuis itemBuilder, appelé en plein cycle de
+    // build (potentiellement plusieurs fois par frame). On le fait une
+    // seule fois, après le premier rendu de l'écran.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _markAllRead());
+  }
+
+  void _markAllRead() {
+    final user = context.read<AuthProvider>().user!;
+    for (final m in SubscriptionService.instance.systemMessagesFor(user.id)) {
+      if (!m.isRead) {
+        SubscriptionService.instance.markSystemMessageRead(user.id, m.id);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
     final c = context.colors;
@@ -56,13 +75,7 @@ class _SystemNotificationsScreenState extends State<SystemNotificationsScreen> {
               padding: const EdgeInsets.all(20),
               itemCount: messages.length,
               separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (_, i) {
-                final m = messages[i];
-                if (!m.isRead) {
-                  SubscriptionService.instance.markSystemMessageRead(user.id, m.id);
-                }
-                return _SystemMessageCard(message: m);
-              },
+              itemBuilder: (_, i) => _SystemMessageCard(message: messages[i]),
             ),
     );
   }

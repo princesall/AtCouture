@@ -68,6 +68,15 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
+    // Réagit en direct dès que l'admin répond, pendant que cet écran est
+    // déjà ouvert (voir SupportMessageService, désormais un ChangeNotifier).
+    return ListenableBuilder(
+      listenable: SupportMessageService.instance,
+      builder: (context, _) => _buildScaffold(context, user),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, AppUser user) {
     final c = context.colors;
     final myMessages = SupportMessageService.instance.messagesFrom(user.id);
 

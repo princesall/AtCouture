@@ -43,7 +43,10 @@ class OrderStatusChange extends Equatable {
           (e) => e.name == map['status'],
           orElse: () => OrderStatus.pending,
         ),
-        changedAt: DateTime.parse(map['changedAt'] as String),
+        // tryParse plutôt que parse : une seule entrée d'historique avec une
+        // date absente/corrompue ne doit jamais faire planter Order.fromMap
+        // (et donc rendre TOUTE la liste de commandes de l'atelier inaccessible).
+        changedAt: DateTime.tryParse(map['changedAt'] as String? ?? '') ?? DateTime.now(),
         changedByName: map['changedByName'] as String? ?? 'Inconnu',
       );
 
