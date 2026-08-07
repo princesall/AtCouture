@@ -1,9 +1,14 @@
 workflows:
   ios-release-sideload:
     name: iOS Release (unsigned, for sideloading)
-    max_build_duration: 60
+    max_build_duration: 90
     environment:
       flutter: beta
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $HOME/Library/Caches/CocoaPods
+        - $CM_BUILD_DIR/ios/Pods
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
