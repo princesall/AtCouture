@@ -153,7 +153,11 @@ class AuthService {
       case 'too-many-requests':
         return 'Trop de tentatives. Réessayez dans quelques minutes.';
       default:
-        return 'Connexion impossible. Réessayez.';
+        // Inclut le code brut : sans accès aux logs natifs (sideload iOS
+        // notamment), c'est le seul moyen de diagnostiquer une erreur non
+        // mappée ci-dessus (ex: app-not-authorized, internal-error,
+        // sms-region-restriction côté Console Firebase).
+        return 'Connexion impossible (${e.code}). Réessayez.';
     }
   }
 
