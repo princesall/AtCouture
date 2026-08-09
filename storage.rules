@@ -1,0 +1,56 @@
+rules_version = '2';
+
+// StyleConnect — règles de sécurité Firebase Storage.
+//
+// Premier usage réel de Storage dans ce projet (voir
+// lib/services/order_service.dart:uploadVoiceNote) : mémo vocal enregistré
+// par un couturier lors d'un signalement de problème sur une commande (voir
+// lib/screens/tailor/report_problem_dialog.dart). Le contrôle d'accès
+// s'appuie sur le document orders/{orderId} correspondant dans Firestore —
+// mêmes règles d'appartenance que firestore.rules (managesAtelier/tailorId),
+// dupliquées ici car Storage ne partage pas ses helpers avec Firestore et ne
+// peut lire QUE la base Firestore par défaut, "(default)".
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function orderDoc(orderId) {
+      return firestore.get(/databases/(default)/documents/orders/$(orderId)).data;
+    }
+
+    function atelierDoc(atelierId) {
+      return firestore.get(/databases/(default)/documents/ateliers/$(atelierId)).data;
+    }
+
+    function managesAtelier(atelierId) {
+      let atelier = atelierDoc(atelierId);
+      return isSignedIn() && (atelier.headStylistId == uid() || atelier.companyId == uid());
+    }
+
+    function canAccessOrder(orderId) {
+      let order = orderDoc(orderId);
+      return isSignedIn() && (order.tailorId == uid() || managesAtelier(order.atelierId));
+    }
+
+    // ── order_issues/{orderId}/{fileName} — mémo vocal du signalement ────
+    match /order_issues/{orderId}/{fileName} {
+      allow read: if canAccessOrder(orderId);
+      allow write: if canAccessOrder(orderId)
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('audio/.*');
+    }
+
+    // Tout le reste est fermé par défaut.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/client.dart';
@@ -463,13 +465,22 @@ class OrderService extends ChangeNotifier {
 
   /// Met à jour (fusionne) les mesures enregistrées d'un client, que ce soit
   /// depuis sa fiche profil ou automatiquement lors d'une commande.
-  Future<void> updateClientMeasurements(String clientId, Map<String, double> measurements) async {
+  /// `removedKeys` efface explicitement des champs déjà enregistrés — un
+  /// merge seul ({...ancien, ...nouveau}) ne peut jamais SUPPRIMER une clé,
+  /// seulement l'ajouter/l'écraser (voir _MeasurementsCardState._editMeasurements,
+  /// qui vidait un champ sans que ça n'ait jamais d'effet avant ce paramètre).
+  Future<void> updateClientMeasurements(
+    String clientId,
+    Map<String, double> measurements, {
+    Set<String> removedKeys = const {},
+  }) async {
     if (FirebaseService.isAvailable) {
       final ref = FirebaseFirestore.instance.collection('clients').doc(clientId);
       final snap = await ref.get();
       if (!snap.exists) return;
       final client = Client.fromMap(snap.data()!, clientId);
-      final merged = {...?client.savedMeasurements, ...measurements};
+      final merged = {...?client.savedMeasurements, ...measurements}
+        ..removeWhere((key, _) => removedKeys.contains(key));
       final changed = !_measurementsEqual(client.savedMeasurements, merged);
       final updates = <String, dynamic>{'savedMeasurements': merged};
       if (changed) {
@@ -487,7 +498,8 @@ class OrderService extends ChangeNotifier {
     if (index == -1) return;
 
     final client = _clients[index];
-    final merged = {...?client.savedMeasurements, ...measurements};
+    final merged = {...?client.savedMeasurements, ...measurements}
+      ..removeWhere((key, _) => removedKeys.contains(key));
     final changed = !_measurementsEqual(client.savedMeasurements, merged);
 
     _clients[index] = client.copyWith(
@@ -563,14 +575,25 @@ class OrderService extends ChangeNotifier {
 
   /// Met à jour le statut d'une commande, en traçant qui a fait le
   /// changement et quand (voir Order.statusHistory) — utile pour mesurer les
-  /// délais réels de production et arbitrer les litiges.
+  /// délais réels de production et arbitrer les litiges. `note`/`voiceNoteUrl`
+  /// servent surtout au signalement de problème par un couturier (voir
+  /// ReportProblemDialog) : au moins l'un des deux devrait être fourni dans
+  /// ce cas, mais ce n'est pas imposé ici — l'appelant décide.
   Future<void> updateOrderStatus(
     String orderId,
     OrderStatus newStatus, {
     required String changedByName,
+    String? note,
+    String? voiceNoteUrl,
   }) async {
     if (FirebaseService.isAvailable) {
-      final change = OrderStatusChange(status: newStatus, changedAt: DateTime.now(), changedByName: changedByName);
+      final change = OrderStatusChange(
+        status: newStatus,
+        changedAt: DateTime.now(),
+        changedByName: changedByName,
+        note: note,
+        voiceNoteUrl: voiceNoteUrl,
+      );
       await FirebaseFirestore.instance.collection('orders').doc(orderId).update({
         'status': newStatus.name,
         'statusHistory': FieldValue.arrayUnion([change.toMap()]),
@@ -588,9 +611,33 @@ class OrderService extends ChangeNotifier {
       status: newStatus,
       statusHistory: [
         ...order.statusHistory,
-        OrderStatusChange(status: newStatus, changedAt: DateTime.now(), changedByName: changedByName),
+        OrderStatusChange(
+          status: newStatus,
+          changedAt: DateTime.now(),
+          changedByName: changedByName,
+          note: note,
+          voiceNoteUrl: voiceNoteUrl,
+        ),
       ],
     );
+  }
+
+  /// Upload le mémo vocal enregistré par un couturier lors d'un signalement
+  /// de problème (voir ReportProblemDialog) et retourne l'URL à passer à
+  /// `updateOrderStatus(voiceNoteUrl: ...)`. En mode démo (pas de Firebase
+  /// Storage), retourne directement le chemin local : VoiceNotePlayer sait
+  /// lire un fichier local aussi bien qu'une URL réseau.
+  Future<String> uploadVoiceNote(String orderId, String localFilePath) async {
+    if (!FirebaseService.isAvailable) return localFilePath;
+
+    final ref = FirebaseStorage.instance.ref(
+      'order_issues/$orderId/${DateTime.now().millisecondsSinceEpoch}.m4a',
+    );
+    // Explicite plutôt que déduit de l'extension : le SDK ne détecte pas le
+    // type de façon fiable sur toutes les plateformes, et storage.rules
+    // exige un contentType 'audio/.*' pour accepter l'upload.
+    await ref.putFile(File(localFilePath), SettableMetadata(contentType: 'audio/mp4'));
+    return ref.getDownloadURL();
   }
 
   /// Assigne (ou réassigne) le couturier en charge d'une commande —

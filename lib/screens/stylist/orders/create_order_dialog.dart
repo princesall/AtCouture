@@ -377,10 +377,31 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
                 ),
                 for (final entry in _customMeasurementControllers.entries) ...[
                   const SizedBox(height: AppSpacing.sm),
-                  TextField(
-                    controller: entry.value,
-                    decoration: InputDecoration(labelText: '${entry.key} (cm)', suffixText: 'cm'),
-                    keyboardType: TextInputType.number,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: entry.value,
+                          decoration: InputDecoration(labelText: '${entry.key} (cm)', suffixText: 'cm'),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () async {
+                          // Retire aussi du catalogue de l'atelier — même
+                          // symétrie que le bouton "Ajouter une mesure",
+                          // qui l'y avait inscrit.
+                          await MeasurementFieldsService.instance
+                              .removeCustomField(widget.user.atelierId!, entry.key);
+                          setState(() {
+                            _customMeasurementControllers.remove(entry.key)?.dispose();
+                          });
+                        },
+                        icon: Icon(Icons.close_rounded, size: 18, color: c.onSurfaceVariant),
+                        tooltip: 'Supprimer ce champ',
+                      ),
+                    ],
                   ),
                 ],
                 const SizedBox(height: AppSpacing.sm),

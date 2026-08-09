@@ -12,6 +12,7 @@ import '../../models/order_status.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/order_service.dart';
 import '../shared/calendar_screen.dart';
+import 'orders/order_list_widgets.dart';
 
 class StylistDashboard extends StatelessWidget {
   const StylistDashboard({super.key, this.onNavTap});
@@ -155,6 +156,10 @@ class StylistDashboard extends StatelessWidget {
           clientName: o.clientName,
           garmentType: o.description ?? 'Sans description',
           urgencyLabel: 'URGENT',
+          // Ouvre directement la fiche détail sur "Historique du statut",
+          // là où la note/le mémo vocal du couturier sont affichés — sans
+          // ça, cette carte pourtant mise en avant ne menait nulle part.
+          onTap: () => showOrderDetailSheet(context, o, onChanged: () {}),
         ),
       )).toList(),
     ).animate().fadeIn(delay: 300.ms, duration: 500.ms);

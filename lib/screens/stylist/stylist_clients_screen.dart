@@ -540,6 +540,10 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
       for (final label in customLabels)
         label: TextEditingController(text: _measurements[label]?.toString() ?? ''),
     };
+    // Labels dont la valeur doit être effacée chez ce client à l'enregistrement
+    // (voir OrderService.updateClientMeasurements(removedKeys:)) — un merge
+    // seul ne peut jamais supprimer une clé déjà enregistrée.
+    final removedLabels = <String>{};
 
     showDialog(
       context: context,
@@ -562,10 +566,32 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                 for (final label in customLabels)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: TextField(
-                      controller: controllers[label],
-                      decoration: InputDecoration(labelText: '$label (cm)', suffixText: 'cm'),
-                      keyboardType: TextInputType.number,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: controllers[label],
+                            decoration: InputDecoration(labelText: '$label (cm)', suffixText: 'cm'),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () async {
+                            // Retire aussi du catalogue de l'atelier — même
+                            // symétrie que "Ajouter une mesure", qui l'y
+                            // avait inscrit.
+                            await MeasurementFieldsService.instance.removeCustomField(atelierId, label);
+                            setDialogState(() {
+                              customLabels.remove(label);
+                              removedLabels.add(label);
+                              controllers.remove(label)?.dispose();
+                            });
+                          },
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          tooltip: 'Supprimer ce champ',
+                        ),
+                      ],
                     ),
                   ),
                 Align(
@@ -596,7 +622,11 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                   final text = controllers[key]!.text.trim();
                   if (text.isNotEmpty) updated[key] = double.tryParse(text) ?? 0;
                 }
-                await OrderService.instance.updateClientMeasurements(widget.client.id, updated);
+                await OrderService.instance.updateClientMeasurements(
+                  widget.client.id,
+                  updated,
+                  removedKeys: removedLabels,
+                );
                 final refreshed = OrderService.instance.clientById(widget.client.id);
                 setState(() {
                   _measurements = Map.of(refreshed?.savedMeasurements ?? {..._measurements, ...updated});

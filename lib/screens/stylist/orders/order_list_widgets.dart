@@ -16,6 +16,7 @@ import '../../../core/utils/order_pdf.dart';
 import '../../../core/utils/plan_guard.dart';
 import '../../../core/utils/whatsapp_launcher.dart';
 import '../../../core/widgets/common_widgets.dart';
+import '../../../core/widgets/voice_note_player.dart';
 import '../../../models/order.dart';
 import '../../../models/order_status.dart';
 import '../../../providers/auth_provider.dart';
@@ -640,6 +641,14 @@ void showOrderDetailSheet(
                                           '${Formatters.dateTime.format(change.changedAt)} — ${change.changedByName}',
                                           style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant),
                                         ),
+                                        if (change.note != null) ...[
+                                          const SizedBox(height: 4),
+                                          Text(change.note!, style: AppTextStyles.bodySm),
+                                        ],
+                                        if (change.voiceNoteUrl != null) ...[
+                                          const SizedBox(height: 4),
+                                          VoiceNotePlayer(source: change.voiceNoteUrl!),
+                                        ],
                                       ],
                                     ),
                                   ),

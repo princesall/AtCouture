@@ -26,16 +26,29 @@ class OrderStatusChange extends Equatable {
     required this.status,
     required this.changedAt,
     required this.changedByName,
+    this.note,
+    this.voiceNoteUrl,
   });
 
   final OrderStatus status;
   final DateTime changedAt;
   final String changedByName;
+  // Description du signalement — surtout utile pour OrderStatus.problem, où
+  // le statut seul n'explique rien (voir tailor_dashboard.dart:
+  // ReportProblemDialog). Beaucoup de couturiers n'ont pas le temps ou
+  // l'aisance d'écrire, d'où voiceNoteUrl en alternative : au moins l'un
+  // des deux doit être renseigné quand on signale un problème, jamais
+  // aucune obligation ici au niveau du modèle (reste valide pour les
+  // entrées d'historique des autres statuts, qui n'en ont pas).
+  final String? note;
+  final String? voiceNoteUrl;
 
   Map<String, dynamic> toMap() => {
         'status': status.name,
         'changedAt': changedAt.toIso8601String(),
         'changedByName': changedByName,
+        if (note != null) 'note': note,
+        if (voiceNoteUrl != null) 'voiceNoteUrl': voiceNoteUrl,
       };
 
   factory OrderStatusChange.fromMap(Map<String, dynamic> map) => OrderStatusChange(
@@ -48,8 +61,10 @@ class OrderStatusChange extends Equatable {
         // (et donc rendre TOUTE la liste de commandes de l'atelier inaccessible).
         changedAt: DateTime.tryParse(map['changedAt'] as String? ?? '') ?? DateTime.now(),
         changedByName: map['changedByName'] as String? ?? 'Inconnu',
+        note: map['note'] as String?,
+        voiceNoteUrl: map['voiceNoteUrl'] as String?,
       );
 
   @override
-  List<Object?> get props => [status, changedAt, changedByName];
+  List<Object?> get props => [status, changedAt, changedByName, note, voiceNoteUrl];
 }

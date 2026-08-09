@@ -26,4 +26,14 @@ class MeasurementFieldsService {
     final alreadyExists = list.any((l) => l.toLowerCase() == trimmed.toLowerCase());
     if (!alreadyExists) list.add(trimmed);
   }
+
+  /// Retire ce champ du catalogue de l'atelier — il ne sera plus proposé
+  /// pour les prochaines commandes/clients. N'efface PAS une valeur déjà
+  /// enregistrée sous ce label sur un client existant (voir
+  /// OrderService.updateClientMeasurements pour ça, action séparée et
+  /// volontaire côté fiche client).
+  Future<void> removeCustomField(String atelierId, String label) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    _customLabelsByAtelier[atelierId]?.removeWhere((l) => l.toLowerCase() == label.toLowerCase());
+  }
 }

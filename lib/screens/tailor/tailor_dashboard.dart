@@ -7,10 +7,12 @@ import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/firebase_error_messages.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/stitch_widgets.dart';
+import '../../core/widgets/voice_note_player.dart';
 import '../../models/order.dart';
 import '../../models/order_status.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/order_service.dart';
+import 'report_problem_dialog.dart';
 
 class TailorDashboard extends StatefulWidget {
   const TailorDashboard({super.key, this.onNavTap});
@@ -297,6 +299,11 @@ class _TailorDashboardState extends State<TailorDashboard> {
     }
   }
 
+  Future<void> _reportProblem(Order order) async {
+    final sent = await showReportProblemDialog(context, order);
+    if (sent == true && mounted) setState(() {});
+  }
+
   void _showStatusHistory(Order order) {
     showDialog(
       context: context,
@@ -312,17 +319,36 @@ class _TailorDashboardState extends State<TailorDashboard> {
                 for (final change in order.statusHistory.reversed)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        StatusBadge(change.status),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            '${Formatters.dateTime.format(change.changedAt)} — ${change.changedByName}',
-                            style: AppTextStyles.bodySm.copyWith(color: context.colors.onSurfaceVariant),
-                          ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            StatusBadge(change.status),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                '${Formatters.dateTime.format(change.changedAt)} — ${change.changedByName}',
+                                style: AppTextStyles.bodySm.copyWith(color: context.colors.onSurfaceVariant),
+                              ),
+                            ),
+                          ],
                         ),
+                        if (change.note != null) ...[
+                          const SizedBox(height: 6),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 46),
+                            child: Text(change.note!, style: AppTextStyles.bodySm),
+                          ),
+                        ],
+                        if (change.voiceNoteUrl != null) ...[
+                          const SizedBox(height: 6),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 46),
+                            child: VoiceNotePlayer(source: change.voiceNoteUrl!),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -400,18 +426,31 @@ class _TailorDashboardState extends State<TailorDashboard> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: OutlinedButton(
-                  onPressed: order.status == OrderStatus.problem
-                      ? null
-                      : () => _updateStatus(order, OrderStatus.problem),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: c.error,
-                    side: BorderSide(color: c.error.withValues(alpha: 0.3)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: Text('PROBLÈME', style: AppTextStyles.labelCaps.copyWith(color: c.error)),
-                ),
+                // Une fois en "Problème", ce bouton laisse reprendre la
+                // commande en cours plutôt que de re-proposer de signaler un
+                // problème — sans ça, aucun moyen de sortir de ce statut à
+                // part la marquer "Terminé" directement.
+                child: order.status == OrderStatus.problem
+                    ? OutlinedButton(
+                        onPressed: () => _updateStatus(order, OrderStatus.inProgress),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: c.primary,
+                          side: BorderSide(color: c.primary.withValues(alpha: 0.4)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text('REPRENDRE', style: AppTextStyles.labelCaps.copyWith(color: c.primary)),
+                      )
+                    : OutlinedButton(
+                        onPressed: () => _reportProblem(order),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: c.error,
+                          side: BorderSide(color: c.error.withValues(alpha: 0.3)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text('PROBLÈME', style: AppTextStyles.labelCaps.copyWith(color: c.error)),
+                      ),
               ),
             ],
           ),
