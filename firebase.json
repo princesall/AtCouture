@@ -6,6 +6,7 @@
     "rules": "storage.rules"
   },
   "hosting": {
+    "site": "styleconnect",
     "public": "build/web",
     "ignore": [
       "firebase.json",
