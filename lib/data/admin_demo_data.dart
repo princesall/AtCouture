@@ -234,13 +234,13 @@ abstract final class AdminDemoData {
 
   static int get totalTailors => stylists
       .where((s) => _countsTowardPlatformTotals(s.user))
-      .fold(0, (sum, s) => sum + getStylistTailorCount(s.user));
+      .fold(0, (total, s) => total + getStylistTailorCount(s.user));
   static int get activeOrders => stylists
       .where((s) => _countsTowardPlatformTotals(s.user))
-      .fold(0, (sum, s) => sum + getStylistOrderCount(s.user));
+      .fold(0, (total, s) => total + getStylistOrderCount(s.user));
   static int get monthlyRevenue => stylists
       .where((s) => _countsTowardPlatformTotals(s.user))
-      .fold(0, (sum, s) => sum + getStylistRevenue(s.user));
+      .fold(0, (total, s) => total + getStylistRevenue(s.user));
 
   /// Abonnés PAYANTS actuellement actifs (plan payant + non expiré),
   /// groupés par plan. Le plan Découverte (gratuit) n'est jamais compté.
@@ -269,7 +269,7 @@ abstract final class AdminDemoData {
   /// payants actuellement actifs. À ne pas confondre avec `monthlyRevenue`,
   /// qui mesure le volume d'affaires des ateliers auprès de LEURS clients.
   static int get subscriptionRevenue =>
-      paidSubscribersByPlan.entries.fold(0, (sum, e) => sum + e.key.price * e.value);
+      paidSubscribersByPlan.entries.fold(0, (total, e) => total + e.key.price * e.value);
 
   static int get expiringIn7Days {
     final now = DateTime.now();

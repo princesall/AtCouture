@@ -870,6 +870,6 @@ class OrderService extends ChangeNotifier {
   int atelierRevenue(String atelierId) {
     return ordersOfAtelier(atelierId)
         .where((o) => o.status == OrderStatus.completed)
-        .fold(0, (sum, o) => sum + (o.price ?? 0));
+        .fold(0, (total, o) => total + (o.price ?? 0));
   }
 }

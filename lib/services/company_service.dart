@@ -258,11 +258,11 @@ class CompanyService extends ChangeNotifier {
     }
     final tailors = _tailors.where((t) => atelierIds.contains(t.atelierId));
     final totalClients = atelierIds.fold<int>(
-        0, (sum, id) => sum + OrderService.instance.clientsOfAtelier(id).length);
+        0, (total, id) => total + OrderService.instance.clientsOfAtelier(id).length);
     final totalOrders = atelierIds.fold<int>(
-        0, (sum, id) => sum + OrderService.instance.ordersOfAtelier(id).length);
+        0, (total, id) => total + OrderService.instance.ordersOfAtelier(id).length);
     final totalRevenue = atelierIds.fold<int>(
-        0, (sum, id) => sum + OrderService.instance.atelierRevenue(id));
+        0, (total, id) => total + OrderService.instance.atelierRevenue(id));
     return (
       totalAteliers: atelierIds.length,
       totalTailors: tailors.length,
