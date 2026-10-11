@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/subscription_plan.dart';
+import '../models/subscription_request.dart';
 import '../models/system_message.dart';
 import 'company_service.dart';
 import 'firebase_service.dart';
@@ -43,10 +45,34 @@ class SubscriptionService {
           .collection('systemMessages')
           .where('userId', isEqualTo: userId)
           .snapshots()
-          .listen((snap) {
-        _systemMessages[userId] = snap.docs.map((d) => SystemMessage.fromMap(d.data(), d.id)).toList();
-      }),
+          .listen(
+        (snap) {
+          _systemMessages[userId] = snap.docs.map((d) => SystemMessage.fromMap(d.data(), d.id)).toList();
+        },
+        onError: (Object error, StackTrace stack) {
+          debugPrint('⚠️ sync notifications ($userId) interrompue : $error');
+        },
+      ),
     );
+  }
+
+  /// La demande de changement de plan encore en attente de décision admin pour
+  /// ce compte, ou null s'il n'y en a pas.
+  ///
+  /// Requête volontairement SCOPÉE sur l'utilisateur : c'est la seule forme que
+  /// firestore.rules peut valider pour un compte non admin (la règle exige
+  /// `resource.data.userId == uid()`, ce qu'aucune garantie ne permet sur une
+  /// requête liste non filtrée — Firestore la rejette alors EN BLOC). Utilisée
+  /// par SubscriptionDialog pour empêcher les demandes d'abonnement en double.
+  Future<SubscriptionRequest?> pendingSubscriptionRequestFor(String userId) async {
+    final snap = await FirebaseFirestore.instance
+        .collection('subscriptionRequests')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'pending')
+        .limit(1)
+        .get();
+    final doc = snap.docs.firstOrNull;
+    return doc == null ? null : SubscriptionRequest.fromMap(doc.data(), doc.id);
   }
 
   // ── Lecture ──────────────────────────────────────────────────────────────

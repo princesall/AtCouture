@@ -405,13 +405,24 @@ class _TailorDashboardState extends State<TailorDashboard> {
             ],
           ),
           const SizedBox(height: 10),
+          // Boutons d'action. AVANT : le couturier n'avait que "TERMINÉ" et
+          // "PROBLÈME" — impossible de DÉMARRER une commande en attente, alors
+          // que c'est son geste le plus courant et que la machine à états
+          // d'OrderStatus prévoit bien pending → inProgress (voir
+          // OrderStatus.canTransitionTo). Une commande "Terminé" est désormais
+          // un statut final côté couturier : plus de bouton pour la rouvrir.
           Row(
             children: [
               Expanded(
                 child: ElevatedButton(
                   onPressed: order.status == OrderStatus.completed
                       ? null
-                      : () => _updateStatus(order, OrderStatus.completed),
+                      : () => _updateStatus(
+                            order,
+                            order.status == OrderStatus.pending
+                                ? OrderStatus.inProgress
+                                : OrderStatus.completed,
+                          ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: c.primary,
                     foregroundColor: c.onPrimary,
@@ -419,41 +430,61 @@ class _TailorDashboardState extends State<TailorDashboard> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: Text('TERMINÉ', style: AppTextStyles.labelCaps.copyWith(
-                    color: order.status == OrderStatus.completed ? c.onSurfaceVariant : c.onPrimary,
-                  )),
+                  child: Text(
+                    order.status == OrderStatus.pending ? 'DÉMARRER' : 'TERMINÉ',
+                    style: AppTextStyles.labelCaps.copyWith(
+                      color: order.status == OrderStatus.completed ? c.onSurfaceVariant : c.onPrimary,
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                // Une fois en "Problème", ce bouton laisse reprendre la
-                // commande en cours plutôt que de re-proposer de signaler un
-                // problème — sans ça, aucun moyen de sortir de ce statut à
-                // part la marquer "Terminé" directement.
-                child: order.status == OrderStatus.problem
-                    ? OutlinedButton(
-                        onPressed: () => _updateStatus(order, OrderStatus.inProgress),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: c.primary,
-                          side: BorderSide(color: c.primary.withValues(alpha: 0.4)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+              if (order.status != OrderStatus.completed) ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  // Une fois en "Problème", ce bouton laisse reprendre la
+                  // commande en cours plutôt que de re-proposer de signaler un
+                  // problème — sans ça, aucun moyen de sortir de ce statut à
+                  // part la marquer "Terminé" directement.
+                  child: order.status == OrderStatus.problem
+                      ? OutlinedButton(
+                          onPressed: () => _updateStatus(order, OrderStatus.inProgress),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: c.primary,
+                            side: BorderSide(color: c.primary.withValues(alpha: 0.4)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: Text('REPRENDRE', style: AppTextStyles.labelCaps.copyWith(color: c.primary)),
+                        )
+                      : OutlinedButton(
+                          onPressed: () => _reportProblem(order),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: c.error,
+                            side: BorderSide(color: c.error.withValues(alpha: 0.3)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: Text('PROBLÈME', style: AppTextStyles.labelCaps.copyWith(color: c.error)),
                         ),
-                        child: Text('REPRENDRE', style: AppTextStyles.labelCaps.copyWith(color: c.primary)),
-                      )
-                    : OutlinedButton(
-                        onPressed: () => _reportProblem(order),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: c.error,
-                          side: BorderSide(color: c.error.withValues(alpha: 0.3)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: Text('PROBLÈME', style: AppTextStyles.labelCaps.copyWith(color: c.error)),
-                      ),
-              ),
+                ),
+              ],
             ],
           ),
+          if (order.status == OrderStatus.completed) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.lock_outline_rounded, size: 13, color: c.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Commande clôturée — seul votre chef d\'atelier peut la rouvrir.',
+                    style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (order.statusHistory.isNotEmpty) ...[
             const SizedBox(height: 10),
             InkWell(

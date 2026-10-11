@@ -40,14 +40,11 @@ class _TailorPhotosScreenState extends State<TailorPhotosScreen> {
             title: 'Photos non disponibles',
             subtitle: permissions.photosLockedMessage,
             icon: Icons.photo_library_outlined,
-            action: permissions.isExpired
-                ? null
-                : ElevatedButton(
-                    onPressed: () {
-                      // Naviguer vers l'écran d'upgrade
-                    },
-                    child: const Text('Voir les plans'),
-                  ),
+            // Le bouton « Voir les plans » qui figurait ici n'avait AUCUN effet
+            // (callback vide) : un bouton mort est pire que pas de bouton. Le
+            // passage à un plan supérieur se fait depuis Profil → Abonnement,
+            // ou depuis le dialogue « Limite atteinte » des écrans
+            // Clients/Commandes/Couturiers.
           ),
         ),
       );

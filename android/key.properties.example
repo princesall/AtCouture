@@ -1,0 +1,27 @@
+# Modèle de configuration de la signature Android — NE PAS RENOMMER CE FICHIER.
+#
+# Pour produire un APK/AAB de release publiable :
+#
+#   1. Générer un keystore (une seule fois, à conserver précieusement) :
+#        keytool -genkey -v -keystore styleconnect-release.jks \
+#          -keyalg RSA -keysize 2048 -validity 10000 -alias styleconnect
+#
+#   2. Copier ce fichier en  android/key.properties  (non versionné) et
+#      renseigner les 4 valeurs ci-dessous.
+#
+#   3. Placer le fichier .jks dans android/app/ et indiquer ici un chemin
+#      ABSOLU (le plus sûr), ou un chemin relatif au dossier android/app/.
+#
+#   4. `flutter build appbundle --release`
+#
+# Tant que android/key.properties n'existe pas, le build release est signé
+# avec la clé de debug : pratique pour tester, mais REFUSÉ par le Play Store.
+#
+# ATTENTION : si le keystore de release est perdu, il devient impossible de
+# publier une mise à jour de l'application existante. Sauvegardez-le (et ses
+# mots de passe) hors du dépôt Git — jamais dans ce projet.
+
+storePassword=CHANGER_MOI
+keyPassword=CHANGER_MOI
+keyAlias=styleconnect
+storeFile=/chemin/absolu/vers/styleconnect-release.jks

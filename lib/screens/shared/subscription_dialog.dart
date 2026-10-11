@@ -9,22 +9,40 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
 import '../../data/admin_demo_data.dart';
 import '../../models/subscription_plan.dart';
+import '../../models/subscription_request.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/firebase_service.dart';
+import '../../services/subscription_service.dart';
 
 /// Sélecteur d'abonnement — accessible à tout moment depuis l'onglet Profil
 /// (tuile "Abonnement"), et pas seulement quand une limite de plan est
 /// atteinte (voir les dialogues "Limite atteinte" des écrans Commandes/
 /// Clients/Couturiers, qui appellent aussi `show()` en dernière étape).
 abstract final class SubscriptionDialog {
-  static void show(BuildContext context) {
+  static Future<void> show(BuildContext context) async {
     final user = context.read<AuthProvider>().user!;
     final currentPlan = user.plan;
 
-    // Vérifier si une demande est déjà en cours pour ce compte.
-    final entry = AdminDemoData.stylists.where((s) => s.user.id == user.id).firstOrNull;
-    final pendingRequest = entry?.subscriptionRequest;
+    // Une demande est-elle déjà en attente de décision admin pour ce compte ?
+    //
+    // AVANT : cette vérification passait par `AdminDemoData.stylists`, qui
+    // lance une écoute de TOUTE la collection `users` (where role in
+    // [stylist, companyOwner]). Or firestore.rules n'autorise un compte non
+    // admin qu'à lire les documents qu'il gère : Firestore rejetait donc la
+    // requête EN BLOC, l'écoute s'arrêtait sans la moindre erreur visible, la
+    // liste restait vide en permanence — et l'utilisateur pouvait envoyer des
+    // demandes d'abonnement en double indéfiniment.
+    //
+    // MAINTENANT : une requête scopée sur son propre userId, la seule forme que
+    // les règles savent valider puisqu'elle ne peut ramener que ses propres
+    // demandes (voir firestore.rules : resource.data.userId == uid()).
+    final pendingRequest = FirebaseService.isAvailable
+        ? await SubscriptionService.instance.pendingSubscriptionRequestFor(user.id)
+        : _pendingRequestFromDemoStore(user.id);
 
-    if (pendingRequest != null && !pendingRequest.approved) {
+    if (!context.mounted) return;
+
+    if (pendingRequest != null) {
       showDialog(
         context: context,
         builder: (context) {
@@ -87,6 +105,15 @@ abstract final class SubscriptionDialog {
         ),
       ),
     );
+  }
+
+  /// Mode démo uniquement (Firebase non configuré) : la demande en attente vit
+  /// dans le store en mémoire d'AdminDemoData, il n'y a donc aucune requête
+  /// Firestore à faire — et donc aucun problème de droits.
+  static SubscriptionRequest? _pendingRequestFromDemoStore(String userId) {
+    final entry = AdminDemoData.stylists.where((s) => s.user.id == userId).firstOrNull;
+    final request = entry?.subscriptionRequest;
+    return (request != null && !request.approved) ? request : null;
   }
 
   static void _confirmRequest(BuildContext context, SubscriptionPlan plan) {

@@ -1,3 +1,38 @@
+import java.io.FileInputStream
+import java.util.Properties
+
+// Clés de signature du build release, lues depuis android/key.properties
+// (volontairement NON versionné — voir .gitignore). Tant que ce fichier n'est
+// pas présent ET correctement rempli, on retombe sur la signature debug pour ne
+// pas casser `flutter build apk --release` en local ni la CI.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        FileInputStream(keystorePropertiesFile).use { load(it) }
+    }
+}
+val declaredKeystorePath: String? = keystoreProperties.getProperty("storeFile")
+val declaredKeystoreFile: File? = declaredKeystorePath?.let { path ->
+    val candidate = File(path)
+    if (candidate.isAbsolute) candidate else File(projectDir, path)
+}
+
+// Le keystore doit RÉELLEMENT exister. Sans cette vérification, un
+// key.properties laissé au stade de modèle (storeFile = /chemin/absolu/…)
+// faisait échouer `flutter build apk --release` avec une erreur Gradle peu
+// explicite, au lieu de retomber proprement sur la signature debug.
+val hasReleaseKeystore = keystorePropertiesFile.exists() &&
+    declaredKeystoreFile != null &&
+    declaredKeystoreFile.exists()
+
+if (keystorePropertiesFile.exists() && !hasReleaseKeystore) {
+    logger.warn(
+        "⚠️  android/key.properties est présent mais le keystore déclaré est introuvable " +
+            "($declaredKeystorePath). Le build release sera signé avec la clé DEBUG " +
+            "(inutilisable sur le Play Store) — voir android/key.properties.example."
+    )
+}
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -33,11 +68,30 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        // Signature de production. Le keystore NE DOIT JAMAIS être commité :
+        // voir android/key.properties.example pour les 4 clés attendues.
+        if (hasReleaseKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Utilise la vraie clé de release dès que android/key.properties
+            // existe (obligatoire pour publier sur le Play Store) ; sinon repli
+            // sur la clé debug, uniquement pour pouvoir tester un build release
+            // en local et laisser la CI fonctionner.
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

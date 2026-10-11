@@ -103,6 +103,175 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                         ],
                       ),
                     ),
+                    // Gestion de la fiche client — AVANT : on ne pouvait ni
+                    // corriger une faute de frappe sur un nom ou un numéro, ni
+                    // supprimer une fiche créée par erreur. Un client sans
+                    // commande restait donc définitivement dans la base.
+                    PopupMenuButton<String>(
+                      tooltip: 'Gérer cette fiche client',
+                      icon: Icon(Icons.more_vert_rounded, color: c.onSurfaceVariant),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'edit', child: Text('Modifier')),
+                        PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+                      ],
+                      onSelected: (action) async {
+                        if (action == 'edit') {
+                          final nameController = TextEditingController(text: client.fullName);
+                          final phoneController = TextEditingController(text: client.phone);
+                          final emailController = TextEditingController(text: client.email ?? '');
+
+                          final saved = await showDialog<bool>(
+                            context: context,
+                            builder: (dialogContext) {
+                              var isSaving = false;
+                              String? error;
+                              return StatefulBuilder(
+                                builder: (dialogContext, setDialogState) => AlertDialog(
+                                  title: const Text('Modifier le client'),
+                                  content: SingleChildScrollView(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        TextField(
+                                          controller: nameController,
+                                          enabled: !isSaving,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Nom complet',
+                                            prefixIcon: Icon(Icons.person_outline),
+                                          ),
+                                        ),
+                                        const SizedBox(height: AppSpacing.sm),
+                                        TextField(
+                                          controller: phoneController,
+                                          enabled: !isSaving,
+                                          keyboardType: TextInputType.phone,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Téléphone',
+                                            prefixIcon: Icon(Icons.phone_outlined),
+                                          ),
+                                        ),
+                                        const SizedBox(height: AppSpacing.sm),
+                                        TextField(
+                                          controller: emailController,
+                                          enabled: !isSaving,
+                                          keyboardType: TextInputType.emailAddress,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Email (optionnel)',
+                                            prefixIcon: Icon(Icons.mail_outline),
+                                          ),
+                                        ),
+                                        if (error != null) ...[
+                                          const SizedBox(height: AppSpacing.sm),
+                                          Text(
+                                            error!,
+                                            style: AppTextStyles.bodySm.copyWith(
+                                              color: Theme.of(dialogContext).colorScheme.error,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: isSaving ? null : () => Navigator.pop(dialogContext, false),
+                                      child: const Text('Annuler'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: isSaving
+                                          ? null
+                                          : () async {
+                                              if (nameController.text.trim().isEmpty ||
+                                                  phoneController.text.trim().isEmpty) {
+                                                setDialogState(() => error = 'Le nom et le téléphone sont obligatoires.');
+                                                return;
+                                              }
+                                              setDialogState(() {
+                                                isSaving = true;
+                                                error = null;
+                                              });
+                                              try {
+                                                await OrderService.instance.updateClient(
+                                                  clientId: client.id,
+                                                  fullName: nameController.text,
+                                                  phone: phoneController.text,
+                                                  email: emailController.text,
+                                                );
+                                                if (!dialogContext.mounted) return;
+                                                Navigator.pop(dialogContext, true);
+                                              } catch (_) {
+                                                if (!dialogContext.mounted) return;
+                                                setDialogState(() {
+                                                  isSaving = false;
+                                                  error = 'Enregistrement impossible. Vérifiez votre connexion et réessayez.';
+                                                });
+                                              }
+                                            },
+                                      child: isSaving
+                                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                                          : const Text('Enregistrer'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+
+                          nameController.dispose();
+                          phoneController.dispose();
+                          emailController.dispose();
+
+                          if (saved == true && context.mounted) setState(() {});
+                        } else if (action == 'delete') {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (dialogContext) => AlertDialog(
+                              title: const Text('Supprimer le client'),
+                              content: Text(
+                                'Supprimer définitivement la fiche de ${client.fullName} ?\n\n'
+                                'Une fiche ne peut être supprimée que si le client n\'a plus aucune commande.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogContext, false),
+                                  child: const Text('Annuler'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () => Navigator.pop(dialogContext, true),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                                  ),
+                                  child: const Text('Supprimer'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed != true || !context.mounted) return;
+
+                          bool deleted;
+                          try {
+                            deleted = await OrderService.instance.deleteClient(client.id);
+                          } catch (_) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Suppression impossible. Vérifiez votre connexion et réessayez.')),
+                            );
+                            return;
+                          }
+                          if (!context.mounted) return;
+                          if (!deleted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Ce client a encore des commandes : supprimez-les d\'abord depuis l\'onglet Commandes.'),
+                              ),
+                            );
+                            return;
+                          }
+                          Navigator.pop(context);
+                          setState(() {});
+                        }
+                      },
+                    ),
                     IconButton(
                       icon: const Icon(Icons.close),
                       onPressed: () => Navigator.pop(context),

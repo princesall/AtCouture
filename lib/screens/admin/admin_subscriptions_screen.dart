@@ -85,10 +85,15 @@ class _OverviewTab extends StatelessWidget {
           ),
           child: Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('REVENUS MENSUELS', style: AppTextStyles.labelXs.copyWith(color: c.onTertiary.withValues(alpha: 0.7))),
+              // ATTENTION : ce bandeau affichait `AdminDemoData.monthlyRevenue`,
+              // c'est-à-dire le CHIFFRE D'AFFAIRES DES ATELIERS auprès de leurs
+              // propres clients — pas ce que StyleConnect encaisse. Sur l'écran
+              // des abonnements, c'est bien le revenu d'abonnement qui doit
+              // apparaître (voir AdminDashboard, qui distingue déjà les deux).
+              Text('REVENUS ABONNEMENTS', style: AppTextStyles.labelXs.copyWith(color: c.onTertiary.withValues(alpha: 0.7))),
               const SizedBox(height: 6),
-              Text(Formatters.formatCurrency(AdminDemoData.monthlyRevenue), style: AppTextStyles.statNumber.copyWith(color: c.onTertiary, fontSize: 28)),
-              Text(AppConstants.currency, style: AppTextStyles.labelXs.copyWith(color: c.onTertiary.withValues(alpha: 0.7))),
+              Text(Formatters.formatCurrency(AdminDemoData.subscriptionRevenue), style: AppTextStyles.statNumber.copyWith(color: c.onTertiary, fontSize: 28)),
+              Text('${AppConstants.currency} / mois', style: AppTextStyles.labelXs.copyWith(color: c.onTertiary.withValues(alpha: 0.7))),
             ])),
             Container(
               padding: const EdgeInsets.all(12),
@@ -260,7 +265,12 @@ class _ExpiringTabState extends State<_ExpiringTab> {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      isUrgent ? 'EXPIRE DANS $daysLeft J' : 'EXPIRE DANS $daysLeft J',
+                      // Les deux branches de ce ternaire étaient identiques :
+                      // un abonnement déjà expiré affichait « EXPIRE DANS -12 J »,
+                      // ce qui se lit très mal côté admin.
+                      daysLeft < 0
+                          ? 'EXPIRÉ DEPUIS ${daysLeft.abs()} J'
+                          : 'EXPIRE DANS $daysLeft J',
                       style: AppTextStyles.labelXs.copyWith(color: isUrgent ? c.error : c.statusInProgress),
                     ),
                   ),

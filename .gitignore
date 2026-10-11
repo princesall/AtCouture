@@ -44,3 +44,23 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/build/
+
+# Signature Android — NE JAMAIS versionner le keystore ni ses mots de passe.
+# Voir android/key.properties.example pour le format attendu.
+/android/key.properties
+*.jks
+*.keystore
+
+# Base de données locale de l'émulateur Firebase + artefacts de déploiement
+/.firebase/
+/firestore-debug.log
+/firebase-debug.log
+/firebase-export-*/
+/ui-debug.log
+/database-debug.log
+
+# iOS — dépendances et fichiers de configuration locaux
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.podspec
+/ios/Runner/GoogleService-Info.plist

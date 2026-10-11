@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/app_user.dart';
 import '../models/atelier.dart';
@@ -68,21 +69,32 @@ abstract final class AdminDemoData {
           .collection('users')
           .where('role', whereIn: ['stylist', 'companyOwner'])
           .snapshots()
-          .listen((snap) {
-        final currentIds = snap.docs.map((d) => d.id).toSet();
-        _stylists.removeWhere((s) => !currentIds.contains(s.user.id));
+          .listen(
+        (snap) {
+          final currentIds = snap.docs.map((d) => d.id).toSet();
+          _stylists.removeWhere((s) => !currentIds.contains(s.user.id));
 
-        for (final doc in snap.docs) {
-          final user = AppUser.fromMap(doc.data(), doc.id);
-          final index = _stylists.indexWhere((s) => s.user.id == user.id);
-          if (index == -1) {
-            _stylists.add(StylistEntry(user: user, isOnline: false));
-          } else {
-            _stylists[index] = _stylists[index].copyWith(user: user);
+          for (final doc in snap.docs) {
+            final user = AppUser.fromMap(doc.data(), doc.id);
+            final index = _stylists.indexWhere((s) => s.user.id == user.id);
+            if (index == -1) {
+              _stylists.add(StylistEntry(user: user, isOnline: false));
+            } else {
+              _stylists[index] = _stylists[index].copyWith(user: user);
+            }
+            _ensureRequestSynced(user.id);
           }
-          _ensureRequestSynced(user.id);
-        }
-      }),
+        },
+        // IMPORTANT — ce store est réservé à l'espace ADMIN : la requête liste
+        // ci-dessus n'est validable par firestore.rules que pour un
+        // administrateur (un compte standard ne peut lire que les documents
+        // qu'il gère). Aucun écran non-admin ne doit donc appeler
+        // AdminDemoData.stylists — voir SubscriptionDialog, qui interroge
+        // désormais uniquement ses propres demandes.
+        onError: (Object error, StackTrace stack) {
+          debugPrint('⚠️ store admin (users) non synchronisé : $error');
+        },
+      ),
     );
   }
 
@@ -95,15 +107,20 @@ abstract final class AdminDemoData {
           .where('userId', isEqualTo: userId)
           .where('status', isEqualTo: 'pending')
           .snapshots()
-          .listen((snap) {
-        final index = _stylists.indexWhere((s) => s.user.id == userId);
-        if (index == -1) return;
-        final doc = snap.docs.firstOrNull;
-        _stylists[index] = _stylists[index].copyWith(
-          subscriptionRequest: doc != null ? SubscriptionRequest.fromMap(doc.data(), doc.id) : null,
-          clearRequest: doc == null,
-        );
-      }),
+          .listen(
+        (snap) {
+          final index = _stylists.indexWhere((s) => s.user.id == userId);
+          if (index == -1) return;
+          final doc = snap.docs.firstOrNull;
+          _stylists[index] = _stylists[index].copyWith(
+            subscriptionRequest: doc != null ? SubscriptionRequest.fromMap(doc.data(), doc.id) : null,
+            clearRequest: doc == null,
+          );
+        },
+        onError: (Object error, StackTrace stack) {
+          debugPrint('⚠️ demandes d\'abonnement ($userId) non synchronisées : $error');
+        },
+      ),
     );
   }
 

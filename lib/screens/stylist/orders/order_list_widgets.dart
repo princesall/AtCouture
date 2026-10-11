@@ -22,6 +22,7 @@ import '../../../models/order_status.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/company_service.dart';
 import '../../../services/order_service.dart';
+import 'edit_order_dialog.dart';
 
 Color orderStatusColor(AppColorPalette c, OrderStatus status) {
   switch (status) {
@@ -529,44 +530,64 @@ void showOrderDetailSheet(
                     ),
                   ),
 
-                  // Statut
+                  // Statut — seules les transitions prévues par la machine à
+                  // états sont proposées (voir OrderStatus.canTransitionTo).
+                  // AVANT : la liste déroulante proposait TOUS les statuts, y
+                  // compris pour faire reculer une commande déjà terminée — la
+                  // règle métier, pourtant définie et couverte par des tests
+                  // unitaires, était donc purement décorative.
                   OrderDetailSection(
                     title: 'Statut',
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: orderStatusColor(c, order.status).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
+                    child: Builder(builder: (context) {
+                      final nextStatuses =
+                          OrderStatus.values.where(order.status.canTransitionTo).toList();
+                      return Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: orderStatusColor(c, order.status).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              order.statusLabel,
+                              style: AppTextStyles.labelCaps.copyWith(color: orderStatusColor(c, order.status)),
+                            ),
                           ),
-                          child: Text(
-                            order.statusLabel,
-                            style: AppTextStyles.labelCaps.copyWith(color: orderStatusColor(c, order.status)),
-                          ),
-                        ),
-                        const Spacer(),
-                        DropdownButton<OrderStatus>(
-                          value: order.status,
-                          items: OrderStatus.values.map((status) {
-                            return DropdownMenuItem(value: status, child: Text(status.label));
-                          }).toList(),
-                          onChanged: (newStatus) async {
-                            if (newStatus != null) {
-                              final changedBy = context.read<AuthProvider>().user!.fullName;
-                              await OrderService.instance.updateOrderStatus(
-                                order.id,
-                                newStatus,
-                                changedByName: changedBy,
-                              );
-                              if (!context.mounted) return;
-                              Navigator.pop(context);
-                              onChanged();
-                            }
-                          },
-                        ),
-                      ],
-                    ),
+                          const Spacer(),
+                          if (nextStatuses.isEmpty)
+                            Text(
+                              'Statut final',
+                              style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant),
+                            )
+                          else
+                            PopupMenuButton<OrderStatus>(
+                              tooltip: 'Changer le statut',
+                              onSelected: (status) => _changeOrderStatus(context, order, status, onChanged),
+                              itemBuilder: (_) => nextStatuses
+                                  .map((status) => PopupMenuItem<OrderStatus>(
+                                        value: status,
+                                        child: Text(status.label),
+                                      ))
+                                  .toList(),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: c.outlineVariant),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('Changer', style: AppTextStyles.labelCaps.copyWith(color: c.primary)),
+                                    Icon(Icons.arrow_drop_down_rounded, color: c.primary, size: 18),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    }),
                   ),
 
                   // Couturier — assignable ou réassignable à tout moment,
@@ -829,6 +850,42 @@ void showOrderDetailSheet(
                       ]);
                     }),
                   ),
+
+                  // Gestion — modifier / supprimer. AVANT : une commande était
+                  // DÉFINITIVE (OrderService.updateOrder et deleteOrder
+                  // existaient mais n'étaient appelés nulle part) : une faute de
+                  // frappe sur un prix ou une date ne pouvait jamais être
+                  // corrigée, et une commande créée par erreur restait à vie
+                  // dans les statistiques du client et de l'atelier.
+                  OrderDetailSection(
+                    title: 'Gestion',
+                    child: Row(children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final edited = await EditOrderDialog.show(context, order);
+                            if (edited != true || !context.mounted) return;
+                            Navigator.pop(context);
+                            onChanged();
+                          },
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          label: const Text('Modifier'),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _confirmDeleteOrder(context, order, onChanged),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: c.error,
+                            side: BorderSide(color: c.error.withValues(alpha: 0.4)),
+                          ),
+                          icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                          label: const Text('Supprimer'),
+                        ),
+                      ),
+                    ]),
+                  ),
                 ],
               ),
             ),
@@ -837,4 +894,73 @@ void showOrderDetailSheet(
       ),
     ),
   );
+}
+
+/// Applique un changement de statut depuis le détail d'une commande, en
+/// remontant une éventuelle erreur (droits Firestore, coupure réseau) au lieu
+/// de laisser le changement échouer en silence.
+Future<void> _changeOrderStatus(
+  BuildContext context,
+  Order order,
+  OrderStatus next,
+  VoidCallback onChanged,
+) async {
+  final changedBy = context.read<AuthProvider>().user!.fullName;
+  try {
+    await OrderService.instance.updateOrderStatus(order.id, next, changedByName: changedBy);
+    if (!context.mounted) return;
+    Navigator.pop(context);
+    onChanged();
+  } catch (_) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Impossible de changer le statut. Vérifiez votre connexion et réessayez.')),
+    );
+  }
+}
+
+/// Supprime une commande après confirmation explicite, en précisant l'effet de
+/// bord : la commande sort aussi des statistiques du client et de l'atelier
+/// (OrderService.deleteOrder met à jour orderCount, totalSpent et orderIds du
+/// client dans la même opération).
+Future<void> _confirmDeleteOrder(
+  BuildContext context,
+  Order order,
+  VoidCallback onChanged,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Supprimer la commande'),
+      content: Text(
+        'Supprimer définitivement la commande de ${order.clientName} ?\n\n'
+        'Cette action est irréversible : la commande sera également retirée des '
+        'statistiques du client et de l\'atelier.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Annuler'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          style: ElevatedButton.styleFrom(backgroundColor: Theme.of(dialogContext).colorScheme.error),
+          child: const Text('Supprimer'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+
+  try {
+    await OrderService.instance.deleteOrder(order.id);
+    if (!context.mounted) return;
+    Navigator.pop(context);
+    onChanged();
+  } catch (_) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Suppression impossible. Vérifiez votre connexion et réessayez.')),
+    );
+  }
 }

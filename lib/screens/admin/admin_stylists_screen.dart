@@ -396,9 +396,49 @@ class _StylistCardState extends State<_StylistCard> {
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: () async {
-              await AdminDemoData.toggleActive(widget.entry.user.id);
-              if (!mounted) return;
-              setState(() => _isActive = !_isActive);
+              // La désactivation coupe immédiatement l'accès au compte (voir
+              // firestore.rules : isActiveUser) : elle mérite la même
+              // confirmation que la suspension d'un couturier/collaborateur,
+              // d'autant qu'un simple appui accidentel suffisait ici.
+              if (_isActive) {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('Désactiver le compte'),
+                    content: Text(
+                      '${widget.entry.user.fullName} ne pourra plus se connecter tant que son compte est désactivé.\n\n'
+                      'Ses données (clients, commandes, abonnements) sont conservées : '
+                      'vous pouvez réactiver le compte à tout moment.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: const Text('Annuler'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        style: ElevatedButton.styleFrom(backgroundColor: Theme.of(dialogContext).colorScheme.error),
+                        child: const Text('Désactiver'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true || !mounted) return;
+              }
+
+              try {
+                await AdminDemoData.toggleActive(widget.entry.user.id);
+                if (!mounted) return;
+                setState(() => _isActive = !_isActive);
+              } catch (_) {
+                // AVANT : l'interface basculait l'état localement même si
+                // l'écriture Firestore échouait — l'admin croyait avoir
+                // suspendu un compte qui ne l'était pas.
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Modification impossible. Vérifiez votre connexion et réessayez.')),
+                );
+              }
             },
             icon: Icon(_isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded, size: 16),
             label: Text(_isActive ? 'DÉSACTIVER LE COMPTE' : 'RÉACTIVER LE COMPTE', style: AppTextStyles.labelCaps.copyWith(color: _isActive ? c.error : c.statusDone)),

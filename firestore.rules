@@ -133,12 +133,28 @@ service cloud.firestore {
       // — mais jamais changer son role/plan/atelierId. Idem pour le Chef
       // d'Entreprise qui gère un Chef d'atelier qu'il a lui-même créé (voir
       // CompanyService.updateAtelierHead/setAtelierHeadActive).
+      // mustChangePassword : autorisé UNIQUEMENT pour le passer à false (fin
+      // normale du changement de mot de passe temporaire, voir
+      // AuthService.changePassword) ou pour le laisser tel quel — un compte ne
+      // peut donc plus se ré-armer une obligation, ni lever celle d'un autre.
+      //
+      // LIMITE CONNUE : Firestore ne peut pas vérifier qu'un appelant a
+      // réellement changé son mot de passe côté Firebase Auth ; un utilisateur
+      // écrivant directement dans l'API pourrait donc lever l'obligation sans
+      // changer de mot de passe. Le contrôle réellement infalsifiable passera
+      // par une Cloud Function (plan Blaze) qui mettra ce champ à jour côté
+      // serveur ; l'application impose déjà l'écran de changement avant tout
+      // accès (voir AppRouter.redirect).
       allow update: if isAdmin()
         || (
           isOwnUser(userId)
           && isActiveUser()
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['fullName', 'phone', 'photoUrl', 'mustChangePassword'])
+          && (
+            request.resource.data.mustChangePassword == false
+            || request.resource.data.mustChangePassword == resource.data.mustChangePassword
+          )
         )
         || (
           resource.data.role == 'tailor'
@@ -261,6 +277,16 @@ service cloud.firestore {
     match /clients/{clientId} {
       allow read, write: if isAdmin() || managesAtelier(resource.data.atelierId);
       allow create: if isSignedIn() && managesAtelier(request.resource.data.atelierId);
+    }
+
+    // ── measurementFields/{atelierId} — catalogue de mesures ───────────
+    // Champs de mesures personnalisés ajoutés par un atelier ("Tour de bras",
+    // "Longueur manche"...), partagés par tout le staff qui gère cet atelier —
+    // voir MeasurementFieldsService. Le document ID EST l'atelierId, ce qui
+    // permet de réutiliser managesAtelier() tel quel. Réservé au staff : un
+    // couturier lit les mesures depuis la commande, pas depuis ce catalogue.
+    match /measurementFields/{atelierId} {
+      allow read, write: if isAdmin() || (isActiveUser() && managesAtelier(atelierId));
     }
 
     // ── supportMessages/{messageId} — SupportMessage ───────────────────

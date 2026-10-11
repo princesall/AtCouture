@@ -88,12 +88,17 @@ class CompanyService extends ChangeNotifier {
     _allCompaniesSynced = true;
 
     _subscriptions.add(
-      FirebaseFirestore.instance.collection('companies').snapshots().listen((snap) {
-        _companies
-          ..clear()
-          ..addAll(snap.docs.map((d) => Company.fromMap(d.data(), d.id)));
-        notifyListeners();
-      }),
+      FirebaseFirestore.instance.collection('companies').snapshots().listen(
+        (snap) {
+          _companies
+            ..clear()
+            ..addAll(snap.docs.map((d) => Company.fromMap(d.data(), d.id)));
+          notifyListeners();
+        },
+        onError: (Object error, StackTrace stack) {
+          debugPrint('⚠️ sync entreprises interrompue : $error');
+        },
+      ),
     );
   }
 
@@ -103,15 +108,20 @@ class CompanyService extends ChangeNotifier {
 
     final firestore = FirebaseFirestore.instance;
     _subscriptions.add(
-      firestore.collection('ateliers').where('companyId', isEqualTo: companyId).snapshots().listen((snap) {
-        _ateliers.removeWhere((a) => a.companyId == companyId);
-        final ateliers = snap.docs.map((d) => Atelier.fromMap(d.data(), d.id)).toList();
-        _ateliers.addAll(ateliers);
-        for (final atelier in ateliers) {
-          _ensureAtelierTailorsSynced(atelier.id);
-        }
-        notifyListeners();
-      }),
+      firestore.collection('ateliers').where('companyId', isEqualTo: companyId).snapshots().listen(
+        (snap) {
+          _ateliers.removeWhere((a) => a.companyId == companyId);
+          final ateliers = snap.docs.map((d) => Atelier.fromMap(d.data(), d.id)).toList();
+          _ateliers.addAll(ateliers);
+          for (final atelier in ateliers) {
+            _ensureAtelierTailorsSynced(atelier.id);
+          }
+          notifyListeners();
+        },
+        onError: (Object error, StackTrace stack) {
+          debugPrint('⚠️ sync ateliers entreprise $companyId interrompue : $error');
+        },
+      ),
     );
     _subscriptions.add(
       firestore
@@ -119,11 +129,16 @@ class CompanyService extends ChangeNotifier {
           .where('companyId', isEqualTo: companyId)
           .where('role', isEqualTo: 'stylist')
           .snapshots()
-          .listen((snap) {
-        _atelierHeads.removeWhere((u) => u.companyId == companyId);
-        _atelierHeads.addAll(snap.docs.map((d) => AppUser.fromMap(d.data(), d.id)));
-        notifyListeners();
-      }),
+          .listen(
+        (snap) {
+          _atelierHeads.removeWhere((u) => u.companyId == companyId);
+          _atelierHeads.addAll(snap.docs.map((d) => AppUser.fromMap(d.data(), d.id)));
+          notifyListeners();
+        },
+        onError: (Object error, StackTrace stack) {
+          debugPrint('⚠️ sync chefs d\'atelier $companyId interrompue : $error');
+        },
+      ),
     );
   }
 
@@ -137,11 +152,16 @@ class CompanyService extends ChangeNotifier {
           .where('atelierId', isEqualTo: atelierId)
           .where('role', isEqualTo: 'tailor')
           .snapshots()
-          .listen((snap) {
-        _tailors.removeWhere((t) => t.atelierId == atelierId);
-        _tailors.addAll(snap.docs.map((d) => AppUser.fromMap(d.data(), d.id)));
-        notifyListeners();
-      }),
+          .listen(
+        (snap) {
+          _tailors.removeWhere((t) => t.atelierId == atelierId);
+          _tailors.addAll(snap.docs.map((d) => AppUser.fromMap(d.data(), d.id)));
+          notifyListeners();
+        },
+        onError: (Object error, StackTrace stack) {
+          debugPrint('⚠️ sync couturiers atelier $atelierId interrompue : $error');
+        },
+      ),
     );
   }
 

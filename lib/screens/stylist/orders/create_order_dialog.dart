@@ -138,57 +138,70 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
       return;
     }
 
-    setState(() => _isSubmitting = true);
-
-    // Parser les mesures (seulement si le plan le permet)
-    Map<String, double>? measurements;
-    if (permissions.hasSavedMeasurements && (
-        _epauleController.text.isNotEmpty ||
-        _poitrineController.text.isNotEmpty ||
-        _tailleController.text.isNotEmpty ||
-        _hancheController.text.isNotEmpty ||
-        _longueurController.text.isNotEmpty)) {
-      measurements = {};
-      if (_epauleController.text.isNotEmpty) {
-        measurements['epaule'] = double.tryParse(_epauleController.text) ?? 0;
-      }
-      if (_poitrineController.text.isNotEmpty) {
-        measurements['poitrine'] = double.tryParse(_poitrineController.text) ?? 0;
-      }
-      if (_tailleController.text.isNotEmpty) {
-        measurements['taille'] = double.tryParse(_tailleController.text) ?? 0;
-      }
-      if (_hancheController.text.isNotEmpty) {
-        measurements['hanche'] = double.tryParse(_hancheController.text) ?? 0;
-      }
-      if (_longueurController.text.isNotEmpty) {
-        measurements['longueur'] = double.tryParse(_longueurController.text) ?? 0;
-      }
+    // Validation des mesures AVANT tout envoi. AVANT : `double.tryParse(...) ?? 0`
+    // transformait silencieusement une saisie illisible — ou un « , » décimal,
+    // usage très courant en français — en 0 cm. Ces mesures fausses partaient
+    // ensuite chez le couturier, qui coupait le vêtement aux mauvaises
+    // dimensions.
+    (bool, double?) parseMeasurement(String raw) {
+      final text = raw.trim().replaceAll(',', '.');
+      if (text.isEmpty) return (true, null);
+      final value = double.tryParse(text);
+      if (value == null || value <= 0) return (false, null);
+      return (true, value);
     }
+
+    final measurementInputs = <String, double>{};
     if (permissions.hasSavedMeasurements) {
-      for (final entry in _customMeasurementControllers.entries) {
-        if (entry.value.text.isNotEmpty) {
-          measurements ??= {};
-          measurements[entry.key] = double.tryParse(entry.value.text) ?? 0;
+      final rawInputs = <String, String>{
+        'epaule': _epauleController.text,
+        'poitrine': _poitrineController.text,
+        'taille': _tailleController.text,
+        'hanche': _hancheController.text,
+        'longueur': _longueurController.text,
+        for (final entry in _customMeasurementControllers.entries) entry.key: entry.value.text,
+      };
+      for (final entry in rawInputs.entries) {
+        final (isValid, value) = parseMeasurement(entry.value);
+        if (!isValid) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Mesure « ${entry.key} » invalide : indiquez un nombre en cm.')),
+          );
+          return;
         }
+        if (value != null) measurementInputs[entry.key] = value;
       }
+    }
+    final measurements = measurementInputs.isEmpty ? null : measurementInputs;
+
+    // Date de livraison : validation stricte. AVANT, ce champ texte libre était
+    // parsé sans aucun contrôle : « 31/02/2027 » devenait silencieusement le
+    // 3 mars (DateTime déborde au lieu de lever une erreur), et toute autre
+    // saisie était simplement ignorée — l'échéance disparaissait sans prévenir.
+    DateTime? dueDate;
+    final dueDateText = _dueDateController.text.trim();
+    if (dueDateText.isNotEmpty) {
+      const invalidDateMessage = 'Date de livraison invalide : utilisez le format JJ/MM/AAAA.';
+      final parts = dueDateText.split('/');
+      final day = parts.length == 3 ? int.tryParse(parts[0]) : null;
+      final month = parts.length == 3 ? int.tryParse(parts[1]) : null;
+      final year = parts.length == 3 ? int.tryParse(parts[2]) : null;
+
+      if (day == null || month == null || year == null || month < 1 || month > 12) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(invalidDateMessage)));
+        return;
+      }
+      final parsed = DateTime(year, month, day);
+      if (parsed.day != day || parsed.month != month || parsed.year != year) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cette date n\'existe pas dans le calendrier.')),
+        );
+        return;
+      }
+      dueDate = parsed;
     }
 
-    // Parser la date
-    DateTime? dueDate;
-    if (_dueDateController.text.isNotEmpty) {
-      // Format simple JJ/MM/AAAA
-      final parts = _dueDateController.text.split('/');
-      if (parts.length == 3) {
-        try {
-          dueDate = DateTime(
-            int.parse(parts[2]),
-            int.parse(parts[1]),
-            int.parse(parts[0]),
-          );
-        } catch (_) {}
-      }
-    }
+    setState(() => _isSubmitting = true);
 
     try {
       final result = await OrderService.instance.createOrder(

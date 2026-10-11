@@ -234,6 +234,17 @@ class _AddClientSheetState extends State<_AddClientSheet> {
   bool _isSubmitting = false;
   final String _idempotencyKey = const Uuid().v4();
 
+  // Les 3 contrôleurs ci-dessus étaient créés sans jamais être libérés : le
+  // dialogue pouvait être ouvert/fermé indéfiniment et chacun de ces objets
+  // restait en mémoire (avec ses écouteurs).
+  @override
+  void dispose() {
+    _name.dispose();
+    _phone.dispose();
+    _email.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -55,6 +56,17 @@ class _StyleConnectAppState extends State<StyleConnectApp> {
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: themeProvider.themeMode,
+          // Application entièrement francophone : sans ces délégués, les
+          // widgets fournis par Flutter (sélecteur de date, boutons
+          // "OK"/"Annuler", menus contextuels de sélection de texte...)
+          // s'affichaient en anglais au milieu d'une interface française.
+          locale: const Locale('fr', 'FR'),
+          supportedLocales: const [Locale('fr', 'FR')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           routerConfig: _router,
         ),
       ),

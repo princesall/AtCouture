@@ -44,12 +44,17 @@ class SupportMessageService extends ChangeNotifier {
     _allSynced = true;
 
     _subscriptions.add(
-      FirebaseFirestore.instance.collection('supportMessages').snapshots().listen((snap) {
-        _messages
-          ..clear()
-          ..addAll(snap.docs.map((d) => SupportMessage.fromMap(d.data(), d.id)));
-        notifyListeners();
-      }),
+      FirebaseFirestore.instance.collection('supportMessages').snapshots().listen(
+        (snap) {
+          _messages
+            ..clear()
+            ..addAll(snap.docs.map((d) => SupportMessage.fromMap(d.data(), d.id)));
+          notifyListeners();
+        },
+        onError: (Object error, StackTrace stack) {
+          debugPrint('⚠️ sync messages support (admin) interrompue : $error');
+        },
+      ),
     );
   }
 
@@ -62,11 +67,16 @@ class SupportMessageService extends ChangeNotifier {
           .collection('supportMessages')
           .where('senderId', isEqualTo: senderId)
           .snapshots()
-          .listen((snap) {
-        _messages.removeWhere((m) => m.senderId == senderId);
-        _messages.addAll(snap.docs.map((d) => SupportMessage.fromMap(d.data(), d.id)));
-        notifyListeners();
-      }),
+          .listen(
+        (snap) {
+          _messages.removeWhere((m) => m.senderId == senderId);
+          _messages.addAll(snap.docs.map((d) => SupportMessage.fromMap(d.data(), d.id)));
+          notifyListeners();
+        },
+        onError: (Object error, StackTrace stack) {
+          debugPrint('⚠️ sync messages support ($senderId) interrompue : $error');
+        },
+      ),
     );
   }
 

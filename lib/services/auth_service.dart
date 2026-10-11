@@ -524,10 +524,19 @@ class AuthService {
         .collection('users')
         .doc(user.id)
         .snapshots()
-        .listen((doc) {
-      if (!doc.exists) return;
-      onUpdate(AppUser.fromMap(doc.data()!, doc.id));
-    });
+        .listen(
+      (doc) {
+        if (!doc.exists) return;
+        onUpdate(AppUser.fromMap(doc.data()!, doc.id));
+      },
+      // Sans handler, une écoute refusée (règles Firestore, coupure réseau)
+      // remontait en exception NON gérée et laissait l'application sur un état
+      // périmé — un compte suspendu en direct ou un plan validé par l'admin
+      // n'était alors jamais détecté, sans le moindre message.
+      onError: (Object error, StackTrace stack) {
+        debugPrint('⚠️ watchOwnUserDoc interrompu : $error');
+      },
+    );
   }
 
   void stopWatchingOwnUserDoc() {

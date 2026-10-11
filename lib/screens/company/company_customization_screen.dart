@@ -68,15 +68,29 @@ class _CompanyCustomizationScreenState extends State<CompanyCustomizationScreen>
   Future<void> _save() async {
     if (_isSaving) return;
     setState(() => _isSaving = true);
-    await CompanyCustomizationService.instance.setBranding(
-      _companyId,
-      CompanyBranding(brandName: _brandNameController.text.trim(), accentColor: _accentColor),
-    );
-    if (!mounted) return;
-    setState(() => _isSaving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Personnalisation enregistrée')),
-    );
+    try {
+      await CompanyCustomizationService.instance.setBranding(
+        _companyId,
+        CompanyBranding(brandName: _brandNameController.text.trim(), accentColor: _accentColor),
+      );
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Personnalisation enregistrée')),
+      );
+    } catch (_) {
+      // AVANT : aucune gestion d'erreur — l'écran annonçait « Personnalisation
+      // enregistrée » même quand l'écriture Firestore échouait (droits refusés,
+      // hors-ligne), alors que la marque restait en réalité inchangée.
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Enregistrement impossible. Vérifiez votre connexion et réessayez.'),
+          backgroundColor: context.colors.error,
+        ),
+      );
+    }
   }
 
   @override

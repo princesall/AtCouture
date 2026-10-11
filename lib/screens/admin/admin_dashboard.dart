@@ -197,12 +197,18 @@ class AdminDashboard extends StatelessWidget {
 
   Widget _buildTopStylists(BuildContext context) {
     final c = context.colors;
-    final top = AdminDemoData.stylists.where((s) => s.user.isActive).take(3).toList();
+    // « Top » doit vouloir dire quelque chose : c'était un simple `take(3)`
+    // sur l'ordre d'arrivée des comptes Firestore, sans aucun classement — la
+    // carte affichait donc trois comptes arbitraires. On classe désormais par
+    // chiffre d'affaires généré, du plus élevé au plus faible.
+    final top = AdminDemoData.stylists.where((s) => s.user.isActive).toList()
+      ..sort((a, b) => AdminDemoData.getStylistRevenue(b.user)
+          .compareTo(AdminDemoData.getStylistRevenue(a.user)));
     return Container(
       decoration: BoxDecoration(color: c.surfaceContainerLowest, borderRadius: BorderRadius.circular(20), boxShadow: c.premiumShadow),
       clipBehavior: Clip.antiAlias,
       child: Column(
-        children: top.asMap().entries.map((e) {
+        children: top.take(3).toList().asMap().entries.map((e) {
           final i = e.key; final s = e.value;
           final realRevenue = AdminDemoData.getStylistRevenue(s.user);
           return Column(children: [

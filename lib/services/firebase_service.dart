@@ -23,15 +23,17 @@ class FirebaseService {
       FirebaseFirestore.instance.settings = const Settings(persistenceEnabled: true);
       _available = true;
       _initialized = true;
-      if (kDebugMode) {
-        debugPrint('✓ Firebase initialisé (projet ${DefaultFirebaseOptions.currentPlatform.projectId})');
-      }
+      // Journalisé AUSSI en release (et non plus seulement en debug) : c'est le
+      // seul moyen de vérifier d'un coup d'œil, sur un appareil réel, que
+      // l'application tourne bien sur Firebase et NON en mode démo. Sans ce
+      // message, un APK release mal configuré (permission INTERNET absente,
+      // google-services.json erroné...) se comportait comme un mode démo
+      // silencieux, sans le moindre indice pour le diagnostic.
+      debugPrint('✓ Firebase initialisé (projet ${DefaultFirebaseOptions.currentPlatform.projectId})');
     } catch (e) {
       _available = false;
       _initialized = true;
-      if (kDebugMode) {
-        debugPrint('⚠ Mode démo — Firebase non configuré: $e');
-      }
+      debugPrint('⚠ MODE DÉMO — Firebase NON configuré, les données ne sont PAS persistées : $e');
     }
 
     return _available;

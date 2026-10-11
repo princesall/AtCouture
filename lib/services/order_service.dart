@@ -87,11 +87,18 @@ class OrderService extends ChangeNotifier {
           .where('atelierId', isEqualTo: atelierId)
           .where('tailorId', isEqualTo: tailorId)
           .snapshots()
-          .listen((snap) {
-        _orders.removeWhere((o) => o.atelierId == atelierId && o.tailorId == tailorId);
-        _orders.addAll(snap.docs.map((d) => Order.fromMap(d.data(), d.id)));
-        notifyListeners();
-      }),
+          .listen(
+        (snap) {
+          _orders.removeWhere((o) => o.atelierId == atelierId && o.tailorId == tailorId);
+          _orders.addAll(snap.docs.map((d) => Order.fromMap(d.data(), d.id)));
+          notifyListeners();
+        },
+        // Une écoute refusée par les règles laissait le couturier devant un
+        // tableau de bord définitivement vide, sans aucune erreur visible.
+        onError: (Object error, StackTrace stack) {
+          debugPrint('⚠️ sync commandes couturier ($scopeKey) interrompue : $error');
+        },
+      ),
     );
   }
 
@@ -101,18 +108,28 @@ class OrderService extends ChangeNotifier {
 
     final firestore = FirebaseFirestore.instance;
     _subscriptions.add(
-      firestore.collection('orders').where('atelierId', isEqualTo: atelierId).snapshots().listen((snap) {
-        _orders.removeWhere((o) => o.atelierId == atelierId);
-        _orders.addAll(snap.docs.map((d) => Order.fromMap(d.data(), d.id)));
-        notifyListeners();
-      }),
+      firestore.collection('orders').where('atelierId', isEqualTo: atelierId).snapshots().listen(
+        (snap) {
+          _orders.removeWhere((o) => o.atelierId == atelierId);
+          _orders.addAll(snap.docs.map((d) => Order.fromMap(d.data(), d.id)));
+          notifyListeners();
+        },
+        onError: (Object error, StackTrace stack) {
+          debugPrint('⚠️ sync commandes atelier $atelierId interrompue : $error');
+        },
+      ),
     );
     _subscriptions.add(
-      firestore.collection('clients').where('atelierId', isEqualTo: atelierId).snapshots().listen((snap) {
-        _clients.removeWhere((c) => c.atelierId == atelierId);
-        _clients.addAll(snap.docs.map((d) => Client.fromMap(d.data(), d.id)));
-        notifyListeners();
-      }),
+      firestore.collection('clients').where('atelierId', isEqualTo: atelierId).snapshots().listen(
+        (snap) {
+          _clients.removeWhere((c) => c.atelierId == atelierId);
+          _clients.addAll(snap.docs.map((d) => Client.fromMap(d.data(), d.id)));
+          notifyListeners();
+        },
+        onError: (Object error, StackTrace stack) {
+          debugPrint('⚠️ sync clients atelier $atelierId interrompue : $error');
+        },
+      ),
     );
   }
 
@@ -145,6 +162,68 @@ class OrderService extends ChangeNotifier {
   /// Un client par son ID — même remarque que ordersOfClient ci-dessus.
   Client? clientById(String clientId) {
     return _clients.where((c) => c.id == clientId).firstOrNull;
+  }
+
+  /// Met à jour les informations de base d'une fiche client (nom, téléphone,
+  /// email). `atelierId` est volontairement exclu : un client ne change pas
+  /// d'atelier depuis l'interface.
+  ///
+  /// NOTE : un email laissé vide CONSERVE la valeur précédente — le
+  /// copyWith de Client ne sait pas effacer un champ optionnel.
+  Future<void> updateClient({
+    required String clientId,
+    required String fullName,
+    required String phone,
+    String? email,
+  }) async {
+    final trimmedEmail = (email == null || email.trim().isEmpty) ? null : email.trim();
+
+    if (FirebaseService.isAvailable) {
+      await FirebaseFirestore.instance.collection('clients').doc(clientId).update({
+        'fullName': fullName.trim(),
+        'phone': phone.trim(),
+        'email': trimmedEmail,
+      });
+      return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    final index = _clients.indexWhere((c) => c.id == clientId);
+    if (index == -1) return;
+    _clients[index] = _clients[index].copyWith(
+      fullName: fullName.trim(),
+      phone: phone.trim(),
+      email: trimmedEmail,
+    );
+  }
+
+  /// Supprime une fiche client.
+  ///
+  /// REFUSE la suppression tant qu'il reste des commandes liées : les
+  /// supprimer en cascade effacerait un historique de production que l'atelier
+  /// doit conserver (les commandes servent de preuve de livraison et de base au
+  /// calcul du chiffre d'affaires). Retourne false dans ce cas, à charge de
+  /// l'appelant d'expliquer à l'utilisateur qu'il doit d'abord supprimer les
+  /// commandes.
+  Future<bool> deleteClient(String clientId) async {
+    if (FirebaseService.isAvailable) {
+      final orderSnap = await FirebaseFirestore.instance
+          .collection('orders')
+          .where('clientId', isEqualTo: clientId)
+          .limit(1)
+          .get();
+      if (orderSnap.docs.isNotEmpty) return false;
+
+      await FirebaseFirestore.instance.collection('clients').doc(clientId).delete();
+      return true;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    if (_orders.any((o) => o.clientId == clientId)) return false;
+    _clients.removeWhere((c) => c.id == clientId);
+    return true;
   }
 
   /// Une commande par son ID — utilisé par l'écran de suivi public (sans

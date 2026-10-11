@@ -2,6 +2,15 @@
     <!-- Mémo vocal du couturier lors d'un signalement de problème sur une
          commande, voir report_problem_dialog.dart. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Accès réseau — OBLIGATOIRE, y compris en release : Firebase Auth,
+         Cloud Firestore, Firebase Storage, ainsi que l'ouverture de WhatsApp
+         et le partage des PDF. Le template Flutter ne déclare cette permission
+         que dans les manifests debug/ et profile/, utilisés par l'outillage de
+         développement : sans cette ligne, un APK release n'avait AUCUN accès
+         réseau, FirebaseService.initialize() échouait et l'application
+         basculait silencieusement en mode démo (voir firebase_service.dart). -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:label="StyleConnect"
         android:name="${applicationName}"
