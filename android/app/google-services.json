@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "671589265068-0m6gcsj6vpib9btihpi6usn9tgt01l2h.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.styleconnect.styleconnect",
+            "certificate_hash": "46afd54415fcab149c30cac125fcce63b53ccc57"
+          }
+        },
+        {
           "client_id": "671589265068-4tavehf7usfc729dlftlh4a5785mr103.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
