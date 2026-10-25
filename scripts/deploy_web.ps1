@@ -25,13 +25,21 @@ flutter build web --release --pwa-strategy=none
 if ($LASTEXITCODE -ne 0) { throw "flutter build web a échoué" }
 
 $sw = "build/web/flutter_service_worker.js"
-if (Test-Path $sw) {
-    $size = (Get-Item $sw).Length
-    Write-Host "   flutter_service_worker.js = $size octet(s)" -ForegroundColor DarkGray
-    if ($size -gt 0) {
-        throw "Le service worker n'est pas vide : le drapeau --pwa-strategy=none n'a pas été pris en compte."
-    }
+
+# Le service worker généré par Flutter met en cache l'application : après un
+# déploiement, un navigateur déjà venu peut servir l'ancienne version pendant
+# des heures. On le remplace donc par un service worker « auto-destructeur »
+# qui purge les caches et se désenregistre (voir le fichier source : il explique
+# le mécanisme). C'est la seule façon de débloquer aussi les navigateurs déjà
+# bloqués sur une ancienne version.
+$killswitch = Join-Path $PSScriptRoot "service_worker_killswitch.js"
+if (-not (Test-Path $killswitch)) { throw "Introuvable : $killswitch" }
+Copy-Item $killswitch $sw -Force
+
+if ((Get-Content $sw -Raw) -notmatch 'self\.registration\.unregister') {
+    throw "Le service worker auto-destructeur n'a pas été copié correctement dans $sw."
 }
+Write-Host "   service worker auto-destructeur en place" -ForegroundColor DarkGray
 
 Write-Host ">> Déploiement Firebase Hosting ($Project)" -ForegroundColor Cyan
 firebase deploy --only hosting --project $Project
