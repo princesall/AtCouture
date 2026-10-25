@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
+import '../../core/utils/formatters.dart';
 import '../../core/utils/plan_guard.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../core/widgets/stitch_widgets.dart';
@@ -104,6 +105,40 @@ class StylistDashboard extends StatelessWidget {
                   value: completed.toString(),
                   icon: PhosphorIconsRegular.checkCircle,
                   valueColor: c.statusDone,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 120,
+                child: StatCard(
+                  label: 'ENCAISSÉ',
+                  value: Formatters.compactCurrency(
+                    OrderService.instance.cashCollected(user.atelierId!),
+                  ),
+                  icon: PhosphorIconsRegular.wallet,
+                  valueColor: c.statusDone,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: SizedBox(
+                height: 120,
+                child: StatCard(
+                  label: 'RESTE À RECEVOIR',
+                  value: Formatters.compactCurrency(
+                    OrderService.instance.outstandingBalance(user.atelierId!),
+                  ),
+                  icon: PhosphorIconsRegular.receipt,
+                  valueColor: OrderService.instance.outstandingBalance(user.atelierId!) > 0
+                      ? c.statusInProgress
+                      : c.onSurfaceVariant,
                 ),
               ),
             ),

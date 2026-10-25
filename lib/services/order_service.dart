@@ -4,9 +4,11 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/client.dart';
 import '../models/order.dart';
+import '../models/order_payment.dart';
 import '../models/order_status.dart';
 import 'firebase_service.dart';
 
@@ -391,6 +393,7 @@ class OrderService extends ChangeNotifier {
       description: description,
       price: price,
       deposit: deposit,
+      payments: _initialPayments(deposit),
       dueDate: dueDate,
       createdAt: now,
       statusHistory: [
@@ -508,6 +511,7 @@ class OrderService extends ChangeNotifier {
       description: description,
       price: price,
       deposit: deposit,
+      payments: _initialPayments(deposit),
       dueDate: dueDate,
       createdAt: now,
       statusHistory: [
@@ -866,10 +870,159 @@ class OrderService extends ChangeNotifier {
     );
   }
 
-  /// Revenu total d'un atelier (somme des prix des commandes livrées)
+  /// Revenu total d'un atelier (somme des prix des commandes livrées).
+  ///
+  /// Attention : c'est du CA **facturé**, pas de l'argent reçu. Pour la
+  /// trésorerie, voir [cashCollected] et [outstandingBalance].
   int atelierRevenue(String atelierId) {
     return ordersOfAtelier(atelierId)
         .where((o) => o.status == OrderStatus.completed)
         .fold(0, (total, o) => total + (o.price ?? 0));
   }
+
+  // ── Versements (trésorerie) ───────────────────────────────────────────────
+
+  /// Enregistre un versement reçu sur une commande (acompte ou règlement
+  /// partiel) et met à jour le miroir `deposit` pour les lecteurs historiques.
+  ///
+  /// Lève une [PaymentException] avec un message affichable si le montant est
+  /// invalide ou s'il dépasse le reste à payer.
+  Future<void> addPayment({
+    required String orderId,
+    required int amount,
+    PaymentMethod method = PaymentMethod.cash,
+    DateTime? paidAt,
+    String? note,
+    String? paymentId,
+  }) async {
+    final payment = OrderPayment(
+      id: paymentId ?? const Uuid().v4(),
+      amount: amount,
+      paidAt: paidAt ?? DateTime.now(),
+      method: method,
+      note: note,
+    );
+
+    if (FirebaseService.isAvailable) {
+      final ref = FirebaseFirestore.instance.collection('orders').doc(orderId);
+      final snap = await ref.get();
+      if (!snap.exists) {
+        throw const PaymentException('Commande introuvable.');
+      }
+      final order = Order.fromMap(snap.data()!, orderId);
+      _validatePayment(order, amount);
+      await ref.update({
+        'payments': FieldValue.arrayUnion([payment.toMap()]),
+        'deposit': order.totalPaid + amount,
+      });
+      return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    final index = _orders.indexWhere((o) => o.id == orderId);
+    if (index == -1) throw const PaymentException('Commande introuvable.');
+
+    final order = _orders[index];
+    _validatePayment(order, amount);
+    _orders[index] = order.copyWith(
+      payments: [...order.payments, payment],
+      deposit: order.totalPaid + amount,
+    );
+    notifyListeners();
+  }
+
+  /// Supprime un versement saisi par erreur (mauvais montant, doublon).
+  Future<void> removePayment(String orderId, String paymentId) async {
+    if (FirebaseService.isAvailable) {
+      final ref = FirebaseFirestore.instance.collection('orders').doc(orderId);
+      final snap = await ref.get();
+      if (!snap.exists) return;
+      final order = Order.fromMap(snap.data()!, orderId);
+      final remaining =
+          order.payments.where((p) => p.id != paymentId).toList();
+      await ref.update({
+        'payments': remaining.map((p) => p.toMap()).toList(),
+        'deposit': remaining.fold<int>(0, (acc, p) => acc + p.amount),
+      });
+      return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    final index = _orders.indexWhere((o) => o.id == orderId);
+    if (index == -1) return;
+
+    final order = _orders[index];
+    final remaining = order.payments.where((p) => p.id != paymentId).toList();
+    _orders[index] = order.copyWith(
+      payments: remaining,
+      deposit: remaining.fold<int>(0, (acc, p) => acc + p.amount),
+    );
+    notifyListeners();
+  }
+
+  /// Argent réellement encaissé sur une période (par défaut : tout l'historique).
+  int cashCollected(
+    String atelierId, {
+    DateTime? from,
+    DateTime? to,
+  }) {
+    var total = 0;
+    for (final order in ordersOfAtelier(atelierId)) {
+      for (final payment in order.payments) {
+        if (from != null && payment.paidAt.isBefore(from)) continue;
+        if (to != null && payment.paidAt.isAfter(to)) continue;
+        total += payment.amount;
+      }
+    }
+    return total;
+  }
+
+  /// Somme des soldes restant à encaisser sur un atelier (hors commandes
+  /// livrées ? non : un solde reste dû même après livraison).
+  int outstandingBalance(String atelierId) {
+    return ordersOfAtelier(atelierId)
+        .fold(0, (total, o) => total + o.balanceDue);
+  }
+
+  /// Convertit l'acompte saisi à la création en premier versement daté, pour
+  /// que la fiche commande affiche immédiatement « Encaissé : X » plutôt que
+  /// « Encaissé : 0 » en attendant un rechargement depuis Firestore.
+  static List<OrderPayment> _initialPayments(int? deposit) {
+    if (deposit == null || deposit <= 0) return const [];
+    return [
+      OrderPayment(
+        id: 'initial-deposit',
+        amount: deposit,
+        paidAt: DateTime.now(),
+        method: PaymentMethod.cash,
+        note: 'Acompte à la commande',
+      ),
+    ];
+  }
+
+  void _validatePayment(Order order, int amount) {
+    if (amount <= 0) {
+      throw const PaymentException('Le montant doit être supérieur à 0.');
+    }
+    final price = order.price;
+    if (price != null && order.totalPaid + amount > price) {
+      final rest = price - order.totalPaid;
+      throw PaymentException(
+        'Ce versement dépasse le reste à payer '
+        '(${rest > 0 ? rest : 0} FCFA).',
+      );
+    }
+  }
+}
+
+/// Erreur métier d'encaissement — porte un message déjà rédigé pour l'UI.
+class PaymentException implements Exception {
+  const PaymentException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }

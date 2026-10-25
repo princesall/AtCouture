@@ -16,6 +16,7 @@ import '../../../core/utils/order_pdf.dart';
 import '../../../core/utils/plan_guard.dart';
 import '../../../core/utils/whatsapp_launcher.dart';
 import '../../../core/widgets/common_widgets.dart';
+import '../../../core/widgets/order_payments_section.dart';
 import '../../../core/widgets/voice_note_player.dart';
 import '../../../models/order.dart';
 import '../../../models/order_status.dart';
@@ -736,33 +737,12 @@ void showOrderDetailSheet(
                       ),
                     ),
 
-                  // Prix
-                  if (order.price != null) ...[
-                    OrderDetailSection(
-                      title: 'Prix',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            Formatters.formatCurrency(order.price!),
-                            style: AppTextStyles.headlineSm.copyWith(color: c.primary),
-                          ),
-                          if (order.deposit != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              'Acompte: ${Formatters.formatCurrency(order.deposit!)}',
-                              style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Reste: ${Formatters.formatCurrency(order.price! - order.deposit!)}',
-                              style: AppTextStyles.bodySm.copyWith(color: c.error, fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
+                  // Prix & paiements — versements datés, total encaissé,
+                  // solde restant et encaissement d'un nouveau versement.
+                  OrderDetailSection(
+                    title: 'Prix & paiements',
+                    child: OrderPaymentsSection(order: order),
+                  ),
 
                   // Date de livraison
                   if (order.dueDate != null)

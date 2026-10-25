@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:styleconnect/models/order_payment.dart';
 import 'package:styleconnect/models/order_status.dart';
 import 'package:styleconnect/services/order_service.dart';
 
@@ -274,6 +275,116 @@ void main() {
       expect(service.searchClients('kadia', atelierId), hasLength(1));
       expect(service.searchClients('0799', atelierId), hasLength(1));
       expect(service.searchClients('inexistant', atelierId), isEmpty);
+    });
+  });
+
+  group('versements — encaissement sur une commande', () {
+    Future<String> orderWithPrice(String atelierId, int price) async {
+      final result = await service.createOrder(
+        clientName: 'Client Versement $atelierId',
+        clientPhone: '078800${atelierCounter.toString().padLeft(4, '0')}',
+        atelierId: atelierId,
+        atelierName: 'Atelier Test',
+        price: price,
+      );
+      return result.order.id;
+    }
+
+    test('accumule les versements et met à jour le miroir deposit', () async {
+      final atelierId = uniqueAtelierId();
+      final orderId = await orderWithPrice(atelierId, 150000);
+
+      await service.addPayment(orderId: orderId, amount: 50000);
+      await service.addPayment(
+        orderId: orderId,
+        amount: 60000,
+        method: PaymentMethod.wave,
+      );
+
+      final order = service.orderById(orderId)!;
+      expect(order.payments, hasLength(2));
+      expect(order.totalPaid, 110000);
+      expect(order.balanceDue, 40000);
+      expect(order.deposit, 110000);
+      expect(order.payments.last.method, PaymentMethod.wave);
+    });
+
+    test('refuse un versement qui dépasse le reste à payer', () async {
+      final atelierId = uniqueAtelierId();
+      final orderId = await orderWithPrice(atelierId, 100000);
+
+      await service.addPayment(orderId: orderId, amount: 90000);
+
+      expect(
+        () => service.addPayment(orderId: orderId, amount: 20000),
+        throwsA(isA<PaymentException>()),
+      );
+
+      final order = service.orderById(orderId)!;
+      expect(order.totalPaid, 90000);
+      expect(order.balanceDue, 10000);
+    });
+
+    test('refuse un montant nul ou négatif', () async {
+      final atelierId = uniqueAtelierId();
+      final orderId = await orderWithPrice(atelierId, 50000);
+
+      expect(
+        () => service.addPayment(orderId: orderId, amount: 0),
+        throwsA(isA<PaymentException>()),
+      );
+      expect(
+        () => service.addPayment(orderId: orderId, amount: -1000),
+        throwsA(isA<PaymentException>()),
+      );
+    });
+
+    test('supprimer un versement recalcule le solde', () async {
+      final atelierId = uniqueAtelierId();
+      final orderId = await orderWithPrice(atelierId, 150000);
+
+      await service.addPayment(orderId: orderId, amount: 50000);
+      await service.addPayment(orderId: orderId, amount: 60000);
+
+      final paymentToDrop = service.orderById(orderId)!.payments.first;
+      await service.removePayment(orderId, paymentToDrop.id);
+
+      final order = service.orderById(orderId)!;
+      expect(order.payments, hasLength(1));
+      expect(order.totalPaid, 60000);
+      expect(order.balanceDue, 90000);
+      expect(order.deposit, 60000);
+    });
+
+    test('cashCollected et outstandingBalance agrègent l\'atelier', () async {
+      final atelierId = uniqueAtelierId();
+
+      final first = await orderWithPrice(atelierId, 100000);
+      final second = await orderWithPrice(atelierId, 200000);
+
+      await service.addPayment(orderId: first, amount: 40000);
+      await service.addPayment(orderId: second, amount: 200000);
+
+      expect(service.cashCollected(atelierId), 240000);
+      // Seule la première commande a un solde ouvert.
+      expect(service.outstandingBalance(atelierId), 60000);
+    });
+
+    test('l\'acompte saisi à la création devient un premier versement', () async {
+      final atelierId = uniqueAtelierId();
+      final result = await service.createOrder(
+        clientName: 'Client Acompte $atelierId',
+        clientPhone: '078811$atelierCounter',
+        atelierId: atelierId,
+        atelierName: 'Atelier Test',
+        price: 150000,
+        deposit: 50000,
+      );
+
+      final order = result.order;
+      expect(order.payments, hasLength(1));
+      expect(order.totalPaid, 50000);
+      expect(order.balanceDue, 100000);
     });
   });
 }

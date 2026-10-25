@@ -80,19 +80,40 @@ abstract final class OrderPdf {
                 pw.Text(Formatters.formatCurrency(order.price ?? 0)),
               ],
             ),
-            if (order.deposit != null) ...[
+            if (order.payments.isNotEmpty) ...[
+              pw.SizedBox(height: 8),
+              pw.Text('Versements reçus',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: accent)),
+              pw.SizedBox(height: 4),
+              ...order.payments.map(
+                (p) => pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      '${Formatters.date.format(p.paidAt)} · ${p.method.label}',
+                      style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+                    ),
+                    pw.Text(Formatters.formatCurrency(p.amount)),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 6),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Acompte versé'),
-                  pw.Text(Formatters.formatCurrency(order.deposit!)),
+                  pw.Text('Total versé',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  pw.Text(Formatters.formatCurrency(order.totalPaid)),
                 ],
               ),
+            ],
+            if (order.price != null) ...[
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('Solde restant', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: accent)),
-                  pw.Text(Formatters.formatCurrency((order.price ?? 0) - order.deposit!)),
+                  pw.Text('Solde restant',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: accent)),
+                  pw.Text(Formatters.formatCurrency(order.balanceDue)),
                 ],
               ),
             ],

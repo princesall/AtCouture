@@ -40,8 +40,6 @@ class _EditOrderDialogState extends State<EditOrderDialog> {
       TextEditingController(text: widget.order.description ?? '');
   late final TextEditingController _priceController =
       TextEditingController(text: widget.order.price?.toString() ?? '');
-  late final TextEditingController _depositController =
-      TextEditingController(text: widget.order.deposit?.toString() ?? '');
   late DateTime? _dueDate = widget.order.dueDate;
 
   bool _isSubmitting = false;
@@ -51,7 +49,6 @@ class _EditOrderDialogState extends State<EditOrderDialog> {
   void dispose() {
     _descriptionController.dispose();
     _priceController.dispose();
-    _depositController.dispose();
     super.dispose();
   }
 
@@ -72,23 +69,10 @@ class _EditOrderDialogState extends State<EditOrderDialog> {
     if (_isSubmitting) return;
 
     final priceText = _priceController.text.trim();
-    final depositText = _depositController.text.trim();
     final price = priceText.isEmpty ? null : int.tryParse(priceText);
-    final deposit = depositText.isEmpty ? null : int.tryParse(depositText);
 
     if (priceText.isNotEmpty && price == null) {
       setState(() => _error = 'Le prix total doit être un nombre entier.');
-      return;
-    }
-    if (depositText.isNotEmpty && deposit == null) {
-      setState(() => _error = 'L\'acompte doit être un nombre entier.');
-      return;
-    }
-    // Même contrôle qu'à la création (voir CreateOrderDialog._submit) : un
-    // acompte supérieur au prix produisait un "reste à payer" négatif.
-    final effectivePrice = price ?? widget.order.price;
-    if (deposit != null && effectivePrice != null && deposit > effectivePrice) {
-      setState(() => _error = 'L\'acompte ne peut pas dépasser le prix total.');
       return;
     }
 
@@ -105,7 +89,6 @@ class _EditOrderDialogState extends State<EditOrderDialog> {
         // description existante.
         description: _descriptionController.text.trim(),
         price: price,
-        deposit: deposit,
         dueDate: _dueDate,
       );
       if (!mounted) return;
@@ -153,17 +136,6 @@ class _EditOrderDialogState extends State<EditOrderDialog> {
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: const InputDecoration(
                 labelText: 'Prix total (${AppConstants.currency})',
-                prefixText: '${AppConstants.currency} ',
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextField(
-              controller: _depositController,
-              enabled: !_isSubmitting,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
-                labelText: 'Acompte (${AppConstants.currency})',
                 prefixText: '${AppConstants.currency} ',
               ),
             ),

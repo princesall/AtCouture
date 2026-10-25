@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'order_payment.dart';
 import 'order_status.dart';
 
 class Order extends Equatable {
@@ -18,6 +19,7 @@ class Order extends Equatable {
     this.description,
     this.price,
     this.deposit,
+    this.payments = const [],
     this.dueDate,
     this.createdAt,
     this.statusHistory = const [],
@@ -43,7 +45,17 @@ class Order extends Equatable {
   // Détails de la commande
   final String? description;
   final int? price;
+
+  /// Ancien champ « acompte unique ». Conservé pour la lecture des documents
+  /// existants et réécrit en miroir du total versé (voir [toMap]) afin que les
+  /// lecteurs historiques (PDF, badges) ne voient jamais un solde faux.
+  /// La source de vérité est désormais [payments].
   final int? deposit;
+
+  /// Tous les versements reçus, dans l'ordre de saisie. Voir [totalPaid] et
+  /// [balanceDue] pour les montants qui en découlent.
+  final List<OrderPayment> payments;
+
   final DateTime? dueDate;
   final DateTime? createdAt;
 
@@ -51,6 +63,22 @@ class Order extends Equatable {
   // OrderStatusChange. Le premier élément correspond à la création de la
   // commande (statut "pending").
   final List<OrderStatusChange> statusHistory;
+
+  /// Total effectivement encaissé sur cette commande.
+  int get totalPaid => payments.fold(0, (sum, p) => sum + p.amount);
+
+  /// Reste à encaisser. Jamais négatif, même si le prix a été abaissé après
+  /// coup sous le total déjà versé (le trop-perçu apparaît alors comme un
+  /// solde de 0, pas comme une dette inversée).
+  int get balanceDue {
+    final total = price;
+    if (total == null) return 0;
+    final rest = total - totalPaid;
+    return rest > 0 ? rest : 0;
+  }
+
+  /// Vrai si la commande a un prix connu et qu'il reste de l'argent à rentrer.
+  bool get hasOutstandingBalance => balanceDue > 0;
 
   String get statusLabel {
     switch (status) {
@@ -81,6 +109,7 @@ class Order extends Equatable {
     String? description,
     int? price,
     int? deposit,
+    List<OrderPayment>? payments,
     DateTime? dueDate,
     DateTime? createdAt,
     List<OrderStatusChange>? statusHistory,
@@ -102,6 +131,7 @@ class Order extends Equatable {
       description: description ?? this.description,
       price: price ?? this.price,
       deposit: deposit ?? this.deposit,
+      payments: payments ?? this.payments,
       dueDate: dueDate ?? this.dueDate,
       createdAt: createdAt ?? this.createdAt,
       statusHistory: statusHistory ?? this.statusHistory,
@@ -130,6 +160,7 @@ class Order extends Equatable {
       description: map['description'] as String?,
       price: map['price'] as int?,
       deposit: map['deposit'] as int?,
+      payments: _paymentsFromMap(map),
       dueDate: map['dueDate'] != null ? DateTime.tryParse(map['dueDate'] as String) : null,
       createdAt: map['createdAt'] != null ? DateTime.tryParse(map['createdAt'] as String) : null,
       statusHistory: (map['statusHistory'] as List?)
@@ -137,6 +168,35 @@ class Order extends Equatable {
               .toList() ??
           const [],
     );
+  }
+
+  /// Lit les versements d'un document Firestore.
+  ///
+  /// Les commandes créées avant l'arrivée de `payments` n'ont qu'un champ
+  /// `deposit` : on le convertit en un premier versement daté (celui de la
+  /// création de la commande) pour ne perdre aucune information comptable.
+  static List<OrderPayment> _paymentsFromMap(Map<String, dynamic> map) {
+    final raw = map['payments'] as List?;
+    if (raw != null && raw.isNotEmpty) {
+      return raw
+          .map((e) => OrderPayment.fromMap(Map<String, dynamic>.from(e as Map)))
+          .toList()
+        ..sort((a, b) => a.paidAt.compareTo(b.paidAt));
+    }
+
+    final legacyDeposit = (map['deposit'] as num?)?.toInt() ?? 0;
+    if (legacyDeposit <= 0) return const [];
+
+    return [
+      OrderPayment(
+        id: 'legacy-deposit',
+        amount: legacyDeposit,
+        paidAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ??
+            DateTime.now(),
+        method: PaymentMethod.cash,
+        note: 'Acompte initial',
+      ),
+    ];
   }
 
   Map<String, dynamic> toMap() {
@@ -154,7 +214,11 @@ class Order extends Equatable {
       'fabricPhotos': fabricPhotos,
       'description': description,
       'price': price,
-      'deposit': deposit,
+      // `deposit` reste écrit en miroir du total versé : les lecteurs
+      // historiques (PDF d'une version précédente, badges « Acompte ») ne
+      // doivent jamais afficher un solde antérieur à la réalité.
+      'deposit': payments.isEmpty ? deposit : totalPaid,
+      'payments': payments.map((e) => e.toMap()).toList(),
       'dueDate': dueDate?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),
       'statusHistory': statusHistory.map((e) => e.toMap()).toList(),

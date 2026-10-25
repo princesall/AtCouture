@@ -18,4 +18,15 @@ abstract final class OrderMessages {
         '(${order.description ?? 'vêtement'}) chez ${order.atelierName} '
         'est prévue pour le $due. Merci de votre confiance !';
   }
+
+  /// Relance du solde restant. Ne cite le montant que s'il est connu, pour ne
+  /// jamais envoyer « il reste 0 FCFA » à un client déjà à jour.
+  static String balanceReminder(Order order) {
+    final rest = order.balanceDue;
+    if (rest <= 0) return reminder(order);
+    return 'Bonjour ${order.clientName}, petit rappel concernant votre '
+        'commande (${order.description ?? 'vêtement'}) chez '
+        '${order.atelierName} : il reste ${Formatters.formatCurrency(rest)} '
+        'à régler. Merci de votre confiance !';
+  }
 }
