@@ -9,6 +9,23 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  # `flutter analyze` analyse TOUT le dossier du projet, y compris `build/`.
+  # Or Xcode (Swift Package Manager) y dépose les sources de paquets tiers :
+  # sur macOS on y trouve par exemple
+  #   build/macos/SourcePackages/firebase_storage-13.4.3/test/*.dart
+  # Ces fichiers de test importent `mockito`, qui n'est pas une dépendance du
+  # projet : l'analyse remontait ainsi ~1400 fausses erreurs, faisant échouer
+  # Codemagic et la CI alors que le code de l'application était sain.
+  #
+  # Ces dossiers sont générés : jamais édités à la main, jamais committés.
+  exclude:
+    - build/**
+    - .dart_tool/**
+    - ios/**
+    - macos/**
+    - android/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
