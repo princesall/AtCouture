@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 
-import '../../core/theme/app_spacing.dart';
-import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
 import '../../models/app_user.dart';
 import '../../services/auth_service.dart';
 import '../../services/company_service.dart';
+import 'staff_account_form_sheet.dart';
 
 /// Actions de gestion partagées entre les comptes créés avec un mot de passe
 /// temporaire (Couturier ET Chef d'atelier — voir CompanyService.createTailor
@@ -138,112 +138,43 @@ Future<void> _showEditAccountDialog(
   required String title,
   required UpdateAccountFn update,
   required VoidCallback onChanged,
-}) {
-  final nameController = TextEditingController(text: account.fullName);
-  final phoneController = TextEditingController(text: account.phone);
-  final emailController = TextEditingController(text: account.email);
-  final formKey = GlobalKey<FormState>();
-
-  return showDialog(
-    context: context,
-    builder: (dialogContext) => Dialog(
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        constraints: const BoxConstraints(maxWidth: 400),
-        child: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(title, style: AppTextStyles.headlineMd),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(dialogContext),
-                  ),
-                ],
-              ),
-              const Divider(height: 24),
-              TextFormField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom complet *',
-                  prefixIcon: Icon(Icons.person),
-                ),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Téléphone *',
-                  prefixIcon: Icon(Icons.phone),
-                ),
-                keyboardType: TextInputType.phone,
-                validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email *',
-                  prefixIcon: Icon(Icons.email),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (v) => v == null || !v.contains('@') ? 'Email valide requis' : null,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              // Seul recours en cas de mot de passe oublié — voir
-              // AuthService.sendPasswordResetEmail. Ne marche que si l'email
-              // ci-dessus est réellement consultable par la personne.
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => sendAccountResetLink(dialogContext, account),
-                  icon: const Icon(Icons.mail_lock_outlined, size: 18),
-                  label: const Text('Envoyer un lien de réinitialisation'),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      child: const Text('Annuler'),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (!formKey.currentState!.validate()) return;
-
-                        await update(
-                          id: account.id,
-                          fullName: nameController.text.trim(),
-                          phone: phoneController.text.trim(),
-                          email: emailController.text.trim(),
-                        );
-
-                        if (!dialogContext.mounted) return;
-                        Navigator.pop(dialogContext);
-                        onChanged();
-                      },
-                      child: const Text('Enregistrer'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+}) async {
+  final saved = await StaffAccountFormSheet.show(
+    context,
+    StaffAccountFormSheet(
+      title: title,
+      subtitle: 'Ces informations servent à identifier la personne et à la '
+          'joindre. L\'email conditionne la récupération d\'accès en cas de '
+          'mot de passe oublié.',
+      submitLabel: 'Enregistrer',
+      initialName: account.fullName,
+      initialPhone: account.phone,
+      initialEmail: account.email,
+      onSubmit: ({
+        required String fullName,
+        required String phone,
+        required String email,
+      }) async {
+        await update(
+          id: account.id,
+          fullName: fullName,
+          phone: phone,
+          email: email,
+        );
+      },
+      footer: Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => sendAccountResetLink(context, account),
+          icon: const Icon(PhosphorIconsRegular.envelopeSimple, size: 18),
+          label: const Text('Envoyer un lien de réinitialisation'),
+          style: TextButton.styleFrom(foregroundColor: context.colors.goldInk),
         ),
       ),
     ),
   );
+
+  if (saved) onChanged();
 }
 
 Future<void> _toggleAccountActive(

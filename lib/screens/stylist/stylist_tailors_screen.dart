@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
-import '../../core/utils/firebase_error_messages.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../models/app_user.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
 import '../shared/staff_account_actions.dart';
+import '../shared/staff_account_form_sheet.dart';
 import '../shared/subscription_dialog.dart';
 import '../shared/tailor_orders_screen.dart';
 
@@ -23,10 +24,10 @@ class StylistTailorsScreen extends StatefulWidget {
 }
 
 class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
-  void _showAddTailorDialog() {
+  Future<void> _showAddTailorDialog() async {
     final user = context.read<AuthProvider>().user!;
     final permissions = user.permissions;
-    
+
     // Vérifier si l'utilisateur peut ajouter des couturiers
     if (!permissions.canAddTailor(_getCurrentTailorCount())) {
       showDialog(
@@ -52,145 +53,49 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
       return;
     }
 
-    final nameController = TextEditingController();
-    final phoneController = TextEditingController();
-    final emailController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
     // Voir OrderService (principe d'idempotence) : sans clé stable, un
     // double-tap ou un réseau lent qui fait rejouer la requête créait un
     // compte couturier en double avec un mot de passe temporaire différent.
     final idempotencyKey = const Uuid().v4();
+    ({AppUser user, String temporaryPassword})? created;
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        var isSubmitting = false;
-        return StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            Future<void> submit() async {
-              if (isSubmitting || !formKey.currentState!.validate()) return;
-              setDialogState(() => isSubmitting = true);
+    final saved = await StaffAccountFormSheet.show(
+      context,
+      StaffAccountFormSheet(
+        title: 'Nouveau couturier',
+        subtitle: 'Un mot de passe temporaire est généré : il devra le changer '
+            'à sa première connexion.',
+        submitLabel: 'Ajouter le couturier',
+        onSubmit: ({
+          required String fullName,
+          required String phone,
+          required String email,
+        }) async {
+          created = await CompanyService.instance.createTailor(
+            atelierId: user.atelierId!,
+            atelierName: user.atelierName!,
+            fullName: fullName,
+            email: email,
+            phone: phone,
+            idempotencyKey: idempotencyKey,
+          );
+        },
+      ),
+    );
 
-              try {
-                final result = await CompanyService.instance.createTailor(
-                  atelierId: user.atelierId!,
-                  atelierName: user.atelierName!,
-                  fullName: nameController.text.trim(),
-                  email: emailController.text.trim(),
-                  phone: phoneController.text.trim(),
-                  idempotencyKey: idempotencyKey,
-                );
-                final newTailor = result.user;
+    if (!mounted || !saved) return;
+    setState(() {});
 
-                if (!dialogContext.mounted) return;
-                Navigator.pop(dialogContext);
-                if (!mounted) return;
-                setState(() {});
-
-                // Afficher les identifiants de connexion du couturier créé.
-                // Seuls email + mot de passe servent à se connecter — l'UID
-                // interne (newTailor.id) n'a aucune utilité pour le couturier
-                // et n'est donc pas affiché ici.
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Couturier ajouté'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Nom: ${newTailor.fullName}'),
-                        const SizedBox(height: 8),
-                        Text('Email: ${newTailor.email}'),
-                        const SizedBox(height: 8),
-                        Text('Mot de passe temporaire: ${result.temporaryPassword}'),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Le couturier devra définir son propre mot de passe à sa première connexion.',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('OK'),
-                      ),
-                    ],
-                  ),
-                );
-              } catch (e) {
-                if (!dialogContext.mounted) return;
-                setDialogState(() => isSubmitting = false);
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  SnackBar(content: Text(friendlyFirebaseError(e))),
-                );
-              }
-            }
-
-            return AlertDialog(
-              title: const Text('Ajouter un couturier'),
-              content: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Nom complet *',
-                          prefixIcon: Icon(Icons.person),
-                        ),
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      TextFormField(
-                        controller: phoneController,
-                        decoration: const InputDecoration(
-                          labelText: 'Téléphone *',
-                          prefixIcon: Icon(Icons.phone),
-                        ),
-                        keyboardType: TextInputType.phone,
-                        validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      TextFormField(
-                        controller: emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Email *',
-                          prefixIcon: Icon(Icons.email),
-                          // Un vrai email (pas juste un contact du couturier) : la
-                          // seule façon de récupérer un accès en cas de mot de
-                          // passe oublié est le lien envoyé à CETTE adresse (voir
-                          // AuthService.sendPasswordResetEmail — aucun accès admin
-                          // ne permet de forcer un mot de passe sans ça).
-                          helperText: 'Le couturier doit pouvoir consulter cette boîte mail',
-                          helperMaxLines: 2,
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (v) => v == null || !v.contains('@') ? 'Email valide requis' : null,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
-                  child: const Text('Annuler'),
-                ),
-                ElevatedButton(
-                  onPressed: isSubmitting ? null : submit,
-                  child: isSubmitting
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Ajouter'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    // Les identifiants ne s'affichent qu'une seule fois : on laisse la
+    // possibilité de les copier ou de les envoyer directement par WhatsApp.
+    final result = created;
+    if (result == null) return;
+    await StaffCredentialsSheet.show(
+      context,
+      fullName: result.user.fullName,
+      email: result.user.email,
+      temporaryPassword: result.temporaryPassword,
+      phone: result.user.phone,
     );
   }
 
@@ -233,7 +138,7 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                     ),
                     const SizedBox(width: AppSpacing.md),
                     IconButton(
-                      icon: const Icon(Icons.add),
+                      icon: const Icon(PhosphorIconsRegular.plus),
                       onPressed: _showAddTailorDialog,
                       tooltip: 'Ajouter un couturier',
                     ),
@@ -250,7 +155,7 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.info_outline,
+                          PhosphorIconsRegular.info,
                           size: 16,
                           color: c.tertiary,
                         ),
@@ -276,7 +181,7 @@ class _StylistTailorsScreenState extends State<StylistTailorsScreen> {
                     child: EmptyState(
                       title: 'Aucun couturier',
                       subtitle: 'Commencez par ajouter votre premier couturier',
-                      icon: Icons.content_cut_outlined,
+                      icon: PhosphorIconsRegular.scissors,
                     ),
                   )
                 : ListView.separated(
@@ -384,21 +289,21 @@ class _TailorCard extends StatelessWidget {
               ),
             ),
             IconButton(
-              icon: Icon(tailor.isActive ? Icons.pause_circle_outline : Icons.play_circle_outline),
+              icon: Icon(tailor.isActive ? PhosphorIconsRegular.pauseCircle : PhosphorIconsRegular.playCircle),
               color: tailor.isActive ? c.onSurfaceVariant : c.success,
               tooltip: tailor.isActive ? 'Suspendre' : 'Réactiver',
               onPressed: onToggleActive,
             ),
             if (onEdit != null)
               IconButton(
-                icon: const Icon(Icons.edit_outlined),
+                icon: const Icon(PhosphorIconsRegular.pencilSimple),
                 color: c.primary,
                 tooltip: 'Modifier',
                 onPressed: onEdit,
               ),
             if (onRemove != null)
               IconButton(
-                icon: const Icon(Icons.delete_outline),
+                icon: const Icon(PhosphorIconsRegular.trash),
                 color: c.error,
                 tooltip: 'Supprimer',
                 onPressed: onRemove,

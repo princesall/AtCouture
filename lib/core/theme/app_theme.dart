@@ -181,6 +181,28 @@ abstract final class AppTheme {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
+      // Les dialogues de confirmation restants (limite de plan, suspension,
+      // suppression) gardent ainsi le langage éditorial au lieu du gris
+      // Material par défaut : fond blanc, bordure 1px, titre serif.
+      dialogTheme: DialogThemeData(
+        backgroundColor: c.surfaceContainerLowest,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: c.outlineVariant, width: 1),
+        ),
+        titleTextStyle: GoogleFonts.playfairDisplay(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: c.onSurface,
+        ),
+        contentTextStyle: GoogleFonts.inter(
+          fontSize: 13,
+          height: 1.45,
+          color: c.onSurfaceVariant,
+        ),
+      ),
     );
   }
 }
