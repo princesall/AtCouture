@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_spacing.dart';
@@ -36,7 +37,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   XFile? _logoFile;
 
   Future<void> _pickLogo() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 800);
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 800,
+    );
     if (picked == null) return;
     setState(() => _logoFile = picked);
   }
@@ -59,7 +64,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // `watch` y lève une assertion Provider qui avalait silencieusement ce
     // SnackBar (même bug déjà corrigé dans login_screen.dart).
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: context.read<ThemeProvider>().colors.error),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: context.read<ThemeProvider>().colors.error,
+      ),
     );
   }
 
@@ -93,7 +101,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (result == null) {
       if (auth.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.read<ThemeProvider>().colors.error),
+          SnackBar(
+            content: Text(auth.errorMessage!),
+            backgroundColor: context.read<ThemeProvider>().colors.error,
+          ),
         );
       }
       return;
@@ -111,7 +122,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final c = context.colors;
 
     return Scaffold(
-      backgroundColor: c.primary,
+      backgroundColor: c.background,
       body: Column(
         children: [
           // ── Bandeau de marque ──────────────────────────────────────────
@@ -119,7 +130,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             height: 168,
             child: Stack(
               children: [
-                const Positioned.fill(child: AuthBackdrop()),
+                const Positioned.fill(child: ColoredBox(color: kAuthEbony)),
                 SafeArea(
                   bottom: false,
                   child: Padding(
@@ -128,7 +139,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                          icon: const Icon(
+                            PhosphorIconsRegular.arrowLeft,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                           onPressed: () => context.pop(),
                         ),
                         const SizedBox(width: 4),
@@ -141,18 +156,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        'Créez votre atelier',
-                                        style: AppTextStyles.headlineSm.copyWith(color: Colors.white),
-                                      ).animate().fadeIn(duration: 300.ms).slideX(begin: -0.05, end: 0),
+                                            'Créez votre atelier',
+                                            style: AppTextStyles.headlineSm
+                                                .copyWith(color: Colors.white),
+                                          )
+                                          .animate()
+                                          .fadeIn(duration: 300.ms)
+                                          .slideX(begin: -0.05, end: 0),
                                       const SizedBox(height: 2),
                                       Text(
                                         'Rejoignez StyleConnect en 1 minute',
                                         style: AppTextStyles.bodySm.copyWith(
-                                          color: Colors.white.withValues(alpha: 0.7),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.7,
+                                          ),
                                         ),
                                       ).animate().fadeIn(delay: 100.ms),
                                     ],
@@ -175,14 +197,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: c.background,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppSpacing.radiusXl),
+                ),
                 boxShadow: c.premiumShadow,
               ),
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppSpacing.radiusXl),
+                ),
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xxl),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.xxl,
+                  ),
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 480),
@@ -193,39 +224,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           children: [
                             const SizedBox(height: AppSpacing.md),
                             _PlanPreviewChip(plan: SubscriptionPlan.free)
-                                .animate().fadeIn(duration: 350.ms).slideY(begin: 0.08, end: 0),
+                                .animate()
+                                .fadeIn(duration: 350.ms)
+                                .slideY(begin: 0.08, end: 0),
                             const SizedBox(height: AppSpacing.xl),
 
                             _SectionLabel('Vos informations'),
                             const SizedBox(height: AppSpacing.sm),
-                            Center(child: _LogoPicker(file: _logoFile, onTap: _pickLogo)),
+                            Center(
+                              child: _LogoPicker(
+                                file: _logoFile,
+                                onTap: _pickLogo,
+                              ),
+                            ),
                             const SizedBox(height: AppSpacing.md),
                             PremiumTextField(
                               controller: _nameController,
                               label: 'Nom complet',
                               hint: 'Votre nom',
-                              prefixIcon: Icons.person_outline_rounded,
+                              prefixIcon: PhosphorIconsRegular.user,
                               textInputAction: TextInputAction.next,
-                              validator: (v) => v == null || v.isEmpty ? 'Nom requis' : null,
+                              validator: (v) =>
+                                  v == null || v.isEmpty ? 'Nom requis' : null,
                             ),
                             const SizedBox(height: AppSpacing.md),
                             PremiumTextField(
                               controller: _atelierController,
                               label: 'Nom de l\'atelier',
                               hint: 'Atelier Élégance',
-                              prefixIcon: Icons.storefront_outlined,
+                              prefixIcon: PhosphorIconsRegular.storefront,
                               textInputAction: TextInputAction.next,
-                              validator: (v) => v == null || v.isEmpty ? 'Nom d\'atelier requis' : null,
+                              validator: (v) => v == null || v.isEmpty
+                                  ? 'Nom d\'atelier requis'
+                                  : null,
                             ),
                             const SizedBox(height: AppSpacing.md),
                             PremiumTextField(
                               controller: _phoneController,
                               label: 'Téléphone',
                               hint: '70 00 00 00',
-                              prefixIcon: Icons.phone_outlined,
+                              prefixIcon: PhosphorIconsRegular.phone,
                               keyboardType: TextInputType.phone,
                               textInputAction: TextInputAction.next,
-                              validator: (v) => v == null || v.isEmpty ? 'Téléphone requis' : null,
+                              validator: (v) => v == null || v.isEmpty
+                                  ? 'Téléphone requis'
+                                  : null,
                             ),
 
                             const SizedBox(height: AppSpacing.xl),
@@ -235,7 +278,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               controller: _emailController,
                               label: 'Email',
                               hint: 'votre@email.com',
-                              prefixIcon: Icons.mail_outline_rounded,
+                              prefixIcon: PhosphorIconsRegular.envelope,
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
                               validator: (v) {
@@ -249,7 +292,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               controller: _passwordController,
                               label: 'Mot de passe',
                               obscureText: true,
-                              prefixIcon: Icons.lock_outline_rounded,
+                              prefixIcon: PhosphorIconsRegular.lock,
                               textInputAction: TextInputAction.next,
                               validator: (v) {
                                 if (v == null || v.length < 6) return 'Minimum 6 caractères';
@@ -261,7 +304,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               controller: _confirmController,
                               label: 'Confirmer le mot de passe',
                               obscureText: true,
-                              prefixIcon: Icons.lock_outline_rounded,
+                              prefixIcon: PhosphorIconsRegular.lock,
                               textInputAction: TextInputAction.done,
                               onSubmitted: (_) => _submit(),
                               validator: (v) {
@@ -274,30 +317,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                             const SizedBox(height: AppSpacing.xl),
                             PremiumButton(
-                              label: 'Créer mon compte',
-                              variant: PremiumButtonVariant.gold,
-                              isLoading: auth.isLoading,
-                              onPressed: auth.isLoading ? null : _submit,
-                            ).animate().fadeIn(delay: 200.ms).scale(begin: const Offset(0.95, 0.95)),
+                                  label: 'Créer mon compte',
+                                  variant: PremiumButtonVariant.gold,
+                                  isLoading: auth.isLoading,
+                                  onPressed: auth.isLoading ? null : _submit,
+                                )
+                                .animate()
+                                .fadeIn(delay: 200.ms)
+                                .scale(begin: const Offset(0.95, 0.95)),
                             const SizedBox(height: AppSpacing.md),
                             Center(
                               child: TextButton(
                                 onPressed: () => context.pop(),
                                 child: Text(
                                   'Déjà un compte ? Se connecter',
-                                  style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
+                                  style: AppTextStyles.bodySm.copyWith(
+                                    color: c.onSurfaceVariant,
+                                  ),
                                 ),
                               ),
                             ),
                             const SizedBox(height: AppSpacing.lg),
                             Row(
                               children: [
-                                Expanded(child: Divider(color: c.outlineVariant)),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                                  child: Text('OU', style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant)),
+                                Expanded(
+                                  child: Divider(color: c.outlineVariant),
                                 ),
-                                Expanded(child: Divider(color: c.outlineVariant)),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.sm,
+                                  ),
+                                  child: Text(
+                                    'OU',
+                                    style: AppTextStyles.labelCaps.copyWith(
+                                      color: c.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Divider(color: c.outlineVariant),
+                                ),
                               ],
                             ),
                             const SizedBox(height: AppSpacing.md),
@@ -342,18 +401,30 @@ class _LogoPicker extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: c.surfaceContainerLowest,
-                  border: Border.all(color: c.outlineVariant.withValues(alpha: 0.5), width: 1.5),
+                  border: Border.all(
+                    color: c.outlineVariant.withValues(alpha: 0.5),
+                    width: 1.5,
+                  ),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: file == null
-                    ? Icon(Icons.storefront_outlined, color: c.onSurfaceVariant, size: 32)
+                    ? Icon(
+                        PhosphorIconsRegular.storefront,
+                        color: c.onSurfaceVariant,
+                        size: 32,
+                      )
                     : FutureBuilder<Uint8List>(
                         future: file!.readAsBytes(),
                         builder: (context, snapshot) {
                           if (!snapshot.hasData) {
                             return Container(color: c.surfaceContainerLow);
                           }
-                          return Image.memory(snapshot.data!, width: 88, height: 88, fit: BoxFit.cover);
+                          return Image.memory(
+                            snapshot.data!,
+                            width: 88,
+                            height: 88,
+                            fit: BoxFit.cover,
+                          );
                         },
                       ),
               ),
@@ -363,11 +434,15 @@ class _LogoPicker extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: c.secondary,
+                    color: c.goldInk,
                     shape: BoxShape.circle,
                     border: Border.all(color: c.background, width: 2),
                   ),
-                  child: const Icon(Icons.add_a_photo_rounded, color: Colors.white, size: 14),
+                  child: const Icon(
+                    PhosphorIconsRegular.camera,
+                    color: Colors.white,
+                    size: 14,
+                  ),
                 ),
               ),
             ],
@@ -391,7 +466,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label.toUpperCase(),
-      style: AppTextStyles.labelCaps.copyWith(color: context.colors.secondary),
+      style: AppTextStyles.labelCaps.copyWith(color: context.colors.goldInk),
     );
   }
 }
@@ -409,18 +484,23 @@ class _PlanPreviewChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: c.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.4)),
+        border: Border.all(color: c.outlineVariant, width: 1),
         boxShadow: c.softShadow,
       ),
       child: Row(
         children: [
           Container(
-            width: 40, height: 40,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               gradient: c.goldGradient,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(Icons.workspace_premium_rounded, color: c.onTertiary, size: 20),
+            child: Icon(
+              PhosphorIconsRegular.crown,
+              color: c.onTertiary,
+              size: 20,
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
@@ -429,12 +509,18 @@ class _PlanPreviewChip extends StatelessWidget {
               children: [
                 Text(
                   'Plan ${plan.name} inclus',
-                  style: AppTextStyles.titleSm.copyWith(color: c.primary, fontSize: 14),
+                  style: AppTextStyles.titleSm.copyWith(
+                    color: c.onSurface,
+                    fontSize: 14,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${plan.tailorsLabel} · ${plan.clientsLabel}',
-                  style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant, fontSize: 12),
+                  style: AppTextStyles.bodySm.copyWith(
+                    color: c.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),

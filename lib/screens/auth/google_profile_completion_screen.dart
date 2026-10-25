@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_spacing.dart';
@@ -25,17 +26,23 @@ class GoogleProfileCompletionScreen extends StatefulWidget {
   final GoogleSignInNeedsProfile pending;
 
   @override
-  State<GoogleProfileCompletionScreen> createState() => _GoogleProfileCompletionScreenState();
+  State<GoogleProfileCompletionScreen> createState() =>
+      _GoogleProfileCompletionScreenState();
 }
 
-class _GoogleProfileCompletionScreenState extends State<GoogleProfileCompletionScreen> {
+class _GoogleProfileCompletionScreenState
+    extends State<GoogleProfileCompletionScreen> {
   final _formKey = GlobalKey<FormState>();
   late final _atelierController = TextEditingController();
   late final _phoneController = TextEditingController();
   XFile? _logoFile;
 
   Future<void> _pickLogo() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 800);
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 800,
+    );
     if (picked == null) return;
     setState(() => _logoFile = picked);
   }
@@ -67,7 +74,10 @@ class _GoogleProfileCompletionScreenState extends State<GoogleProfileCompletionS
       // Voir login_screen.dart : context.colors (context.watch<ThemeProvider>())
       // ne doit jamais être appelé hors du cycle de build.
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.read<ThemeProvider>().colors.error),
+        SnackBar(
+          content: Text(auth.errorMessage!),
+          backgroundColor: context.read<ThemeProvider>().colors.error,
+        ),
       );
     }
   }
@@ -104,35 +114,49 @@ class _GoogleProfileCompletionScreenState extends State<GoogleProfileCompletionS
                     Text(
                       'Encore une étape, ${widget.pending.fullName.isEmpty ? '' : widget.pending.fullName.split(' ').first}',
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.titleMd.copyWith(color: c.primary),
+                      style: AppTextStyles.headlineSm.copyWith(
+                        color: c.onSurface,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Quelques infos pour créer votre atelier sur StyleConnect.',
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
+                      style: AppTextStyles.bodySm.copyWith(
+                        color: c.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     PremiumTextField(
-                      controller: _atelierController,
-                      label: 'Nom de l\'atelier',
-                      hint: 'Atelier Élégance',
-                      prefixIcon: Icons.storefront_outlined,
-                      textInputAction: TextInputAction.next,
-                      autofocus: true,
-                      validator: (v) => v == null || v.isEmpty ? 'Nom d\'atelier requis' : null,
-                    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.06, end: 0),
+                          controller: _atelierController,
+                          label: 'Nom de l\'atelier',
+                          hint: 'Atelier Élégance',
+                          prefixIcon: PhosphorIconsRegular.storefront,
+                          textInputAction: TextInputAction.next,
+                          autofocus: true,
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'Nom d\'atelier requis'
+                              : null,
+                        )
+                        .animate()
+                        .fadeIn(duration: 300.ms)
+                        .slideY(begin: 0.06, end: 0),
                     const SizedBox(height: AppSpacing.md),
                     PremiumTextField(
-                      controller: _phoneController,
-                      label: 'Téléphone',
-                      hint: '70 00 00 00',
-                      prefixIcon: Icons.phone_outlined,
-                      keyboardType: TextInputType.phone,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _submit(),
-                      validator: (v) => v == null || v.isEmpty ? 'Téléphone requis' : null,
-                    ).animate().fadeIn(delay: 80.ms).slideY(begin: 0.06, end: 0),
+                          controller: _phoneController,
+                          label: 'Téléphone',
+                          hint: '70 00 00 00',
+                          prefixIcon: PhosphorIconsRegular.phone,
+                          keyboardType: TextInputType.phone,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _submit(),
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'Téléphone requis'
+                              : null,
+                        )
+                        .animate()
+                        .fadeIn(delay: 80.ms)
+                        .slideY(begin: 0.06, end: 0),
                     const SizedBox(height: AppSpacing.xl),
                     PremiumButton(
                       label: 'Terminer',
@@ -181,7 +205,10 @@ class _LogoPicker extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: c.primaryContainer,
-                  border: Border.all(color: c.outlineVariant.withValues(alpha: 0.5), width: 1.5),
+                  border: Border.all(
+                    color: c.outlineVariant.withValues(alpha: 0.5),
+                    width: 1.5,
+                  ),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: _buildImage(context),
@@ -192,11 +219,15 @@ class _LogoPicker extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: c.secondary,
+                    color: c.goldInk,
                     shape: BoxShape.circle,
                     border: Border.all(color: c.background, width: 2),
                   ),
-                  child: const Icon(Icons.add_a_photo_rounded, color: Colors.white, size: 14),
+                  child: const Icon(
+                    PhosphorIconsRegular.camera,
+                    color: Colors.white,
+                    size: 14,
+                  ),
                 ),
               ),
             ],
@@ -220,12 +251,22 @@ class _LogoPicker extends StatelessWidget {
           if (!snapshot.hasData) {
             return Container(color: c.surfaceContainerLow);
           }
-          return Image.memory(snapshot.data!, width: 72, height: 72, fit: BoxFit.cover);
+          return Image.memory(
+            snapshot.data!,
+            width: 72,
+            height: 72,
+            fit: BoxFit.cover,
+          );
         },
       );
     }
     if (fallbackUrl != null) {
-      return Image.network(fallbackUrl!, width: 72, height: 72, fit: BoxFit.cover);
+      return Image.network(
+        fallbackUrl!,
+        width: 72,
+        height: 72,
+        fit: BoxFit.cover,
+      );
     }
     return Center(
       child: Text(

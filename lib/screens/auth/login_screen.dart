@@ -1,8 +1,7 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
@@ -17,6 +16,11 @@ import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/auth_service.dart';
 
+/// Panneau de marque : couleurs fixes, volontairement indépendantes du thème
+/// (définies une seule fois dans `auth_backdrop.dart`).
+const _ebony = kAuthEbony;
+const _champagne = kAuthChampagne;
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -25,8 +29,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey  = GlobalKey<FormState>();
-  final _email    = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _email = TextEditingController();
   final _password = TextEditingController();
 
   @override
@@ -108,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final c = context.colors;
 
     return Scaffold(
-      backgroundColor: c.primary,
+      backgroundColor: c.background,
       body: Stack(
         children: [
           const Positioned.fill(child: AuthBackdrop()),
@@ -119,7 +123,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 return Center(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.fromLTRB(
-                      24, isWide ? 48 : 32, 24, 24 + bottomInset,
+                      24,
+                      isWide ? 48 : 32,
+                      24,
+                      24 + bottomInset,
                     ),
                     child: ConstrainedBox(
                       constraints: BoxConstraints(maxWidth: isWide ? 940 : 440),
@@ -181,7 +188,9 @@ class _BrandPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final crossAxis = isWide ? CrossAxisAlignment.start : CrossAxisAlignment.center;
+    final crossAxis = isWide
+        ? CrossAxisAlignment.start
+        : CrossAxisAlignment.center;
     final textAlign = isWide ? TextAlign.left : TextAlign.center;
 
     final content = Column(
@@ -189,16 +198,16 @@ class _BrandPanel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         const BrandMonogram(size: 60).animate().scale(
-              duration: AppConstants.animationSlow,
-              curve: Curves.easeOutBack,
-              begin: const Offset(0.6, 0.6),
-            ),
+          duration: AppConstants.animationSlow,
+          curve: Curves.easeOutBack,
+          begin: const Offset(0.6, 0.6),
+        ),
         const SizedBox(height: 20),
         Text(
           'BIENVENUE',
           textAlign: textAlign,
           style: AppTextStyles.labelCaps.copyWith(
-            color: c.tertiaryFixedDim,
+            color: _champagne,
             letterSpacing: 3,
           ),
         ).animate().fadeIn(delay: 100.ms),
@@ -213,7 +222,7 @@ class _BrandPanel extends StatelessWidget {
               const TextSpan(text: 'Style'),
               TextSpan(
                 text: 'Connect',
-                style: TextStyle(color: c.tertiaryFixedDim),
+                style: TextStyle(color: _champagne),
               ),
             ],
           ),
@@ -230,32 +239,52 @@ class _BrandPanel extends StatelessWidget {
       ],
     );
 
-    if (!isWide) return content;
+    // Panneau ébène éditorial : c'est lui qui porte le contraste de la marque,
+    // aussi bien en pleine largeur sur mobile qu'en colonne de gauche.
+    Widget panel(Widget child) => Container(
+      padding: EdgeInsets.all(isWide ? 32 : 24),
+      decoration: BoxDecoration(
+        color: _ebony,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(color: _champagne.withValues(alpha: 0.28)),
+        boxShadow: c.premiumShadow,
+      ),
+      child: child,
+    );
+
+    if (!isWide) return panel(content);
 
     return Align(
       alignment: Alignment.centerLeft,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          content,
-          const SizedBox(height: 40),
-          ..._features.asMap().entries.map((e) => Padding(
+      child: panel(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            content,
+            const SizedBox(height: 40),
+            ..._features.asMap().entries.map(
+              (e) => Padding(
                 padding: const EdgeInsets.only(bottom: 14),
                 child: _FeatureRow(icon: e.value.$1, label: e.value.$2)
                     .animate()
                     .fadeIn(delay: (400 + e.key * 100).ms)
                     .slideX(begin: -0.06, end: 0),
-              )),
-        ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   static const _features = [
-    (Icons.receipt_long_rounded, 'Suivi des commandes en temps réel'),
-    (Icons.straighten_rounded, 'Mesures et fiches clients centralisées'),
-    (Icons.workspace_premium_rounded, 'De l\'atelier solo à l\'entreprise multi-sites'),
+    (PhosphorIconsRegular.receipt, 'Suivi des commandes en temps réel'),
+    (PhosphorIconsRegular.ruler, 'Mesures et fiches clients centralisées'),
+    (
+      PhosphorIconsRegular.crown,
+      'De l\'atelier solo à l\'entreprise multi-sites',
+    ),
   ];
 }
 
@@ -266,22 +295,24 @@ class _FeatureRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
     return Row(
       children: [
         Container(
-          width: 32, height: 32,
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 16, color: c.tertiaryFixedDim),
+          child: Icon(icon, size: 16, color: _champagne),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
             label,
-            style: AppTextStyles.bodySm.copyWith(color: Colors.white.withValues(alpha: 0.8)),
+            style: AppTextStyles.bodySm.copyWith(
+              color: Colors.white.withValues(alpha: 0.8),
+            ),
           ),
         ),
       ],
@@ -310,141 +341,150 @@ class _LoginCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: c.surfaceContainerLowest.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
-            boxShadow: c.premiumShadow,
-          ),
-          child: Form(
-            key: formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Connexion',
-                  style: AppTextStyles.titleMd.copyWith(color: c.primary),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: c.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        // Bordure 1px couture + ombre imperceptible (plus de verre dépoli).
+        border: Border.all(color: c.outlineVariant, width: 1),
+        boxShadow: c.premiumShadow,
+      ),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Connexion',
+              style: AppTextStyles.headlineMd.copyWith(color: c.onSurface),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Accédez à votre espace de travail',
+              style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
+            ),
+            const SizedBox(height: 26),
+
+            PremiumTextField(
+              controller: email,
+              label: 'Adresse email',
+              hint: 'votre@email.com',
+              prefixIcon: PhosphorIconsRegular.envelope,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              validator: (v) =>
+                  v == null || !v.contains('@') ? 'Email invalide' : null,
+            ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0),
+            const SizedBox(height: AppSpacing.md),
+
+            PremiumTextField(
+              controller: password,
+              label: 'Mot de passe',
+              hint: '••••••••',
+              obscureText: true,
+              prefixIcon: PhosphorIconsRegular.lock,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => onSubmit(),
+              // Pas de contrainte de longueur ici : contrairement à un
+              // formulaire de création/changement de mot de passe, on ne
+              // sait pas combien de caractères fait le VRAI mot de passe
+              // du compte — bloquer localement un essai trop court
+              // empêchait silencieusement l'envoi au serveur, donc
+              // empêchait le message "Email ou mot de passe incorrect"
+              // de jamais s'afficher pour ces essais-là.
+              validator: (v) =>
+                  v == null || v.isEmpty ? 'Mot de passe requis' : null,
+            ).animate().fadeIn(delay: 380.ms).slideY(begin: 0.1, end: 0),
+
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => context.push('/auth/forgot-password'),
+                child: Text(
+                  'Mot de passe oublié ?',
+                  style: AppTextStyles.bodySm.copyWith(color: c.goldInk),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Accédez à votre espace de travail',
-                  style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
-                ),
-                const SizedBox(height: 26),
+              ),
+            ),
+            const SizedBox(height: 4),
 
-                PremiumTextField(
-                  controller: email,
-                  label: 'Adresse email',
-                  hint: 'votre@email.com',
-                  prefixIcon: Icons.mail_outline_rounded,
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  validator: (v) =>
-                      v == null || !v.contains('@') ? 'Email invalide' : null,
-                ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1, end: 0),
-                const SizedBox(height: AppSpacing.md),
-
-                PremiumTextField(
-                  controller: password,
-                  label: 'Mot de passe',
-                  hint: '••••••••',
-                  obscureText: true,
-                  prefixIcon: Icons.lock_outline_rounded,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => onSubmit(),
-                  // Pas de contrainte de longueur ici : contrairement à un
-                  // formulaire de création/changement de mot de passe, on ne
-                  // sait pas combien de caractères fait le VRAI mot de passe
-                  // du compte — bloquer localement un essai trop court
-                  // empêchait silencieusement l'envoi au serveur, donc
-                  // empêchait le message "Email ou mot de passe incorrect"
-                  // de jamais s'afficher pour ces essais-là.
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Mot de passe requis' : null,
-                ).animate().fadeIn(delay: 380.ms).slideY(begin: 0.1, end: 0),
-
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => context.push('/auth/forgot-password'),
-                    child: Text(
-                      'Mot de passe oublié ?',
-                      style: AppTextStyles.bodySm.copyWith(color: c.primary),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-
-                PremiumButton(
+            PremiumButton(
                   label: 'Se connecter',
                   variant: PremiumButtonVariant.dark,
                   isLoading: auth.isLoading,
                   onPressed: auth.isLoading ? null : onSubmit,
-                ).animate().fadeIn(delay: 450.ms).scale(begin: const Offset(0.95, 0.95)),
+                )
+                .animate()
+                .fadeIn(delay: 450.ms)
+                .scale(begin: const Offset(0.95, 0.95)),
 
-                const SizedBox(height: AppSpacing.md),
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: c.outlineVariant)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                      child: Text('OU', style: AppTextStyles.labelCaps.copyWith(color: c.onSurfaceVariant)),
-                    ),
-                    Expanded(child: Divider(color: c.outlineVariant)),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                GoogleSignInButton(
-                  label: 'Se connecter avec Google',
-                  isLoading: auth.isLoading,
-                  onPressed: auth.isLoading ? null : onGoogleSignIn,
-                ),
-
-                const SizedBox(height: 20),
-
-                Center(
-                  child: Text.rich(
-                    TextSpan(
-                      text: 'Pas encore de compte ? ',
-                      style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
-                      children: [
-                        WidgetSpan(
-                          child: GestureDetector(
-                            onTap: () => context.push('/auth/register'),
-                            child: Text(
-                              'Créer un compte',
-                              style: AppTextStyles.bodySm.copyWith(
-                                color: c.secondary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(child: Divider(color: c.outlineVariant)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                  ),
+                  child: Text(
+                    'OU',
+                    style: AppTextStyles.labelCaps.copyWith(
+                      color: c.onSurfaceVariant,
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Center(
-                  child: TextButton.icon(
-                    onPressed: () => context.push('/suivi'),
-                    icon: const Icon(Icons.receipt_long_outlined, size: 16),
-                    label: const Text('Suivre une commande sans compte'),
-                    style: TextButton.styleFrom(foregroundColor: c.onSurfaceVariant),
-                  ),
-                ),
+                Expanded(child: Divider(color: c.outlineVariant)),
               ],
             ),
-          ),
-        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.06, end: 0),
+            const SizedBox(height: AppSpacing.md),
+            GoogleSignInButton(
+              label: 'Se connecter avec Google',
+              isLoading: auth.isLoading,
+              onPressed: auth.isLoading ? null : onGoogleSignIn,
+            ),
+
+            const SizedBox(height: 20),
+
+            Center(
+              child: Text.rich(
+                TextSpan(
+                  text: 'Pas encore de compte ? ',
+                  style: AppTextStyles.bodySm.copyWith(
+                    color: c.onSurfaceVariant,
+                  ),
+                  children: [
+                    WidgetSpan(
+                      child: GestureDetector(
+                        onTap: () => context.push('/auth/register'),
+                        child: Text(
+                          'Créer un compte',
+                          style: AppTextStyles.bodySm.copyWith(
+                            color: c.goldInk,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton.icon(
+                onPressed: () => context.push('/suivi'),
+                icon: const Icon(PhosphorIconsRegular.receipt, size: 16),
+                label: const Text('Suivre une commande sans compte'),
+                style: TextButton.styleFrom(
+                  foregroundColor: c.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    );
+    ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.06, end: 0);
   }
 }

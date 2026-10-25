@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_spacing.dart';
@@ -37,9 +38,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (success) {
       setState(() => _sent = true);
     } else if (auth.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage!)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(auth.errorMessage!)));
     }
   }
 
@@ -50,7 +51,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+          icon: const Icon(PhosphorIconsRegular.arrowLeft, size: 20),
           onPressed: () => context.pop(),
         ),
         title: const Text('Mot de passe oublié'),
@@ -73,15 +74,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           const SizedBox(height: AppSpacing.xs),
           Text(
             'Entrez votre email pour recevoir un lien de réinitialisation.',
-            style: AppTextStyles.bodyLg.copyWith(
-              color: c.onSurfaceVariant,
-            ),
+            style: AppTextStyles.bodyLg.copyWith(color: c.onSurfaceVariant),
           ),
           const SizedBox(height: AppSpacing.xl),
           PremiumTextField(
             controller: _emailController,
             label: 'Email',
-            prefixIcon: Icons.mail_outline_rounded,
+            prefixIcon: PhosphorIconsRegular.envelope,
             keyboardType: TextInputType.emailAddress,
             validator: (v) {
               if (v == null || v.isEmpty) return 'Email requis';
@@ -110,10 +109,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           height: 80,
           decoration: BoxDecoration(
             color: c.statusDoneBg,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+            border: Border.all(
+              color: c.statusDone.withValues(alpha: 0.25),
+              width: 1,
+            ),
           ),
           child: Icon(
-            Icons.mark_email_read_outlined,
+            PhosphorIconsRegular.envelopeSimple,
             size: 40,
             color: c.statusDone,
           ),
@@ -127,9 +130,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: AppSpacing.xs),
         Text(
           'Consultez votre boîte mail pour réinitialiser votre mot de passe.',
-          style: AppTextStyles.bodyLg.copyWith(
-            color: c.onSurfaceVariant,
-          ),
+          style: AppTextStyles.bodyLg.copyWith(color: c.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
         const Spacer(),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_spacing.dart';
@@ -21,7 +22,8 @@ class ForcePasswordChangeScreen extends StatefulWidget {
   const ForcePasswordChangeScreen({super.key});
 
   @override
-  State<ForcePasswordChangeScreen> createState() => _ForcePasswordChangeScreenState();
+  State<ForcePasswordChangeScreen> createState() =>
+      _ForcePasswordChangeScreenState();
 }
 
 class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
@@ -52,7 +54,10 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
       // Voir login_screen.dart : context.colors (context.watch<ThemeProvider>())
       // ne doit jamais être appelé hors du cycle de build.
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage!), backgroundColor: context.read<ThemeProvider>().colors.error),
+        SnackBar(
+          content: Text(auth.errorMessage!),
+          backgroundColor: context.read<ThemeProvider>().colors.error,
+        ),
       );
     }
     // Succès : mustChangePassword passe à false côté AuthProvider, le
@@ -85,55 +90,80 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                           height: 64,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: c.primaryContainer,
+                            color: c.surfaceContainerLowest,
+                            border: Border.all(
+                              color: c.outlineVariant,
+                              width: 1,
+                            ),
                           ),
-                          child: Icon(Icons.lock_reset_rounded, color: c.onPrimaryContainer, size: 30),
+                          child: Icon(
+                            PhosphorIconsRegular.lockKey,
+                            color: c.goldInk,
+                            size: 30,
+                          ),
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Text(
                         'Sécurisez votre compte',
                         textAlign: TextAlign.center,
-                        style: AppTextStyles.titleMd.copyWith(color: c.primary),
+                        style: AppTextStyles.headlineSm.copyWith(
+                          color: c.onSurface,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Votre compte a été créé avec un mot de passe temporaire. '
                         'Définissez votre propre mot de passe pour continuer.',
                         textAlign: TextAlign.center,
-                        style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
+                        style: AppTextStyles.bodySm.copyWith(
+                          color: c.onSurfaceVariant,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.xl),
                       PremiumTextField(
-                        controller: _tempPasswordController,
-                        label: 'Mot de passe temporaire',
-                        hint: 'Reçu de votre atelier',
-                        prefixIcon: Icons.vpn_key_outlined,
-                        obscureText: true,
-                        textInputAction: TextInputAction.next,
-                        autofocus: true,
-                        validator: (v) => v == null || v.isEmpty ? 'Requis' : null,
-                      ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.06, end: 0),
+                            controller: _tempPasswordController,
+                            label: 'Mot de passe temporaire',
+                            hint: 'Reçu de votre atelier',
+                            prefixIcon: PhosphorIconsRegular.key,
+                            obscureText: true,
+                            textInputAction: TextInputAction.next,
+                            autofocus: true,
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Requis' : null,
+                          )
+                          .animate()
+                          .fadeIn(duration: 300.ms)
+                          .slideY(begin: 0.06, end: 0),
                       const SizedBox(height: AppSpacing.md),
                       PremiumTextField(
-                        controller: _newPasswordController,
-                        label: 'Nouveau mot de passe',
-                        prefixIcon: Icons.lock_outline_rounded,
-                        obscureText: true,
-                        textInputAction: TextInputAction.next,
-                        validator: (v) => v == null || v.length < 6 ? 'Minimum 6 caractères' : null,
-                      ).animate().fadeIn(delay: 60.ms).slideY(begin: 0.06, end: 0),
+                            controller: _newPasswordController,
+                            label: 'Nouveau mot de passe',
+                            prefixIcon: PhosphorIconsRegular.lock,
+                            obscureText: true,
+                            textInputAction: TextInputAction.next,
+                            validator: (v) => v == null || v.length < 6
+                                ? 'Minimum 6 caractères'
+                                : null,
+                          )
+                          .animate()
+                          .fadeIn(delay: 60.ms)
+                          .slideY(begin: 0.06, end: 0),
                       const SizedBox(height: AppSpacing.md),
                       PremiumTextField(
-                        controller: _confirmPasswordController,
-                        label: 'Confirmer le nouveau mot de passe',
-                        prefixIcon: Icons.lock_outline_rounded,
-                        obscureText: true,
-                        textInputAction: TextInputAction.done,
-                        onSubmitted: (_) => _submit(),
-                        validator: (v) =>
-                            v != _newPasswordController.text ? 'Les mots de passe ne correspondent pas' : null,
-                      ).animate().fadeIn(delay: 120.ms).slideY(begin: 0.06, end: 0),
+                            controller: _confirmPasswordController,
+                            label: 'Confirmer le nouveau mot de passe',
+                            prefixIcon: PhosphorIconsRegular.lock,
+                            obscureText: true,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => _submit(),
+                            validator: (v) => v != _newPasswordController.text
+                                ? 'Les mots de passe ne correspondent pas'
+                                : null,
+                          )
+                          .animate()
+                          .fadeIn(delay: 120.ms)
+                          .slideY(begin: 0.06, end: 0),
                       const SizedBox(height: AppSpacing.xl),
                       PremiumButton(
                         label: 'Valider et continuer',
@@ -144,10 +174,14 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                       const SizedBox(height: AppSpacing.md),
                       Center(
                         child: TextButton(
-                          onPressed: auth.isChangingPassword ? null : () => auth.signOut(),
+                          onPressed: auth.isChangingPassword
+                              ? null
+                              : () => auth.signOut(),
                           child: Text(
                             'Se déconnecter',
-                            style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
+                            style: AppTextStyles.bodySm.copyWith(
+                              color: c.onSurfaceVariant,
+                            ),
                           ),
                         ),
                       ),
