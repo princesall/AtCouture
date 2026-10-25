@@ -2,38 +2,35 @@ import 'package:flutter/material.dart';
 
 import '../theme/build_context_colors.dart';
 
-/// Ébène et champagne du panneau de marque — couleurs fixes, volontairement
-/// indépendantes du thème : le contraste blanc sur ébène reste garanti en mode
-/// clair comme en mode sombre (là où `c.primary` s'inversait).
-const kAuthEbony = Color(0xFF121212);
-const kAuthChampagne = Color(0xFFC5A880);
-
-/// Fond des écrans d'authentification — toile ivoire « Haute Couture
-/// Éditoriale » : pas de photo, pas de verre dépoli, juste le fond ivoire de
-/// la palette réchauffé par un voile d'or très discret en haut à gauche.
-///
-/// Le texte de marque se pose donc sur clair : il doit utiliser les couleurs
-/// de la palette (`onSurface`, `goldInk`) et non du blanc.
+/// Fond des écrans d'authentification — photo d'atelier de couture (machine
+/// à coudre, ciseaux, mètre ruban) avec un voile sombre dégradé par-dessus
+/// pour garder le texte de marque (blanc) et la carte de connexion lisibles
+/// quel que soit l'endroit où ils tombent selon la largeur d'écran.
 class AuthBackdrop extends StatelessWidget {
   const AuthBackdrop({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
     return Stack(
       fit: StackFit.expand,
       children: [
-        ColoredBox(color: c.background),
-        // Voile d'or : donne de la profondeur au fond sans jamais gêner la
-        // lecture (10 % au centre, transparent en bordure).
+        Image.asset(
+          'assets/branding/login_background.jpg',
+          fit: BoxFit.cover,
+        ),
+        // Plus sombre en haut/à gauche (panneau de marque, texte blanc sans
+        // fond opaque derrière), plus léger en bas/à droite (la carte de
+        // connexion a déjà son propre fond quasi opaque, elle a besoin de
+        // moins de voile pour rester lisible).
         DecoratedBox(
           decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: const Alignment(-0.8, -0.9),
-              radius: 1.3,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
               colors: [
-                c.tertiary.withValues(alpha: 0.10),
-                c.background.withValues(alpha: 0),
+                Colors.black.withValues(alpha: 0.68),
+                Colors.black.withValues(alpha: 0.42),
+                Colors.black.withValues(alpha: 0.22),
               ],
             ),
           ),
@@ -58,11 +55,15 @@ class BrandMonogram extends StatelessWidget {
       height: size,
       padding: EdgeInsets.all(size * 0.16),
       decoration: BoxDecoration(
-        color: c.surfaceContainerLowest,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(size * 0.3),
-        // Bordure 1px couture au lieu de l'ancien halo doré.
-        border: Border.all(color: c.outlineVariant, width: 1),
-        boxShadow: c.softShadow,
+        boxShadow: [
+          BoxShadow(
+            color: c.tertiary.withValues(alpha: 0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Image.asset(
         'assets/branding/logo_mark_transparent.png',

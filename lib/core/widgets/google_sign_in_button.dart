@@ -29,7 +29,7 @@ class GoogleSignInButton extends StatelessWidget {
       height: 54,
       width: double.infinity,
       child: Material(
-        color: c.surfaceContainerLowest,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         child: InkWell(
           onTap: enabled ? onPressed : null,
@@ -37,31 +37,24 @@ class GoogleSignInButton extends StatelessWidget {
           child: Ink(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              border: Border.all(color: c.outlineVariant, width: 1),
+              border: Border.all(color: c.outlineVariant),
             ),
             child: Center(
               child: isLoading
                   ? const SizedBox(
                       width: 22,
                       height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.black54,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black54),
                     )
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        SvgPicture.asset(
-                          'assets/branding/google_logo.svg',
-                          width: 18,
-                          height: 18,
-                        ),
+                        SvgPicture.asset('assets/branding/google_logo.svg', width: 18, height: 18),
                         const SizedBox(width: AppSpacing.sm),
                         Text(
                           label,
                           style: AppTextStyles.labelCaps.copyWith(
-                            color: c.onSurface,
+                            color: Colors.black87,
                             letterSpacing: 0.2,
                           ),
                         ),

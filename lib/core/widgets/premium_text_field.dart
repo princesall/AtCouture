@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
@@ -85,15 +84,17 @@ class _PremiumTextFieldState extends State<PremiumTextField> {
                   ? Icon(
                       widget.prefixIcon,
                       size: 20,
-                      color: _focused ? c.primary : c.onSurfaceVariant,
+                      color: _focused
+                          ? c.primary
+                          : c.onSurfaceVariant,
                     )
                   : null,
               suffixIcon: isPassword
                   ? IconButton(
                       icon: Icon(
                         _obscured
-                            ? PhosphorIconsRegular.eye
-                            : PhosphorIconsRegular.eyeSlash,
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
                         size: 20,
                         color: c.onSurfaceVariant,
                       ),
@@ -101,9 +102,9 @@ class _PremiumTextFieldState extends State<PremiumTextField> {
                     )
                   : widget.suffixIcon,
               filled: true,
-              // Champ toujours blanc : c'est la bordure 1px qui marque l'état,
-              // pas un aplat gris Material.
-              fillColor: c.surfaceContainerLowest,
+              fillColor: _focused
+                  ? c.surfaceContainerLowest
+                  : c.surfaceContainerLow,
             ),
           ),
         ),
@@ -128,7 +129,7 @@ class PremiumPhoneField extends StatelessWidget {
       controller: controller,
       label: 'Téléphone',
       hint: '70 00 00 00',
-      prefixIcon: PhosphorIconsRegular.phone,
+      prefixIcon: Icons.phone_outlined,
       keyboardType: TextInputType.phone,
       validator: validator,
       onChanged: (_) {},
