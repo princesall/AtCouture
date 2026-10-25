@@ -1,18 +1,86 @@
+# Codemagic — StyleConnect
+#
+# Objectif du workflow iOS : produire une application NON SIGNÉE (.app) pour
+# l'installer par sideload sur un iPhone de test (Sideloadly / AltStore).
+#
+# Deux règles apprises sur ce projet :
+#
+# 1. La version de Flutter est ÉPINGLÉE. Le passage à une beta plus récente a
+#    déjà cassé la compilation : Flutter a rendu `IconData` final, ce qui
+#    invalidait le paquet d'icônes utilisé alors. Avec `flutter: beta`, un build
+#    pouvait casser du jour au lendemain sans qu'une ligne du projet ait changé.
+#    La version ci-dessous est celle validée en local (Dart 3.13).
+#
+# 2. `flutter analyze` et `flutter test` passent AVANT la compilation iOS :
+#    inutile de brûler 15 minutes de macOS pour un binaire dont le code ne passe
+#    même pas les tests.
+
 workflows:
   ios-release-sideload:
     name: iOS Release (unsigned, for sideloading)
     max_build_duration: 90
+    instance_type: mac_mini_m2
+
     environment:
-      flutter: beta
+      # Version exacte validée en local. Pour l'évoluer : vérifier d'abord
+      # `dart analyze lib test`, `flutter test` et `flutter build web`.
+      flutter: "3.46.0-0.2.pre"
+      xcode: latest
+      cocoapods: default
+
     cache:
       cache_paths:
         - $HOME/.pub-cache
         - $HOME/Library/Caches/CocoaPods
         - $CM_BUILD_DIR/ios/Pods
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+      cancel_previous_builds: true
+
     scripts:
+      - name: Versions (traçabilité en cas d'échec)
+        script: |
+          flutter --version
+          xcodebuild -version
+          pod --version
+
       - name: Get Flutter packages
-        script: flutter pub get
+        script: |
+          flutter pub get
+          # Signale un pubspec.lock qui aurait bougé : les dépendances résolues
+          # sur Codemagic différeraient alors de celles validées en local.
+          if ! git diff --quiet pubspec.lock; then
+            echo "ATTENTION : pubspec.lock modifié par pub get"
+            git --no-pager diff --stat pubspec.lock
+          fi
+
+      - name: Analyze
+        script: flutter analyze
+
+      - name: Tests
+        script: flutter test
+
       - name: Build iOS app (release, no code signing)
-        script: flutter build ios --release --no-codesign
+        script: |
+          flutter build ios --release --no-codesign
+          echo "--- contenu produit ---"
+          ls -la build/ios/iphoneos/
+
     artifacts:
+      # .app non signée : c'est ce que Sideloadly / AltStore attendent.
       - build/ios/iphoneos/*.app
+      # Journaux utiles si le build casse côté pods.
+      - flutter_drive.log
+
+    publishing:
+      email:
+        recipients:
+          - abdoulayealassanesall4@gmail.com
+        notify:
+          success: true
+          failure: true
