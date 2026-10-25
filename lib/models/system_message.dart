@@ -150,7 +150,7 @@ class SystemMessage {
       id: id,
       userId: userId,
       type: SystemMessageType.accountCreated,
-      title: 'Bienvenue sur StyleConnect 🎉',
+      title: 'Bienvenue sur StyleConnect',
       body: 'Votre compte $role a été créé par $creatorName. Vous pouvez dès maintenant vous connecter '
           'avec les identifiants qui vous ont été communiqués.',
       createdAt: DateTime.now(),

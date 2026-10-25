@@ -130,7 +130,7 @@ class _PlanStatCard extends StatelessWidget {
     SubscriptionPlan.free       => c.onSurfaceVariant,
     SubscriptionPlan.starter    => c.statusInProgress,
     SubscriptionPlan.pro        => c.primary,
-    SubscriptionPlan.enterprise => c.tertiary,
+    SubscriptionPlan.enterprise => c.goldInk,
   };
 
   @override

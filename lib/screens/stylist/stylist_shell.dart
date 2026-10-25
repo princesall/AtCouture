@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/build_context_colors.dart';
@@ -36,11 +37,11 @@ class _StylistShellState extends State<StylistShell> {
   void _onNavTap(int i) => setState(() => _index = i);
 
   static const _navItems = [
-    NavItem(icon: Icons.dashboard_rounded,     label: 'Accueil'),
-    NavItem(icon: Icons.people_alt_rounded,    label: 'Clients'),
-    NavItem(icon: Icons.receipt_long_rounded,  label: 'Commandes'),
-    NavItem(icon: Icons.content_cut_rounded,   label: 'Couturiers'),
-    NavItem(icon: Icons.person_rounded,        label: 'Profil'),
+    NavItem(icon: PhosphorIconsRegular.squaresFour,   label: 'Accueil'),
+    NavItem(icon: PhosphorIconsRegular.users,         label: 'Clients'),
+    NavItem(icon: PhosphorIconsRegular.clipboardText, label: 'Commandes'),
+    NavItem(icon: PhosphorIconsRegular.scissors,      label: 'Couturiers'),
+    NavItem(icon: PhosphorIconsRegular.user,          label: 'Profil'),
   ];
 
   @override
@@ -88,14 +89,15 @@ class _StylistShellState extends State<StylistShell> {
                   // ── FAB mesures (onglet Accueil) ─────────────────────────
                   if (_index == 0)
                     Positioned(
-                      bottom: 92,
+                      bottom: 84,
                       right: 20,
                       child: FloatingActionButton(
                         onPressed: () => _onNavTap(2),
-                        backgroundColor: c.secondary,
-                        foregroundColor: c.onSecondary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        child: const Icon(Icons.add),
+                        backgroundColor: c.primary,
+                        foregroundColor: c.onPrimary,
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: Icon(PhosphorIconsRegular.plus, size: 22, color: c.onPrimary),
                       ),
                     ),
                 ]),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'app_color_palette.dart';
+import 'app_text_styles.dart';
 
 abstract final class AppTheme {
   static ThemeData get light => _build(const AppColorsLight(), Brightness.light);
@@ -43,24 +44,26 @@ abstract final class AppTheme {
 
     return base.copyWith(
       scaffoldBackgroundColor: c.background,
+      textTheme: AppTextStyles.textThemeFor(c.onSurface, c.onSurfaceVariant),
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        iconTheme: IconThemeData(color: c.primary),
-        titleTextStyle: GoogleFonts.manrope(
-          fontSize: 20,
+        iconTheme: IconThemeData(color: c.onSurface),
+        titleTextStyle: GoogleFonts.playfairDisplay(
+          fontSize: 22,
           fontWeight: FontWeight.w700,
-          color: c.primary,
+          color: c.onSurface,
+          letterSpacing: -0.3,
         ),
       ),
       cardTheme: CardThemeData(
         color: c.surfaceContainerLowest,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: c.surfaceContainerLowest),
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: c.outlineVariant, width: 0.8),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -70,35 +73,35 @@ abstract final class AppTheme {
           foregroundColor: c.onPrimary,
           elevation: 0,
           shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: GoogleFonts.hankenGrotesk(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          textStyle: GoogleFonts.inter(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
+            letterSpacing: 0.8,
           ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: c.secondary,
-          side: BorderSide(color: c.secondary),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: GoogleFonts.hankenGrotesk(
+          foregroundColor: c.onSurface,
+          side: BorderSide(color: c.outlineVariant, width: 1.2),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          textStyle: GoogleFonts.inter(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
+            letterSpacing: 0.8,
           ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: c.secondary,
-          textStyle: GoogleFonts.hankenGrotesk(
+          foregroundColor: c.goldInk,
+          textStyle: GoogleFonts.inter(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            letterSpacing: 0.6,
+            letterSpacing: 0.8,
           ),
         ),
       ),
@@ -107,27 +110,27 @@ abstract final class AppTheme {
         fillColor: c.surfaceContainerLowest,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: c.outlineVariant, width: 0.8),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: c.outlineVariant.withValues(alpha: 0.5), width: 0.8),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: c.outlineVariant, width: 0.8),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: c.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: c.error, width: 1),
         ),
-        hintStyle: GoogleFonts.manrope(
+        hintStyle: GoogleFonts.inter(
           fontSize: 14,
-          color: c.onSurfaceVariant,
+          color: c.onSurfaceVariant.withValues(alpha: 0.7),
           fontWeight: FontWeight.w400,
         ),
-        labelStyle: GoogleFonts.hankenGrotesk(
+        labelStyle: GoogleFonts.inter(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.6,
@@ -135,45 +138,48 @@ abstract final class AppTheme {
         ),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: Colors.transparent,
+        backgroundColor: c.surfaceContainerLowest,
         elevation: 0,
-        selectedItemColor: c.secondary,
+        selectedItemColor: c.primary,
         unselectedItemColor: c.onSurfaceVariant,
-        selectedLabelStyle: GoogleFonts.hankenGrotesk(
+        selectedLabelStyle: GoogleFonts.inter(
           fontSize: 10,
           fontWeight: FontWeight.w700,
-          letterSpacing: 0.4,
+          letterSpacing: 0.5,
         ),
-        unselectedLabelStyle: GoogleFonts.hankenGrotesk(
+        unselectedLabelStyle: GoogleFonts.inter(
           fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.4,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
         ),
         type: BottomNavigationBarType.fixed,
       ),
       dividerTheme: DividerThemeData(
         color: c.outlineVariant,
-        thickness: 0.5,
+        thickness: 0.8,
         space: 0,
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: c.surfaceContainerHigh,
-        labelStyle: GoogleFonts.hankenGrotesk(
+        backgroundColor: c.surfaceContainerLow,
+        labelStyle: GoogleFonts.inter(
           fontSize: 10,
           fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
+          letterSpacing: 0.6,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+          side: BorderSide(color: c.outlineVariant, width: 0.6),
+        ),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: c.inverseSurface,
-        contentTextStyle: GoogleFonts.manrope(
+        contentTextStyle: GoogleFonts.inter(
           color: c.inverseOnSurface,
           fontSize: 14,
         ),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_text_styles.dart';
@@ -47,12 +48,12 @@ class _CompanyShellState extends State<CompanyShell> {
   void _onNavTap(int i) => setState(() => _index = i);
 
   static const _navItems = [
-    NavItem(icon: Icons.dashboard_rounded,        label: 'Accueil'),
-    NavItem(icon: Icons.storefront_rounded,       label: 'Ateliers'),
-    NavItem(icon: Icons.people_alt_rounded,       label: 'Clients'),
-    NavItem(icon: Icons.content_cut_rounded,      label: 'Couturiers'),
-    NavItem(icon: Icons.receipt_long_rounded,     label: 'Commandes'),
-    NavItem(icon: Icons.person_rounded,           label: 'Profil'),
+    NavItem(icon: PhosphorIconsRegular.squaresFour,   label: 'Accueil'),
+    NavItem(icon: PhosphorIconsRegular.storefront,    label: 'Ateliers'),
+    NavItem(icon: PhosphorIconsRegular.users,         label: 'Clients'),
+    NavItem(icon: PhosphorIconsRegular.scissors,      label: 'Couturiers'),
+    NavItem(icon: PhosphorIconsRegular.clipboardText, label: 'Commandes'),
+    NavItem(icon: PhosphorIconsRegular.user,          label: 'Profil'),
   ];
 
   @override

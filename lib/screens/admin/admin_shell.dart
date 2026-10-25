@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 
 import '../../core/theme/build_context_colors.dart';
 import '../../core/widgets/offline_banner.dart';
@@ -21,11 +22,11 @@ class _AdminShellState extends State<AdminShell> {
   void _onNavTap(int i) => setState(() => _index = i);
 
   static const _navItems = [
-    NavItem(icon: Icons.dashboard_rounded,          label: 'Accueil'),
-    NavItem(icon: Icons.storefront_rounded,         label: 'Stylistes'),
-    NavItem(icon: Icons.workspace_premium_rounded,  label: 'Abonnements'),
-    NavItem(icon: Icons.forum_rounded,              label: 'Messages'),
-    NavItem(icon: Icons.person_rounded,             label: 'Profil'),
+    NavItem(icon: PhosphorIconsRegular.squaresFour,      label: 'Accueil'),
+    NavItem(icon: PhosphorIconsRegular.storefront,       label: 'Stylistes'),
+    NavItem(icon: PhosphorIconsRegular.crown,            label: 'Abonnements'),
+    NavItem(icon: PhosphorIconsRegular.chatCircleDots,   label: 'Messages'),
+    NavItem(icon: PhosphorIconsRegular.user,             label: 'Profil'),
   ];
 
   @override

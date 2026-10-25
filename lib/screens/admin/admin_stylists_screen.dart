@@ -222,7 +222,7 @@ class _StylistCardState extends State<_StylistCard> {
     SubscriptionPlan.free       => c.onSurfaceVariant,
     SubscriptionPlan.starter    => c.statusInProgress,
     SubscriptionPlan.pro        => c.primary,
-    SubscriptionPlan.enterprise => c.tertiary,
+    SubscriptionPlan.enterprise => c.goldInk,
   };
 
   Color _planBg(AppColorPalette c) => switch (widget.entry.user.plan) {

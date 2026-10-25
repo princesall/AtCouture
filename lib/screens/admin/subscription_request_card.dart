@@ -95,7 +95,7 @@ class _SubscriptionRequestCardState extends State<SubscriptionRequestCard> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(color: c.surfaceContainerLow, borderRadius: BorderRadius.circular(12)),
           child: Row(children: [
-            Icon(Icons.workspace_premium_rounded, color: c.tertiary, size: 20),
+            Icon(Icons.workspace_premium_rounded, color: c.goldInk, size: 20),
             const SizedBox(width: 10),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Passage au plan ${req.requestedPlan.name}', style: AppTextStyles.titleSm.copyWith(color: c.primary, fontSize: 14)),

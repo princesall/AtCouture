@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -40,10 +41,10 @@ class _TailorShellState extends State<TailorShell> {
   void _onNavTap(int i) => setState(() => _index = i);
 
   static const _navItems = [
-    NavItem(icon: Icons.checklist_rounded,       label: 'Tâches'),
-    NavItem(icon: Icons.straighten_rounded,      label: 'Mesures'),
-    NavItem(icon: Icons.photo_library_outlined,  label: 'Photos'),
-    NavItem(icon: Icons.person_rounded,          label: 'Profil'),
+    NavItem(icon: PhosphorIconsRegular.checkSquare, label: 'Tâches'),
+    NavItem(icon: PhosphorIconsRegular.ruler,       label: 'Mesures'),
+    NavItem(icon: PhosphorIconsRegular.image,       label: 'Photos'),
+    NavItem(icon: PhosphorIconsRegular.user,        label: 'Profil'),
   ];
 
   @override

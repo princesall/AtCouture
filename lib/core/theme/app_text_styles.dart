@@ -1,106 +1,135 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Typographie Stitch — Manrope (corps) + Hanken Grotesk (labels)
+/// Typographie "Haute Couture Éditoriale" — StyleConnect
+/// Playfair Display (Titres & Prestige) + Inter (Corps, Données & Précision)
 abstract final class AppTextStyles {
   // ── Display ─────────────────────────────────────────────────────────────
-  /// 40px / 800 / -0.02em — Titres héros
-  static TextStyle get displayLg => GoogleFonts.manrope(
-    fontSize: 40,
-    fontWeight: FontWeight.w800,
-    height: 48 / 40,
-    letterSpacing: -0.8,
+  /// 36px / 700 / -0.02em — Titres héros éditoriaux
+  static TextStyle get displayLg => GoogleFonts.playfairDisplay(
+    fontSize: 36,
+    fontWeight: FontWeight.w700,
+    height: 44 / 36,
+    letterSpacing: -0.5,
   );
 
   // ── Headlines ────────────────────────────────────────────────────────────
-  /// 30px / 700 — Titres desktop
-  static TextStyle get headlineLg => GoogleFonts.manrope(
-    fontSize: 30,
+  /// 28px / 700 — Titres d'écrans majeurs
+  static TextStyle get headlineLg => GoogleFonts.playfairDisplay(
+    fontSize: 28,
     fontWeight: FontWeight.w700,
-    height: 38 / 30,
+    height: 36 / 28,
+    letterSpacing: -0.3,
   );
 
   /// 24px / 700 — Titres mobile (dashboard greeting, etc.)
-  static TextStyle get headlineLgMobile => GoogleFonts.manrope(
+  static TextStyle get headlineLgMobile => GoogleFonts.playfairDisplay(
     fontSize: 24,
     fontWeight: FontWeight.w700,
     height: 32 / 24,
+    letterSpacing: -0.2,
   );
 
-  /// 22px / 700 — Titres moyens
-  static TextStyle get headlineMd => GoogleFonts.manrope(
-    fontSize: 22,
-    fontWeight: FontWeight.w700,
-    height: 30 / 22,
-  );
-
-  /// 18px / 700 — Titres petits
-  static TextStyle get headlineSm => GoogleFonts.manrope(
-    fontSize: 18,
-    fontWeight: FontWeight.w700,
-    height: 26 / 18,
-  );
-
-  // ── Titles ───────────────────────────────────────────────────────────────
-  /// 20px / 600 — Titres de section
-  static TextStyle get titleMd => GoogleFonts.manrope(
+  /// 20px / 700 — Titres moyens
+  static TextStyle get headlineMd => GoogleFonts.playfairDisplay(
     fontSize: 20,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w700,
     height: 28 / 20,
   );
 
-  /// 16px / 600 — Sous-titres / noms clients dans les cartes
-  static TextStyle get titleSm => GoogleFonts.manrope(
-    fontSize: 16,
+  /// 18px / 600 — Titres petits
+  static TextStyle get headlineSm => GoogleFonts.playfairDisplay(
+    fontSize: 18,
     fontWeight: FontWeight.w600,
-    height: 24 / 16,
+    height: 26 / 18,
+  );
+
+  // ── Titles (Inter) ───────────────────────────────────────────────────────
+  /// 18px / 700 — Titres de sections (Commandes Récentes, Priorités...)
+  static TextStyle get titleMd => GoogleFonts.inter(
+    fontSize: 18,
+    fontWeight: FontWeight.w700,
+    height: 26 / 18,
+    letterSpacing: -0.2,
+  );
+
+  /// 15px / 600 — Noms clients dans les cartes
+  static TextStyle get titleSm => GoogleFonts.inter(
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    height: 22 / 15,
   );
 
   // ── Body ─────────────────────────────────────────────────────────────────
-  /// 16px / 400 — Texte courant
-  static TextStyle get bodyLg => GoogleFonts.manrope(
-    fontSize: 16,
+  /// 15px / 400 — Texte courant
+  static TextStyle get bodyLg => GoogleFonts.inter(
+    fontSize: 15,
     fontWeight: FontWeight.w400,
-    height: 24 / 16,
+    height: 22 / 15,
   );
 
-  /// 14px / 400 — Texte secondaire, descriptions
-  static TextStyle get bodySm => GoogleFonts.manrope(
-    fontSize: 14,
+  /// 13px / 400 — Texte secondaire, descriptions
+  static TextStyle get bodySm => GoogleFonts.inter(
+    fontSize: 13,
     fontWeight: FontWeight.w400,
-    height: 20 / 14,
+    height: 18 / 13,
   );
 
-  // ── Labels (Hanken Grotesk) ───────────────────────────────────────────────
-  /// 12px / 700 / 0.05em uppercase — Badges, nav labels, tags
-  static TextStyle get labelCaps => GoogleFonts.hankenGrotesk(
-    fontSize: 12,
+  // ── Labels ───────────────────────────────────────────────────────────────
+  /// 11px / 700 / 0.08em uppercase — Badges, boutons, tags statutaires
+  static TextStyle get labelCaps => GoogleFonts.inter(
+    fontSize: 11,
     fontWeight: FontWeight.w700,
-    height: 16 / 12,
-    letterSpacing: 0.6,
+    height: 14 / 11,
+    letterSpacing: 0.8,
   );
 
-  /// 10px / 700 / 0.06em uppercase — Micro-labels status, prix FCFA
-  static TextStyle get labelXs => GoogleFonts.hankenGrotesk(
+  /// 10px / 700 / 0.08em uppercase — Micro-labels status, tags
+  static TextStyle get labelXs => GoogleFonts.inter(
     fontSize: 10,
     fontWeight: FontWeight.w700,
-    height: 14 / 10,
-    letterSpacing: 0.6,
+    height: 12 / 10,
+    letterSpacing: 0.8,
   );
 
-  // ── Chiffres clés ─────────────────────────────────────────────────────────
-  /// 36px / 800 — Stat cards (14, 28, 8.4M…)
-  static TextStyle get statNumber => GoogleFonts.manrope(
-    fontSize: 36,
+  // ── Chiffres clés (Atelier Metrics) ───────────────────────────────────────
+  /// 32px / 800 — Bento Stat cards
+  static TextStyle get statNumber => GoogleFonts.inter(
+    fontSize: 32,
     fontWeight: FontWeight.w800,
-    height: 44 / 36,
-    letterSpacing: -0.02 * 36,
+    height: 38 / 32,
+    letterSpacing: -0.5,
   );
 
-  /// Prix FCFA — 16px / 600
-  static TextStyle get priceLabel => GoogleFonts.manrope(
-    fontSize: 16,
-    fontWeight: FontWeight.w600,
-    height: 24 / 16,
+  /// Prix FCFA — 15px / 700
+  static TextStyle get priceLabel => GoogleFonts.inter(
+    fontSize: 15,
+    fontWeight: FontWeight.w700,
+    height: 22 / 15,
   );
+
+  // ── Thème global ─────────────────────────────────────────────────────────
+  /// TextTheme complet pour [ThemeData].
+  ///
+  /// Sans lui, tout widget qui lit `Theme.of(context).textTheme.*` retombe sur
+  /// la police par défaut (Roboto) et sort de la charte. Les échelles
+  /// reprennent celles des getters ci-dessus pour ne rien changer à l'existant.
+  static TextTheme textThemeFor(Color onSurface, Color onSurfaceVariant) =>
+      TextTheme(
+        displayLarge: displayLg.copyWith(color: onSurface),
+        displayMedium: displayLg.copyWith(color: onSurface),
+        displaySmall: headlineLg.copyWith(color: onSurface),
+        headlineLarge: headlineLg.copyWith(color: onSurface),
+        headlineMedium: headlineLgMobile.copyWith(color: onSurface),
+        headlineSmall: headlineSm.copyWith(color: onSurface),
+        titleLarge: titleMd.copyWith(color: onSurface),
+        titleMedium: titleSm.copyWith(color: onSurface),
+        titleSmall: titleSm.copyWith(color: onSurfaceVariant),
+        bodyLarge: bodyLg.copyWith(color: onSurface),
+        bodyMedium: bodyLg.copyWith(color: onSurfaceVariant),
+        bodySmall: bodySm.copyWith(color: onSurfaceVariant),
+        labelLarge: labelCaps.copyWith(color: onSurface),
+        labelMedium: labelCaps.copyWith(color: onSurfaceVariant),
+        labelSmall: labelXs.copyWith(color: onSurfaceVariant),
+      );
 }

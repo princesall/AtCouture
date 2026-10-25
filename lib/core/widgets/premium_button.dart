@@ -122,12 +122,12 @@ class _PremiumButtonState extends State<PremiumButton> {
       PremiumButtonVariant.primary => _ButtonColors(
           background: c.primary,
           foreground: c.onPrimary,
-          shadow: const Color(0x33131F5D),
+          shadow: c.primary.withValues(alpha: 0.13),
         ),
       PremiumButtonVariant.gold => _ButtonColors(
           gradient: c.goldGradient,
           foreground: c.onTertiary,
-          shadow: const Color(0x33735C00),
+          shadow: c.tertiary.withValues(alpha: 0.13),
         ),
       PremiumButtonVariant.outline => _ButtonColors(
           background: c.surfaceContainerLowest,
@@ -136,12 +136,12 @@ class _PremiumButtonState extends State<PremiumButton> {
         ),
       PremiumButtonVariant.ghost => _ButtonColors(
           background: Colors.transparent,
-          foreground: c.secondary,
+          foreground: c.goldInk,
         ),
       PremiumButtonVariant.dark => _ButtonColors(
           gradient: c.heroGradient,
           foreground: c.onPrimary,
-          shadow: const Color(0x33131F5D),
+          shadow: c.primary.withValues(alpha: 0.13),
         ),
     };
   }

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
@@ -155,7 +156,7 @@ class SuccessConfirmationSheet extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.check_circle_rounded, color: c.statusDone, size: 56),
+        Icon(PhosphorIconsRegular.checkCircle, color: c.statusDone, size: 52),
         const SizedBox(height: 16),
         Text(title, style: AppTextStyles.titleMd.copyWith(color: c.primary)),
         const SizedBox(height: 8),
@@ -231,7 +232,7 @@ class _AvatarImage extends StatelessWidget {
         url.startsWith('http://') ||
         url.startsWith('https://') ||
         url.startsWith('blob:');
-    final errorFallback = Icon(Icons.storefront_rounded, color: Colors.white, size: size * 0.4);
+    final errorFallback = Icon(PhosphorIconsRegular.storefront, color: Colors.white, size: size * 0.4);
 
     if (isRemote) {
       return Image.network(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_constants.dart';
@@ -62,9 +63,9 @@ class CompanyDashboard extends StatelessWidget {
       Row(children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(gradient: c.goldGradient, borderRadius: BorderRadius.circular(999)),
+          decoration: BoxDecoration(gradient: c.goldGradient, borderRadius: BorderRadius.circular(4)),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.workspace_premium_rounded, color: c.onTertiary, size: 12),
+            Icon(PhosphorIconsRegular.crown, color: c.onTertiary, size: 12),
             const SizedBox(width: 4),
             Text('ENTREPRISE', style: AppTextStyles.labelXs.copyWith(color: c.onTertiary, letterSpacing: 0.8)),
           ]),
@@ -84,15 +85,15 @@ class CompanyDashboard extends StatelessWidget {
   Widget _buildKpiBento(AppColorPalette c, ({int totalAteliers, int totalTailors, int totalClients, int totalOrders, int totalRevenue}) stats) {
     return Column(children: [
       Row(children: [
-        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'ATELIERS',   value: '${stats.totalAteliers}', icon: Icons.storefront_rounded,    valueColor: c.secondary))),
+        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'ATELIERS',   value: '${stats.totalAteliers}', icon: PhosphorIconsRegular.storefront,    valueColor: c.secondary))),
         const SizedBox(width: 14),
-        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'COUTURIERS', value: '${stats.totalTailors}',  icon: Icons.content_cut_rounded,   valueColor: c.primary))),
+        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'COUTURIERS', value: '${stats.totalTailors}',  icon: PhosphorIconsRegular.scissors,      valueColor: c.primary))),
       ]),
       const SizedBox(height: 14),
       Row(children: [
-        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'CLIENTS',    value: '${stats.totalClients}', icon: Icons.people_alt_rounded,     valueColor: c.surfaceTint))),
+        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'CLIENTS',    value: '${stats.totalClients}', icon: PhosphorIconsRegular.users,         valueColor: c.surfaceTint))),
         const SizedBox(width: 14),
-        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'COMMANDES',  value: '${stats.totalOrders}',  icon: Icons.receipt_long_rounded,   valueColor: c.statusInProgress))),
+        Expanded(child: SizedBox(height: 120, child: StatCard(label: 'COMMANDES',  value: '${stats.totalOrders}',  icon: PhosphorIconsRegular.clipboardText, valueColor: c.statusInProgress))),
       ]),
       const SizedBox(height: 14),
       // Revenus pleine largeur en or
@@ -101,7 +102,8 @@ class CompanyDashboard extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           gradient: c.goldGradient,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: c.outlineVariant, width: 0.8),
           boxShadow: [BoxShadow(color: c.tertiary.withValues(alpha: 0.25), blurRadius: 16, offset: const Offset(0, 6))],
         ),
         child: Row(children: [
@@ -112,7 +114,7 @@ class CompanyDashboard extends StatelessWidget {
             Text('${AppConstants.currency} générés par tous vos ateliers', style: AppTextStyles.labelXs.copyWith(color: c.onTertiary.withValues(alpha: 0.7))),
           ]),
           const Spacer(),
-          Icon(Icons.trending_up_rounded, color: c.onTertiary, size: 36),
+          Icon(PhosphorIconsRegular.trendUp, color: c.onTertiary, size: 36),
         ]),
       ),
     ]).animate().fadeIn(delay: 150.ms, duration: 500.ms);
@@ -270,15 +272,15 @@ class CompanyDashboard extends StatelessWidget {
   Widget _buildQuickActions(ValueChanged<int>? onNavTap) {
     return Column(children: [
       Row(children: [
-        Expanded(child: QuickActionButton(label: 'Nouvel Atelier',    icon: Icons.add_business_rounded, onTap: () => onNavTap?.call(1), isPrimary: true)),
+        Expanded(child: QuickActionButton(label: 'Nouvel Atelier',   icon: PhosphorIconsRegular.storefront,   onTap: () => onNavTap?.call(1), isPrimary: true)),
         const SizedBox(width: 14),
-        Expanded(child: QuickActionButton(label: 'Nouveau Client',    icon: Icons.person_add_rounded,   onTap: () => onNavTap?.call(2), isPrimary: false)),
+        Expanded(child: QuickActionButton(label: 'Nouveau Client',   icon: PhosphorIconsRegular.userPlus,     onTap: () => onNavTap?.call(2), isPrimary: false)),
       ]),
       const SizedBox(height: 14),
       Row(children: [
-        Expanded(child: QuickActionButton(label: 'Voir Couturiers',   icon: Icons.content_cut_rounded,  onTap: () => onNavTap?.call(4), isPrimary: false)),
+        Expanded(child: QuickActionButton(label: 'Voir Couturiers',  icon: PhosphorIconsRegular.scissors,     onTap: () => onNavTap?.call(4), isPrimary: false)),
         const SizedBox(width: 14),
-        Expanded(child: QuickActionButton(label: 'Toutes Commandes',  icon: Icons.receipt_long_rounded, onTap: () => onNavTap?.call(3), isPrimary: false)),
+        Expanded(child: QuickActionButton(label: 'Toutes Commandes', icon: PhosphorIconsRegular.clipboardText, onTap: () => onNavTap?.call(3), isPrimary: false)),
       ]),
     ]).animate().fadeIn(delay: 500.ms);
   }

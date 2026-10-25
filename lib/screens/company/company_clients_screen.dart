@@ -193,7 +193,7 @@ class _ClientCard extends StatelessWidget {
           Text('${client.orderCount} cmd${client.orderCount > 1 ? 's' : ''}', style: AppTextStyles.labelCaps.copyWith(color: c.primary, fontSize: 10)),
           if (client.totalSpent > 0) ...[
             const SizedBox(height: 2),
-            Text('${Formatters.formatCurrency(client.totalSpent)} F', style: AppTextStyles.labelXs.copyWith(color: c.tertiary, fontWeight: FontWeight.w700)),
+            Text('${Formatters.formatCurrency(client.totalSpent)} F', style: AppTextStyles.labelXs.copyWith(color: c.goldInk, fontWeight: FontWeight.w700)),
           ],
         ]),
       ]),

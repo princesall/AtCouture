@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -567,7 +568,7 @@ class _ClientCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: c.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3)),
+          border: Border.all(color: c.outlineVariant, width: 1),
           boxShadow: c.softShadow,
         ),
         child: Row(
@@ -580,7 +581,7 @@ class _ClientCard extends StatelessWidget {
                 children: [
                   Text(
                     client.fullName,
-                    style: AppTextStyles.titleMd,
+                    style: AppTextStyles.headlineSm,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -595,7 +596,7 @@ class _ClientCard extends StatelessWidget {
                   Row(
                     children: [
                       Icon(
-                        Icons.receipt_long_outlined,
+                        PhosphorIconsRegular.receipt,
                         size: 14,
                         color: c.primary,
                       ),
@@ -612,7 +613,7 @@ class _ClientCard extends StatelessWidget {
               ),
             ),
             Icon(
-              Icons.chevron_right,
+              PhosphorIconsRegular.caretRight,
               color: c.onSurfaceVariant,
             ),
           ],
