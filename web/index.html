@@ -31,6 +31,37 @@
 
   <title>StyleConnect</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Filet de sécurité anti-version-fantôme.
+
+    Flutter web enregistre un service worker qui met en cache main.dart.js et
+    les assets : après un déploiement, un navigateur peut continuer à servir
+    l'ANCIENNE application pendant des heures (et un simple Ctrl+Shift+R ne
+    suffit pas toujours, le service worker étant prioritaire sur le cache HTTP).
+
+    Ce script désenregistre tout service worker existant et vide ses caches au
+    chargement. Constaté en pratique : la page de connexion et sa photo
+    restaient invisibles après déploiement. Le coût est nul (l'app a besoin
+    d'Internet pour Firestore de toute façon) et chaque déploiement devient
+    visible immédiatement.
+  -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        registrations.forEach(function (registration) {
+          registration.unregister();
+        });
+      });
+      if (window.caches && caches.keys) {
+        caches.keys().then(function (keys) {
+          keys.forEach(function (key) {
+            caches.delete(key);
+          });
+        });
+      }
+    }
+  </script>
 </head>
 <body>
   <!--
