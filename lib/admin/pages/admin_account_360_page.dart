@@ -742,6 +742,10 @@ class _AccountHeader extends StatelessWidget {
                 PopupMenuButton<String>(
                   enabled: !busy,
                   tooltip: 'Actions',
+                  // Les libellés d'actions sont longs (« Réinitialiser le mot
+                  // de passe ») : sans élargissement explicite, le menu par
+                  // défaut (256 px) débordait de plus de 100 px en debug.
+                  constraints: const BoxConstraints(minWidth: 220, maxWidth: 320),
                   icon: Icon(
                     Icons.more_horiz_rounded,
                     color: c.onSurfaceVariant,
@@ -809,7 +813,13 @@ class _AccountHeader extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: Colors.grey),
           const SizedBox(width: 9),
-          Text(label),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
@@ -904,13 +914,15 @@ class _KpiGrid extends StatelessWidget {
         label: 'EXPIRATION',
         value: days == null
             ? '—'
-            : (days < 0 ? 'Expiré' : '$days j'),
+            : (data.hasExpired ? 'Expiré' : '$days j'),
         icon: Icons.event_available_outlined,
-        accent: days != null && days <= 7 ? c.statusProblem : c.statusDone,
+        accent: data.hasExpired || (days != null && days <= 7)
+            ? c.statusProblem
+            : c.statusDone,
         hint: data.user.planExpiresAt == null
             ? 'sans date d\'expiration'
             : Formatters.date.format(data.user.planExpiresAt!),
-        highlight: days != null && days <= 7,
+        highlight: data.hasExpired || (days != null && days <= 7),
       ),
     ];
 

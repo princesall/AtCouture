@@ -366,7 +366,7 @@ class Account360Data {
   int? get daysBeforeExpiry {
     final expiry = user.planExpiresAt;
     if (expiry == null) return null;
-    return expiry.difference(DateTime.now()).inDays;
+    return Formatters.daysUntil(expiry);
   }
 
   SubscriptionPayment? get lastPayment {
@@ -385,7 +385,7 @@ class Account360Data {
 
   bool get expiringSoon {
     final days = daysBeforeExpiry;
-    return days != null && days >= 0 && days <= 7;
+    return days != null && days >= 0 && days <= 7 && !hasExpired;
   }
 
   List<AccountTimelineEvent> get timeline {

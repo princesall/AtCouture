@@ -13,7 +13,7 @@ Future<bool> adminConfirm(
   String confirmLabel = 'Confirmer',
   bool danger = false,
 }) async {
-  final c = context.colors;
+  final c = context.colorsRead;
   final result = await showDialog<bool>(
     context: context,
     barrierDismissible: true,
@@ -97,7 +97,7 @@ Future<SubscriptionPlan?> adminPickPlan(
   BuildContext context, {
   required SubscriptionPlan current,
 }) async {
-  final c = context.colors;
+  final c = context.colorsRead;
   final result = await showDialog<SubscriptionPlan>(
     context: context,
     builder: (context) => Dialog(
@@ -263,7 +263,7 @@ class _PlanOptionState extends State<_PlanOption> {
 
 /// Snackbar cohérente avec la charte (et lisible en clair comme en sombre).
 void showAdminSnack(BuildContext context, String message, {bool error = false}) {
-  final c = context.colors;
+  final c = context.colorsRead;
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(

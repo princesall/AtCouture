@@ -485,8 +485,12 @@ class _ExpiryCell extends StatelessWidget {
         style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
       );
     }
-    final days = expiry!.difference(DateTime.now()).inDays;
-    final urgent = days <= 7;
+    // Jours calendaires (pas des tranches de 24 h) : une échéance demain à
+    // 09 h affiche « Dans 1 j », et un compte expiré depuis une heure est
+    // bien marqué « Expiré » au lieu de « Dans 0 j ».
+    final days = Formatters.daysUntil(expiry!);
+    final expired = expiry!.isBefore(DateTime.now());
+    final urgent = expired || days <= 7;
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -496,7 +500,7 @@ class _ExpiryCell extends StatelessWidget {
         ],
         Flexible(
           child: Text(
-            days <= 0 ? 'Expiré' : 'Dans $days j',
+            expired ? 'Expiré' : 'Dans $days j',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,

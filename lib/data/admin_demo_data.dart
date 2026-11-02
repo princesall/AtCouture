@@ -410,12 +410,20 @@ abstract final class AdminDemoData {
   }
 
   /// Renouvelle l'abonnement d'un compte (prolonge planExpiresAt), utilisé
-  /// depuis l'onglet "Expirant" de la gestion des abonnements.
+  /// depuis la fiche 360 et l'onglet "Expirant" de la gestion des abonnements.
+  ///
+  /// La prolongation part de la date d'expiration encore valide, pas de
+  /// maintenant : renouveler un compte à qui il reste 6 mois ne doit pas lui
+  /// faire perdre ces 6 mois (l'ancien calcul ramenait l'échéance à J+365).
   static Future<void> renewSubscription(String userId, {int days = 365}) async {
     final index = _stylists.indexWhere((s) => s.user.id == userId);
     if (index == -1) return;
     final entry = _stylists[index];
-    final newExpiry = DateTime.now().add(Duration(days: days));
+    final now = DateTime.now();
+    final currentExpiry = entry.user.planExpiresAt;
+    final start =
+        currentExpiry != null && currentExpiry.isAfter(now) ? currentExpiry : now;
+    final newExpiry = start.add(Duration(days: days));
 
     await SubscriptionService.instance.renewSubscription(
       userId: entry.user.id,

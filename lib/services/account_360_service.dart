@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 
+import '../core/utils/formatters.dart';
 import '../data/admin_demo_data.dart';
 import '../models/admin_account.dart';
 import '../models/app_user.dart';
@@ -648,13 +649,17 @@ class Account360Service {
 
     final expiry = user.planExpiresAt;
     if (expiry != null) {
-      final days = expiry.difference(now).inDays;
-      if (days < 0) {
+      // Jours calendaires : une échéance demain compte pour 1 jour, et un
+      // abonnement expiré depuis quelques heures reste bien « expiré ».
+      final days = Formatters.daysUntil(expiry, from: now);
+      if (expiry.isBefore(now)) {
         alerts.add(
           AccountQualityAlert(
             kind: AccountQualityKind.expired,
             label: 'Abonnement expiré',
-            detail: 'Expiré depuis ${days.abs()} jours.',
+            detail: days == 0
+                ? 'Échéance dépassée aujourd\'hui.'
+                : 'Expiré depuis ${days.abs()} jours.',
             severity: 3,
           ),
         );
@@ -662,7 +667,7 @@ class Account360Service {
         alerts.add(
           AccountQualityAlert(
             kind: AccountQualityKind.expiringSoon,
-            label: 'Expire dans $days jours',
+            label: days == 0 ? 'Expire aujourd\'hui' : 'Expire dans $days jours',
             detail: 'Une relance ou un renouvellement est recommandé.',
             severity: 2,
           ),

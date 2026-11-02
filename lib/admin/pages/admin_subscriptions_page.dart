@@ -376,7 +376,8 @@ class _ExpiringPanel extends StatelessWidget {
     final c = context.colors;
     final user = entry.user;
     final expiry = user.planExpiresAt!;
-    final days = expiry.difference(DateTime.now()).inDays;
+    final days = Formatters.daysUntil(expiry);
+    final expired = expiry.isBefore(DateTime.now());
 
     return [
       Row(
@@ -412,11 +413,11 @@ class _ExpiringPanel extends StatelessWidget {
         ),
       ),
       Text(
-        days <= 0 ? 'Expiré' : '$days j',
+        expired ? 'Expiré' : '$days j',
         textAlign: TextAlign.right,
         style: AppTextStyles.labelCaps.copyWith(
           fontSize: 10,
-          color: days <= 0 ? c.statusProblem : c.statusInProgress,
+          color: expired ? c.statusProblem : c.statusInProgress,
         ),
       ),
       Align(
