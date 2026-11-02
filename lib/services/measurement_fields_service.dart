@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import 'firebase_service.dart';
+import 'platform_telemetry_service.dart';
 
 /// Champs de mesures personnalisés définis par un atelier, en plus des 5
 /// champs standards (épaule, poitrine, taille, hanche, longueur). Chaque
@@ -52,6 +53,7 @@ class MeasurementFieldsService {
           if (labels != null) _customLabelsByAtelier[atelierId] = labels;
         },
         onError: (Object error, StackTrace stack) {
+          PlatformTelemetryService.instance.recordError(error, stack, context: 'measurement fields firestore');
           debugPrint('⚠️ sync champs de mesures ($atelierId) interrompue : $error');
         },
       ),

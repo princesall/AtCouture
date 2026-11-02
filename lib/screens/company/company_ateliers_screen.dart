@@ -14,7 +14,6 @@ import '../../models/app_user.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
 import '../../services/order_service.dart';
-import '../admin/admin_dashboard.dart' show StylistAvatar;
 import '../shared/staff_account_actions.dart';
 import '../shared/tailor_orders_screen.dart';
 
@@ -341,7 +340,7 @@ class _AtelierCardState extends State<_AtelierCard> {
                 child: Row(children: [
                   Opacity(
                     opacity: t.isActive ? 1 : 0.4,
-                    child: StylistAvatar(name: t.fullName, isOnline: false, size: 30),
+                    child: UserAvatar(initials: t.initials, size: 30),
                   ),
                   const SizedBox(width: 10),
                   Expanded(child: Row(children: [

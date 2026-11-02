@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import '../models/platform_health.dart';
 import '../models/support_message.dart';
+import 'feature_usage_service.dart';
 import 'firebase_service.dart';
+import 'platform_telemetry_service.dart';
 
 /// Messagerie de support bidirectionnelle : un compte (styliste, chef
 /// d'atelier/entreprise, couturier) signale un problème, l'admin voit le
@@ -52,6 +55,7 @@ class SupportMessageService extends ChangeNotifier {
           notifyListeners();
         },
         onError: (Object error, StackTrace stack) {
+          PlatformTelemetryService.instance.recordError(error, stack, context: 'support firestore sync');
           debugPrint('⚠️ sync messages support (admin) interrompue : $error');
         },
       ),
@@ -74,6 +78,7 @@ class SupportMessageService extends ChangeNotifier {
           notifyListeners();
         },
         onError: (Object error, StackTrace stack) {
+          PlatformTelemetryService.instance.recordError(error, stack, context: 'support firestore sync');
           debugPrint('⚠️ sync messages support ($senderId) interrompue : $error');
         },
       ),
@@ -128,6 +133,7 @@ class SupportMessageService extends ChangeNotifier {
     if (idempotencyKey != null) {
       _sendIdempotencyCache[idempotencyKey] = message;
     }
+    FeatureUsageService.instance.track(FeatureKeys.supportMessage);
     return message;
   }
 
@@ -142,6 +148,7 @@ class SupportMessageService extends ChangeNotifier {
     final index = _messages.indexWhere((m) => m.id == messageId);
     if (index == -1 || _messages[index].isRead) return;
     _messages[index] = _messages[index].copyWith(isRead: true);
+    notifyListeners();
   }
 
   Future<void> reply({
@@ -166,5 +173,6 @@ class SupportMessageService extends ChangeNotifier {
       reply: replyContent.trim(),
       repliedAt: DateTime.now(),
     );
+    notifyListeners();
   }
 }

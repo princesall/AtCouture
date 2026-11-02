@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/app_user.dart';
@@ -26,7 +28,20 @@ class AuthProvider extends ChangeNotifier {
     _status = AuthStatus.loading;
     notifyListeners();
 
-    await _authService.initialize();
+    try {
+      // Sur web, le SDK Firebase peut mettre plusieurs secondes à charger ses
+      // scripts. Sans borne, un réseau lent laissait l'application sur un
+      // écran blanc indéfiniment. Au-delà du délai, on retombe proprement sur
+      // l'état « non connecté » : l'utilisateur voit l'écran de connexion et
+      // peut réessayer, au lieu d'attendre un Future qui ne se termine jamais.
+      await _authService.initialize().timeout(const Duration(seconds: 15));
+    } on TimeoutException {
+      _user = null;
+      _status = AuthStatus.unauthenticated;
+      _errorMessage = 'La connexion au serveur a expiré. Vérifiez votre réseau.';
+      notifyListeners();
+      return;
+    }
 
     final current = _authService.currentUser;
     if (current != null) {
@@ -39,15 +54,37 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> signIn(String email, String password) async {
+  /// Connexion email/mot de passe.
+  ///
+  /// [requireAdmin] est utilisé par la console web : si le compte n'a pas le
+  /// rôle admin, la session est immédiatement fermée AVANT de publier l'état
+  /// authentifié. Sans cela, le router admin verrait brièvement une session
+  /// valide et redirigerait vers l'écran « accès refusé », puis la
+  /// déconnexion ramènerait à la page de connexion — un aller-retour inutile.
+  Future<bool> signIn(
+    String email,
+    String password, {
+    bool requireAdmin = false,
+  }) async {
     _setLoading();
     try {
-      _user = await _authService.signIn(email: email, password: password);
+      final user = await _authService
+          .signIn(email: email, password: password)
+          .timeout(const Duration(seconds: 25));
+      if (requireAdmin && !user.isAdmin) {
+        await _authService.signOut();
+        _setError('Ce compte n\'a pas les droits administrateur.');
+        return false;
+      }
+      _user = user;
       _status = AuthStatus.authenticated;
       _errorMessage = null;
       _watchOwnUser();
       notifyListeners();
       return true;
+    } on TimeoutException {
+      _setError('La connexion au serveur a expiré. Vérifiez votre réseau.');
+      return false;
     } on AuthException catch (e) {
       _setError(e.message);
       return false;

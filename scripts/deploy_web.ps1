@@ -28,21 +28,29 @@ $sw = "build/web/flutter_service_worker.js"
 
 # Le service worker généré par Flutter met en cache l'application : après un
 # déploiement, un navigateur déjà venu peut servir l'ancienne version pendant
-# des heures. On le remplace donc par un service worker « auto-destructeur »
-# qui purge les caches et se désenregistre (voir le fichier source : il explique
-# le mécanisme). C'est la seule façon de débloquer aussi les navigateurs déjà
-# bloqués sur une ancienne version.
+# des heures. On le remplace donc par un service worker « sans cache » qui
+# purge les caches à l'activation et n'intercepte aucune requête (voir le
+# fichier source : il explique le mécanisme). C'est la seule façon de
+# débloquer aussi les navigateurs déjà bloqués sur une ancienne version.
 $killswitch = Join-Path $PSScriptRoot "service_worker_killswitch.js"
 if (-not (Test-Path $killswitch)) { throw "Introuvable : $killswitch" }
+
+if (-not (Test-Path (Split-Path $sw))) {
+    throw "Dossier de build introuvable : $(Split-Path $sw). Le build Flutter a-t-il abouti ?"
+}
+
 Copy-Item $killswitch $sw -Force
 
-if ((Get-Content $sw -Raw) -notmatch 'self\.registration\.unregister') {
-    throw "Le service worker auto-destructeur n'a pas été copié correctement dans $sw."
+# Vérifie le marqueur réel du killswitch actuel (il ne se désenregistre pas
+# volontairement — voir scripts/service_worker_killswitch.js).
+$swContent = Get-Content $sw -Raw
+if ($swContent -notmatch 'caches\.keys' -or $swContent -notmatch 'self\.skipWaiting') {
+    throw "Le service worker sans cache n'a pas été copié correctement dans $sw."
 }
-Write-Host "   service worker auto-destructeur en place" -ForegroundColor DarkGray
+Write-Host "   service worker sans cache en place" -ForegroundColor DarkGray
 
 Write-Host ">> Déploiement Firebase Hosting ($Project)" -ForegroundColor Cyan
-firebase deploy --only hosting --project $Project
+firebase deploy --only hosting:client --project $Project
 if ($LASTEXITCODE -ne 0) { throw "firebase deploy a échoué" }
 
 Write-Host ">> Terminé : https://styleconnect.web.app" -ForegroundColor Green

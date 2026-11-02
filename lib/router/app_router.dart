@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../models/user_role.dart';
 import '../providers/auth_provider.dart';
-import '../screens/admin/admin_shell.dart';
+import '../screens/auth/admin_web_only_screen.dart';
 import '../screens/auth/force_password_change_screen.dart';
 import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/google_profile_completion_screen.dart';
@@ -12,6 +12,8 @@ import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/company/company_shell.dart';
 import '../services/auth_service.dart';
+import '../services/platform_config_service.dart';
+import '../screens/shared/maintenance_screen.dart';
 import '../screens/shared/order_tracking_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/stylist/stylist_shell.dart';
@@ -24,7 +26,10 @@ class AppRouter {
     return GoRouter(
       navigatorKey: _rootNavigatorKey,
       initialLocation: '/splash',
-      refreshListenable: authProvider,
+      refreshListenable: Listenable.merge([
+        authProvider,
+        PlatformConfigService.instance,
+      ]),
       redirect: (context, state) {
         final auth = context.read<AuthProvider>();
         final location = state.matchedLocation;
@@ -33,6 +38,28 @@ class AppRouter {
         // Écran de suivi de commande : public, ne nécessite aucun compte
         // (un client final y accède avec juste son numéro de commande).
         final isTrackingRoute = location.startsWith('/suivi');
+        final isMaintenanceRoute = location == '/maintenance';
+        final config = PlatformConfigService.instance;
+        final isAdminSession =
+            auth.isAuthenticated && auth.user?.role == UserRole.admin;
+
+        // Mode maintenance : bloquant pour tout le monde SAUF les admins, qui
+        // doivent pouvoir se connecter pour le désactiver.
+        if (config.maintenanceMode &&
+            !isAdminSession &&
+            !isMaintenanceRoute &&
+            auth.status != AuthStatus.loading) {
+          return '/maintenance';
+        }
+        if (!config.maintenanceMode && isMaintenanceRoute) {
+          if (!auth.isAuthenticated) return '/auth/login';
+          return switch (auth.user!.role) {
+            UserRole.admin => '/admin-web-only',
+            UserRole.companyOwner => '/company',
+            UserRole.stylist => '/stylist',
+            UserRole.tailor => '/tailor',
+          };
+        }
 
         if (auth.status == AuthStatus.initial ||
             (auth.status == AuthStatus.loading && isSplash)) {
@@ -43,6 +70,7 @@ class AppRouter {
 
         if (!auth.isAuthenticated) {
           if (isSplash) return '/auth/login';
+          if (isMaintenanceRoute) return null;
           return isAuthRoute ? null : '/auth/login';
         }
 
@@ -50,7 +78,9 @@ class AppRouter {
         // du document utilisateur authentifié, jamais d'un état local
         // modifiable.
         final correctHome = switch (auth.user!.role) {
-          UserRole.admin => '/admin',
+          // L'administration n'existe plus dans l'app mobile : un compte admin
+          // est redirigé vers un écran qui l'invite à ouvrir la console web.
+          UserRole.admin => '/admin-web-only',
           UserRole.companyOwner => '/company',
           UserRole.stylist => '/stylist',
           UserRole.tailor => '/tailor',
@@ -61,7 +91,7 @@ class AppRouter {
         // passe temporaire : on bloque tout accès à l'app tant qu'il n'a pas
         // choisi son propre mot de passe, quel que soit l'écran visé.
         final isForcePasswordRoute = location == '/auth/force-password-change';
-        if (auth.user!.mustChangePassword) {
+        if (auth.user!.mustChangePassword && auth.user!.role != UserRole.admin) {
           return isForcePasswordRoute ? null : '/auth/force-password-change';
         }
 
@@ -115,8 +145,16 @@ class AppRouter {
           builder: (_, _) => const ForcePasswordChangeScreen(),
         ),
         GoRoute(
+          path: '/maintenance',
+          builder: (_, _) => const MaintenanceScreen(),
+        ),
+        GoRoute(
           path: '/suivi',
           builder: (_, _) => const OrderTrackingScreen(),
+        ),
+        GoRoute(
+          path: '/admin-web-only',
+          builder: (_, _) => const AdminWebOnlyScreen(),
         ),
         GoRoute(
           path: '/stylist',
@@ -129,10 +167,6 @@ class AppRouter {
         GoRoute(
           path: '/tailor',
           builder: (_, _) => const TailorShell(),
-        ),
-        GoRoute(
-          path: '/admin',
-          builder: (_, _) => const AdminShell(),
         ),
       ],
     );

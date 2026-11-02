@@ -13,6 +13,8 @@ import 'router/app_router.dart';
 import 'services/company_service.dart';
 import 'services/firebase_service.dart';
 import 'services/order_service.dart';
+import 'services/platform_config_service.dart';
+import 'services/platform_telemetry_service.dart';
 
 class StyleConnectApp extends StatefulWidget {
   const StyleConnectApp({super.key, required this.authProvider, required this.themeProvider});
@@ -47,6 +49,7 @@ class _StyleConnectAppState extends State<StyleConnectApp> {
         ChangeNotifierProvider.value(value: widget.themeProvider),
         ChangeNotifierProvider.value(value: CompanyService.instance),
         ChangeNotifierProvider.value(value: OrderService.instance),
+        ChangeNotifierProvider.value(value: PlatformConfigService.instance),
         ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
       ],
       child: Consumer<ThemeProvider>(
@@ -92,7 +95,20 @@ Future<void> bootstrap() async {
   );
 
   await initializeDateFormatting('fr_FR');
-  await FirebaseService.initialize();
+
+  // Même garde que la console admin : un SDK Firebase lent sur web ne doit
+  // jamais laisser l'application sur un écran blanc avant même le splash.
+  try {
+    await FirebaseService.initialize().timeout(const Duration(seconds: 15));
+  } catch (_) {}
+
+  // Journal technique + configuration d'exploitation (maintenance, flags).
+  PlatformTelemetryService.instance.installGlobalHandlers();
+  try {
+    await PlatformConfigService.instance
+        .load()
+        .timeout(const Duration(seconds: 8));
+  } catch (_) {}
 
   final authProvider = AuthProvider();
   await authProvider.initialize();

@@ -3,7 +3,9 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../models/order.dart';
+import '../../models/platform_health.dart';
 import '../../services/company_customization_service.dart';
+import '../../services/feature_usage_service.dart';
 import 'formatters.dart';
 
 /// Génère et partage un PDF (facture ou devis) pour une commande —
@@ -128,5 +130,6 @@ abstract final class OrderPdf {
     );
 
     await Printing.sharePdf(bytes: await doc.save(), filename: '${filenamePrefix}_${order.id}.pdf');
+    FeatureUsageService.instance.track(FeatureKeys.pdfExport);
   }
 }

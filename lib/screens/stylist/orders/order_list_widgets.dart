@@ -23,6 +23,7 @@ import '../../../models/order_status.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/company_service.dart';
 import '../../../services/order_service.dart';
+import '../../../services/platform_config_service.dart';
 import 'edit_order_dialog.dart';
 
 Color orderStatusColor(AppColorPalette c, OrderStatus status) {
@@ -796,7 +797,8 @@ void showOrderDetailSheet(
                   ),
 
                   // Actions — export PDF / devis (plan Pro et plus)
-                  OrderDetailSection(
+                  if (PlatformConfigService.instance.isEnabled('pdfExport'))
+                    OrderDetailSection(
                     title: 'Documents',
                     child: Builder(builder: (context) {
                       final permissions = context.read<AuthProvider>().user!.permissions;

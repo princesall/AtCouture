@@ -16,6 +16,7 @@ import '../../models/order.dart';
 import '../../models/order_status.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/company_service.dart';
+import '../../services/platform_config_service.dart';
 
 
 /// Vue globale de TOUTES les commandes de TOUS les ateliers,
@@ -228,6 +229,16 @@ class _OrderCard extends StatelessWidget {
   void _handleAction(BuildContext context, String action, Order order) {
     final user = context.read<AuthProvider>().user!;
     final permissions = user.permissions;
+
+    if ((action == 'pdf' || action == 'quote') &&
+        !PlatformConfigService.instance.isEnabled('pdfExport')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("L'export PDF est temporairement désactivé."),
+        ),
+      );
+      return;
+    }
 
     switch (action) {
       case 'pdf':

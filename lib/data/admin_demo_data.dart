@@ -5,12 +5,16 @@ import 'package:flutter/foundation.dart';
 
 import '../models/app_user.dart';
 import '../models/atelier.dart';
+import '../models/platform_health.dart';
 import '../models/subscription_plan.dart';
 import '../models/subscription_request.dart';
 import '../models/user_role.dart';
 import '../services/auth_service.dart';
 import '../services/company_service.dart';
+import '../services/admin_audit_service.dart';
+import '../services/feature_usage_service.dart';
 import '../services/firebase_service.dart';
+import '../services/platform_telemetry_service.dart';
 import '../services/order_service.dart';
 import '../services/subscription_service.dart';
 
@@ -59,6 +63,13 @@ abstract final class AdminDemoData {
   static final Set<String> _syncedRequests = {};
   static final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _subscriptions = [];
 
+  /// Incrémenté après chaque synchronisation ou mutation du store admin.
+  /// Les pages desktop écoutent ce notifier : elles se rafraîchissent donc
+  /// immédiatement quand Firestore pousse un changement, sans polling.
+  static final ValueNotifier<int> revision = ValueNotifier<int>(0);
+
+  static void _bump() => revision.value++;
+
   static void _ensureSynced() {
     if (!FirebaseService.isAvailable) return;
     if (_synced) return;
@@ -84,6 +95,7 @@ abstract final class AdminDemoData {
             }
             _ensureRequestSynced(user.id);
           }
+          _bump();
         },
         // IMPORTANT — ce store est réservé à l'espace ADMIN : la requête liste
         // ci-dessus n'est validable par firestore.rules que pour un
@@ -92,6 +104,7 @@ abstract final class AdminDemoData {
         // AdminDemoData.stylists — voir SubscriptionDialog, qui interroge
         // désormais uniquement ses propres demandes.
         onError: (Object error, StackTrace stack) {
+          PlatformTelemetryService.instance.recordError(error, stack, context: 'admin demo sync');
           debugPrint('⚠️ store admin (users) non synchronisé : $error');
         },
       ),
@@ -116,8 +129,10 @@ abstract final class AdminDemoData {
             subscriptionRequest: doc != null ? SubscriptionRequest.fromMap(doc.data(), doc.id) : null,
             clearRequest: doc == null,
           );
+          _bump();
         },
         onError: (Object error, StackTrace stack) {
+          PlatformTelemetryService.instance.recordError(error, stack, context: 'admin demo sync');
           debugPrint('⚠️ demandes d\'abonnement ($userId) non synchronisées : $error');
         },
       ),
@@ -132,6 +147,7 @@ abstract final class AdminDemoData {
 
     final entry = StylistEntry(user: user, isOnline: false);
     _stylists.add(entry);
+    _bump();
   }
 
   /// Crée une demande d'abonnement pour un styliste
@@ -143,6 +159,8 @@ abstract final class AdminDemoData {
         requestedAt: DateTime.now(),
       );
       await FirebaseFirestore.instance.collection('subscriptionRequests').add(request.toMap());
+      FeatureUsageService.instance.track(FeatureKeys.subscriptionRequest);
+      _bump();
       return;
     }
 
@@ -160,6 +178,8 @@ abstract final class AdminDemoData {
     );
 
     _stylists[index] = entry.copyWith(subscriptionRequest: request);
+    FeatureUsageService.instance.track(FeatureKeys.subscriptionRequest);
+    _bump();
   }
 
   /// Vue en lecture pour l'UI — utilisez les méthodes ci-dessous pour modifier.
@@ -353,6 +373,14 @@ abstract final class AdminDemoData {
         _stylists[index] = entry.copyWith(user: updatedUser, clearRequest: true);
       },
     );
+    AdminAuditService.instance.recordAsync(
+      action: 'subscription.approve',
+      targetType: 'user',
+      targetId: userId,
+      targetName: entry.user.fullName,
+      details: 'Plan ${request.requestedPlan.name} approuvé',
+    );
+    _bump();
   }
 
   /// Refuse la demande : le plan reste inchangé, mais un message système
@@ -371,6 +399,14 @@ abstract final class AdminDemoData {
     );
 
     _stylists[index] = entry.copyWith(clearRequest: true);
+    AdminAuditService.instance.recordAsync(
+      action: 'subscription.reject',
+      targetType: 'user',
+      targetId: userId,
+      targetName: entry.user.fullName,
+      details: 'Demande de plan ${request.requestedPlan.name} refusée',
+    );
+    _bump();
   }
 
   /// Renouvelle l'abonnement d'un compte (prolonge planExpiresAt), utilisé
@@ -390,6 +426,14 @@ abstract final class AdminDemoData {
         _stylists[index] = entry.copyWith(user: updatedUser);
       },
     );
+    AdminAuditService.instance.recordAsync(
+      action: 'subscription.renew',
+      targetType: 'user',
+      targetId: userId,
+      targetName: entry.user.fullName,
+      details: 'Abonnement ${entry.user.plan.name} renouvelé de $days jours',
+    );
+    _bump();
   }
 
   /// Bascule actif/inactif un compte (suspension admin).
@@ -408,6 +452,14 @@ abstract final class AdminDemoData {
     }
 
     _stylists[index] = entry.copyWith(user: updatedUser);
+    AdminAuditService.instance.recordAsync(
+      action: updatedUser.isActive ? 'account.reactivate' : 'account.suspend',
+      targetType: 'user',
+      targetId: userId,
+      targetName: entry.user.fullName,
+      details: updatedUser.isActive ? 'Compte réactivé' : 'Compte suspendu',
+    );
+    _bump();
   }
 
   /// Changement de plan manuel par l'admin (hors workflow de demande),
@@ -431,5 +483,29 @@ abstract final class AdminDemoData {
         _stylists[index] = entry.copyWith(user: updatedUser);
       },
     );
+    AdminAuditService.instance.recordAsync(
+      action: 'subscription.plan_change',
+      targetType: 'user',
+      targetId: userId,
+      targetName: entry.user.fullName,
+      details: 'Plan changé vers ${newPlan.name}',
+    );
+    _bump();
+  }
+
+  /// Applique un plan avec une date d'expiration explicite (utilisé par
+  /// l'enregistrement d'un paiement d'abonnement, qui calcule la période).
+  static Future<AppUser?> applyPlanWithExpiry(
+    String userId,
+    SubscriptionPlan plan,
+    DateTime expiresAt,
+  ) async {
+    final index = _stylists.indexWhere((s) => s.user.id == userId);
+    if (index == -1) return null;
+    final entry = _stylists[index];
+    final updated = await _applyPlan(entry.user, plan, expiresAt);
+    _stylists[index] = entry.copyWith(user: updated);
+    _bump();
+    return updated;
   }
 }

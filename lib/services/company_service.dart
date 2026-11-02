@@ -9,10 +9,13 @@ import '../models/app_user.dart';
 import '../models/atelier.dart';
 import '../models/client.dart';
 import '../models/order.dart';
+import '../models/platform_health.dart';
 import '../models/subscription_plan.dart';
 import '../models/user_role.dart';
 import 'auth_service.dart';
+import 'feature_usage_service.dart';
 import 'firebase_service.dart';
+import 'platform_telemetry_service.dart';
 import 'order_service.dart';
 
 /// Service de la hiérarchie Entreprise → Ateliers → Couturiers.
@@ -96,6 +99,7 @@ class CompanyService extends ChangeNotifier {
           notifyListeners();
         },
         onError: (Object error, StackTrace stack) {
+          PlatformTelemetryService.instance.recordError(error, stack, context: 'company firestore sync');
           debugPrint('⚠️ sync entreprises interrompue : $error');
         },
       ),
@@ -119,6 +123,7 @@ class CompanyService extends ChangeNotifier {
           notifyListeners();
         },
         onError: (Object error, StackTrace stack) {
+          PlatformTelemetryService.instance.recordError(error, stack, context: 'company firestore sync');
           debugPrint('⚠️ sync ateliers entreprise $companyId interrompue : $error');
         },
       ),
@@ -136,6 +141,7 @@ class CompanyService extends ChangeNotifier {
           notifyListeners();
         },
         onError: (Object error, StackTrace stack) {
+          PlatformTelemetryService.instance.recordError(error, stack, context: 'company firestore sync');
           debugPrint('⚠️ sync chefs d\'atelier $companyId interrompue : $error');
         },
       ),
@@ -159,6 +165,7 @@ class CompanyService extends ChangeNotifier {
           notifyListeners();
         },
         onError: (Object error, StackTrace stack) {
+          PlatformTelemetryService.instance.recordError(error, stack, context: 'company firestore sync');
           debugPrint('⚠️ sync couturiers atelier $atelierId interrompue : $error');
         },
       ),
@@ -421,6 +428,7 @@ class CompanyService extends ChangeNotifier {
     if (idempotencyKey != null) {
       _atelierHeadIdempotencyCache[idempotencyKey] = result;
     }
+    FeatureUsageService.instance.track(FeatureKeys.staffCreate);
     return result;
   }
 
@@ -569,6 +577,7 @@ class CompanyService extends ChangeNotifier {
     if (idempotencyKey != null) {
       _tailorIdempotencyCache[idempotencyKey] = result;
     }
+    FeatureUsageService.instance.track(FeatureKeys.staffCreate);
     return result;
   }
 
@@ -749,6 +758,7 @@ class CompanyService extends ChangeNotifier {
     if (idempotencyKey != null) {
       _atelierHeadIdempotencyCache[idempotencyKey] = result;
     }
+    FeatureUsageService.instance.track(FeatureKeys.staffCreate);
     return result;
   }
 
@@ -1044,6 +1054,13 @@ class CompanyService extends ChangeNotifier {
   /// AuthService.findById pour les comptes "principaux" (admin, styliste
   /// solo, chef d'entreprise). Mode démo uniquement (voir AdminDemoData, qui
   /// relira directement Firestore une fois migré).
+  /// Tous les comptes staff créés par des chefs (chefs d'atelier et
+  /// couturiers). Utilisé par la console admin pour compter les utilisateurs
+  /// de la plateforme en mode démo — en mode Firebase, les comptages passent
+  /// par des requêtes d'agrégation sur .
+  List<AppUser> get allStaffAccounts =>
+      List.unmodifiable(<AppUser>[..._atelierHeads, ..._tailors]);
+
   AppUser? findAccountById(String id) {
     final inHeads = _atelierHeads.where((u) => u.id == id).firstOrNull;
     if (inHeads != null) return inHeads;

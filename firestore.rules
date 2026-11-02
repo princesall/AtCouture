@@ -150,7 +150,7 @@ service cloud.firestore {
           isOwnUser(userId)
           && isActiveUser()
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['fullName', 'phone', 'photoUrl', 'mustChangePassword'])
+               .hasOnly(['fullName', 'phone', 'photoUrl', 'mustChangePassword', 'lastLoginAt'])
           && (
             request.resource.data.mustChangePassword == false
             || request.resource.data.mustChangePassword == resource.data.mustChangePassword
@@ -360,6 +360,66 @@ service cloud.firestore {
       // d'entrée aujourd'hui : CompanyCustomizationScreen, gardé par
       // permissions.hasCustomization).
       allow write: if isAdmin() || (isActiveUser() && uid() == companyId);
+    }
+
+    // ── systemConfig/{docId} — exploitation de la plateforme ──────────
+    // Mode maintenance, feature flags, notes de version, métriques système.
+    // Lecture publique : l'écran de maintenance doit pouvoir s'afficher
+    // AVANT toute authentification. Aucune donnée sensible ici.
+    match /systemConfig/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── featureEvents/{eventId} — télémétrie produit ─────────────────
+    // Un événement par usage réel (création de commande, export PDF...).
+    // Aucune donnée personnelle : clé de fonctionnalité + UID uniquement.
+    match /featureEvents/{eventId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.userId == uid()
+        && request.resource.data.keys().hasOnly(
+             ['feature', 'userId', 'createdAt', 'appVersion', 'platform'])
+        && request.resource.data.feature is string
+        && request.resource.data.createdAt is string;
+      allow update, delete: if false;
+    }
+
+    // ── systemErrors/{errorId} — erreurs remontées par les clients ────
+    // Journal technique consultable par l'admin uniquement. Les messages
+    // sont tronqués côté client, sans contenu métier.
+    match /systemErrors/{errorId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.userId == uid()
+        && request.resource.data.keys().hasOnly(
+             ['userId', 'message', 'stack', 'context', 'platform',
+              'appVersion', 'createdAt'])
+        && request.resource.data.message is string
+        && request.resource.data.createdAt is string;
+      allow update, delete: if false;
+    }
+
+    // ── subscriptionPayments/{paymentId} — paiements d'abonnement ─────
+    // Enregistrés par l'admin (console 360). Le compte peut lire ses propres
+    // reçus, jamais les modifier.
+    match /subscriptionPayments/{paymentId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.userId == uid());
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── adminAuditLogs/{logId} — traçabilité des actions admin ────────
+    match /adminAuditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // ── users/{userId}/adminNotes/{noteId} — notes internes ───────────
+    // Jamais lisibles par le compte concerné.
+    match /users/{userId}/adminNotes/{noteId} {
+      allow read, write: if isAdmin();
     }
 
     // Tout le reste est fermé par défaut.

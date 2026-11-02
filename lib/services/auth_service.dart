@@ -10,9 +10,12 @@ import '../models/app_user.dart';
 import '../models/atelier.dart';
 import '../data/admin_demo_data.dart';
 import '../models/subscription_plan.dart';
+import '../models/platform_health.dart';
 import '../models/user_role.dart';
 import 'company_service.dart';
+import 'feature_usage_service.dart';
 import 'firebase_service.dart';
+import 'platform_telemetry_service.dart';
 import 'subscription_service.dart';
 
 /// Service d'authentification unique pour TOUS les types de comptes :
@@ -87,8 +90,16 @@ class AuthService {
 
     await _checkExpirationAndNotify(user);
 
-    _currentUser = user;
-    return user;
+    // Trace la connexion pour les contrôles d'inactivité de l'admin. En mode
+    // démo, on met aussi à jour les stores en mémoire pour que la console
+    // voie immédiatement la nouvelle date.
+    final signedInUser = user.copyWith(lastLoginAt: DateTime.now());
+    final demoIndex = _demoUsers.indexWhere((u) => u.id == signedInUser.id);
+    if (demoIndex != -1) _demoUsers[demoIndex] = signedInUser;
+    CompanyService.instance.updateUser(signedInUser);
+
+    _currentUser = signedInUser;
+    return signedInUser;
   }
 
   Future<AppUser> _signInFirebase(String email, String password) async {
@@ -122,8 +133,19 @@ class AuthService {
 
     await _checkExpirationAndNotify(user);
 
-    _currentUser = user;
-    return user;
+    final signedInUser = user.copyWith(lastLoginAt: DateTime.now());
+
+    // Écriture non bloquante : si les règles Firestore ne sont pas encore
+    // déployées (ou en cas de coupure réseau), la connexion doit réussir
+    // quand même. Le champ ne sert qu'au diagnostic admin.
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'lastLoginAt': signedInUser.lastLoginAt!.toIso8601String(),
+      });
+    } catch (_) {}
+
+    _currentUser = signedInUser;
+    return signedInUser;
   }
 
   /// Déclenche la notification système d'expiration une seule fois par
@@ -176,7 +198,7 @@ class AuthService {
     }
 
     if (FirebaseService.isAvailable) {
-      return _registerStylistFirebase(
+      final user = await _registerStylistFirebase(
         fullName: fullName,
         atelierName: atelierName,
         email: normalizedEmail,
@@ -184,6 +206,8 @@ class AuthService {
         password: password,
         logoPath: logoPath,
       );
+      FeatureUsageService.instance.track(FeatureKeys.authRegister);
+      return user;
     }
 
     await Future<void>.delayed(const Duration(milliseconds: 1000));
@@ -212,6 +236,7 @@ class AuthService {
     _demoPasswords[user.email] = password;
     // Mettre à jour la vue admin pour inclure ce styliste fraîchement créé
     await AdminDemoData.addStylist(user);
+    FeatureUsageService.instance.track(FeatureKeys.authRegister);
     _currentUser = user;
     return user;
   }
@@ -534,6 +559,7 @@ class AuthService {
       // périmé — un compte suspendu en direct ou un plan validé par l'admin
       // n'était alors jamais détecté, sans le moindre message.
       onError: (Object error, StackTrace stack) {
+        PlatformTelemetryService.instance.recordError(error, stack, context: 'auth firestore');
         debugPrint('⚠️ watchOwnUserDoc interrompu : $error');
       },
     );
@@ -554,6 +580,10 @@ class AuthService {
       _demoUsers[index] = updatedUser;
     }
   }
+
+  /// Comptes créés en mémoire (mode démo uniquement). Utilisé par la console
+  /// admin pour compter les utilisateurs sans Firebase.
+  static List<AppUser> get demoUsers => List.unmodifiable(_demoUsers);
 
   /// Retrouve un compte "principal" (admin, styliste solo, chef d'entreprise)
   /// par son ID — ne couvre PAS les chefs d'atelier / couturiers créés par
@@ -603,21 +633,33 @@ class AuthService {
     return password;
   }
 
-  static final Map<String, String> _demoPasswords = {
-    'admin@styleconnect.ml': 'admin123',
-  };
+  static final Map<String, String> _demoPasswords = {};
 
-  static final List<AppUser> _demoUsers = [
-    // Uniquement l'admin pour les tests
-    AppUser(
-      id: 'admin_1',
-      email: 'admin@styleconnect.ml',
-      fullName: 'Admin StyleConnect',
-      phone: '+223 70 00 00 01',
-      role: UserRole.admin,
-      createdAt: DateTime(2026, 1, 1),
-    ),
-  ];
+  static final List<AppUser> _demoUsers = [];
+
+  /// Développement uniquement : injecte un compte admin de démonstration pour
+  /// lancer `lib/main_admin.dart` sans projet Firebase.
+  ///
+  /// `kDebugMode` est une constante de compilation : en release, le corps de
+  /// cette méthode et les identifiants qu'elle contient sont éliminés du
+  /// binaire par le compilateur. Aucun mot de passe admin n'est donc livré
+  /// dans l'application mobile ni dans la console déployée.
+  static void seedDebugAdmin() {
+    if (!kDebugMode) return;
+    const email = 'admin@styleconnect.ml';
+    if (_demoUsers.any((u) => u.email == email)) return;
+    _demoUsers.add(
+      AppUser(
+        id: 'admin_debug',
+        email: email,
+        fullName: 'Admin StyleConnect',
+        phone: '+223 70 00 00 01',
+        role: UserRole.admin,
+        createdAt: DateTime(2026, 1, 1),
+      ),
+    );
+    _demoPasswords[email] = 'admin123';
+  }
 }
 
 /// Résultat de AuthService.signInWithGoogle — voir GoogleSignInExisting et

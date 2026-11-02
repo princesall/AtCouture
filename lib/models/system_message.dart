@@ -7,6 +7,7 @@ enum SystemMessageType {
   accountCreated,
   accountDeactivated,
   accountReactivated,
+  subscriptionPaymentReceived,
 }
 
 /// Message SYSTÈME — généré automatiquement par l'application suite à une
@@ -103,6 +104,24 @@ class SystemMessage {
       body: 'Votre demande de passage au plan $planName n\'a pas été approuvée par l\'administrateur. '
           'Votre abonnement actuel reste inchangé. Vous pouvez contacter l\'administrateur pour plus '
           'd\'informations ou soumettre une nouvelle demande.',
+      createdAt: DateTime.now(),
+    );
+  }
+
+  factory SystemMessage.subscriptionPaymentReceived({
+    required String id,
+    required String userId,
+    required String planName,
+    required String amountLabel,
+    required String expiryLabel,
+  }) {
+    return SystemMessage(
+      id: id,
+      userId: userId,
+      type: SystemMessageType.subscriptionPaymentReceived,
+      title: 'Paiement enregistré',
+      body: 'Nous confirmons la réception de $amountLabel pour votre abonnement '
+          "$planName. Votre accès est prolongé jusqu'au $expiryLabel.",
       createdAt: DateTime.now(),
     );
   }

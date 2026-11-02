@@ -10,7 +10,10 @@ import '../models/client.dart';
 import '../models/order.dart';
 import '../models/order_payment.dart';
 import '../models/order_status.dart';
+import '../models/platform_health.dart';
+import 'feature_usage_service.dart';
 import 'firebase_service.dart';
+import 'platform_telemetry_service.dart';
 
 /// Service de gestion des commandes avec création automatique de clients.
 /// Quand une commande est créée, le client est automatiquement créé s'il
@@ -98,6 +101,7 @@ class OrderService extends ChangeNotifier {
         // Une écoute refusée par les règles laissait le couturier devant un
         // tableau de bord définitivement vide, sans aucune erreur visible.
         onError: (Object error, StackTrace stack) {
+          PlatformTelemetryService.instance.recordError(error, stack, context: 'order firestore sync');
           debugPrint('⚠️ sync commandes couturier ($scopeKey) interrompue : $error');
         },
       ),
@@ -117,6 +121,7 @@ class OrderService extends ChangeNotifier {
           notifyListeners();
         },
         onError: (Object error, StackTrace stack) {
+          PlatformTelemetryService.instance.recordError(error, stack, context: 'order firestore sync');
           debugPrint('⚠️ sync commandes atelier $atelierId interrompue : $error');
         },
       ),
@@ -129,6 +134,7 @@ class OrderService extends ChangeNotifier {
           notifyListeners();
         },
         onError: (Object error, StackTrace stack) {
+          PlatformTelemetryService.instance.recordError(error, stack, context: 'order firestore sync');
           debugPrint('⚠️ sync clients atelier $atelierId interrompue : $error');
         },
       ),
@@ -138,6 +144,11 @@ class OrderService extends ChangeNotifier {
   // ── Lectures ──────────────────────────────────────────────────────────────
 
   /// Toutes les commandes d'un atelier
+  /// Toutes les commandes connues du cache local (mode démo) ou des ateliers
+  /// déjà synchronisés. La console admin interroge Firestore directement pour
+  /// la santé de la plateforme ; ce getter sert au mode démo et aux tests.
+  List<Order> get allOrders => List.unmodifiable(_orders);
+
   List<Order> ordersOfAtelier(String atelierId) {
     _ensureAtelierSynced(atelierId);
     return _orders.where((o) => o.atelierId == atelierId).toList();
@@ -342,6 +353,10 @@ class OrderService extends ChangeNotifier {
       if (idempotencyKey != null) {
         _orderIdempotencyCache[idempotencyKey] = result;
       }
+      FeatureUsageService.instance.track(FeatureKeys.ordersCreate);
+      if (result.isNewClient) {
+        FeatureUsageService.instance.track(FeatureKeys.clientsCreate);
+      }
       return result;
     }
 
@@ -437,6 +452,10 @@ class OrderService extends ChangeNotifier {
     final result = (order: order, isNewClient: isNewClient, existingClient: existingClient);
     if (idempotencyKey != null) {
       _orderIdempotencyCache[idempotencyKey] = result;
+    }
+    FeatureUsageService.instance.track(FeatureKeys.ordersCreate);
+    if (result.isNewClient) {
+      FeatureUsageService.instance.track(FeatureKeys.clientsCreate);
     }
     return result;
   }
@@ -572,6 +591,7 @@ class OrderService extends ChangeNotifier {
         ]);
       }
       await ref.update(updates);
+      FeatureUsageService.instance.track(FeatureKeys.measurementsSave);
       return;
     }
 
@@ -594,6 +614,7 @@ class OrderService extends ChangeNotifier {
             ]
           : client.measurementHistory,
     );
+    FeatureUsageService.instance.track(FeatureKeys.measurementsSave);
   }
 
   /// Ajoute un client manuellement (utilisé par l'UI)
@@ -630,6 +651,7 @@ class OrderService extends ChangeNotifier {
       if (idempotencyKey != null) {
         _addClientIdempotencyCache[idempotencyKey] = client;
       }
+      FeatureUsageService.instance.track(FeatureKeys.clientsCreate);
       return client;
     }
 
@@ -653,6 +675,7 @@ class OrderService extends ChangeNotifier {
     if (idempotencyKey != null) {
       _addClientIdempotencyCache[idempotencyKey] = client;
     }
+    FeatureUsageService.instance.track(FeatureKeys.clientsCreate);
     return client;
   }
 
@@ -681,6 +704,7 @@ class OrderService extends ChangeNotifier {
         'status': newStatus.name,
         'statusHistory': FieldValue.arrayUnion([change.toMap()]),
       });
+      FeatureUsageService.instance.track(FeatureKeys.ordersStatus);
       return;
     }
 
@@ -703,6 +727,7 @@ class OrderService extends ChangeNotifier {
         ),
       ],
     );
+    FeatureUsageService.instance.track(FeatureKeys.ordersStatus);
   }
 
   /// Upload le mémo vocal enregistré par un couturier lors d'un signalement
@@ -915,6 +940,7 @@ class OrderService extends ChangeNotifier {
         'payments': FieldValue.arrayUnion([payment.toMap()]),
         'deposit': order.totalPaid + amount,
       });
+      FeatureUsageService.instance.track(FeatureKeys.ordersPayments);
       return;
     }
 
@@ -929,6 +955,7 @@ class OrderService extends ChangeNotifier {
       payments: [...order.payments, payment],
       deposit: order.totalPaid + amount,
     );
+    FeatureUsageService.instance.track(FeatureKeys.ordersPayments);
     notifyListeners();
   }
 

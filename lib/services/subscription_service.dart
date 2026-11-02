@@ -8,6 +8,7 @@ import '../models/subscription_request.dart';
 import '../models/system_message.dart';
 import 'company_service.dart';
 import 'firebase_service.dart';
+import 'platform_telemetry_service.dart';
 
 /// Statut de transition d'un compte, calculé par rapport à son plan
 /// précédent connu. Affiché dans l'admin pour suivre qui vient de monter
@@ -50,6 +51,7 @@ class SubscriptionService {
           _systemMessages[userId] = snap.docs.map((d) => SystemMessage.fromMap(d.data(), d.id)).toList();
         },
         onError: (Object error, StackTrace stack) {
+          PlatformTelemetryService.instance.recordError(error, stack, context: 'subscription firestore');
           debugPrint('⚠️ sync notifications ($userId) interrompue : $error');
         },
       ),
@@ -227,6 +229,23 @@ class SubscriptionService {
 
     await Future<void>.delayed(const Duration(milliseconds: 150));
     _systemMessages.putIfAbsent(message.userId, () => []).add(message);
+  }
+
+  /// Confirme au compte qu'un paiement d'abonnement a été enregistré et que
+  /// sa date d'expiration a été prolongée (voir SubscriptionPaymentService).
+  Future<void> sendPaymentConfirmation({
+    required String userId,
+    required String planName,
+    required String amountLabel,
+    required String expiryLabel,
+  }) async {
+    await _sendSystemMessage(SystemMessage.subscriptionPaymentReceived(
+      id: _nextMessageId(),
+      userId: userId,
+      planName: planName,
+      amountLabel: amountLabel,
+      expiryLabel: expiryLabel,
+    ));
   }
 
   /// Enregistre une notification d'expiration (appelé automatiquement quand

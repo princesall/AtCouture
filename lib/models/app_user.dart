@@ -20,6 +20,7 @@ class AppUser extends Equatable {
     this.isActive = true,
     this.mustChangePassword = false,
     this.createdAt,
+    this.lastLoginAt,
   });
 
   final String id;
@@ -40,6 +41,11 @@ class AppUser extends Equatable {
   final bool isActive;
   final bool mustChangePassword;
   final DateTime? createdAt;
+
+  /// Dernière connexion réussie. Sert aux contrôles d'inactivité de la
+  /// console admin (30/60/90 jours). Null pour les comptes historiques créés
+  /// avant l'ajout de ce champ.
+  final DateTime? lastLoginAt;
 
   bool get isAdmin => role == UserRole.admin;
 
@@ -86,6 +92,7 @@ class AppUser extends Equatable {
     bool? isActive,
     bool? mustChangePassword,
     DateTime? createdAt,
+    DateTime? lastLoginAt,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -102,6 +109,7 @@ class AppUser extends Equatable {
       isActive: isActive ?? this.isActive,
       mustChangePassword: mustChangePassword ?? this.mustChangePassword,
       createdAt: createdAt ?? this.createdAt,
+      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
     );
   }
 
@@ -131,6 +139,9 @@ class AppUser extends Equatable {
       createdAt: map['createdAt'] != null
           ? DateTime.tryParse(map['createdAt'] as String)
           : null,
+      lastLoginAt: map['lastLoginAt'] != null
+          ? DateTime.tryParse(map['lastLoginAt'] as String)
+          : null,
     );
   }
 
@@ -149,6 +160,7 @@ class AppUser extends Equatable {
       'isActive': isActive,
       'mustChangePassword': mustChangePassword,
       'createdAt': createdAt?.toIso8601String(),
+      'lastLoginAt': lastLoginAt?.toIso8601String(),
     };
   }
 

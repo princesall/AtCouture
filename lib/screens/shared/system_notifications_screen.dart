@@ -93,6 +93,8 @@ class _SystemMessageCard extends StatelessWidget {
         SystemMessageType.accountCreated => (Icons.celebration_rounded, c.tertiary, c.tertiaryFixed),
         SystemMessageType.accountDeactivated => (Icons.block_rounded, c.error, c.errorContainer),
         SystemMessageType.accountReactivated => (Icons.check_circle_rounded, c.statusDone, c.statusDoneBg),
+        SystemMessageType.subscriptionPaymentReceived =>
+          (Icons.payments_rounded, c.statusDone, c.statusDoneBg),
       };
 
   @override

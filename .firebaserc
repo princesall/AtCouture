@@ -1,5 +1,17 @@
 {
   "projects": {
     "default": "styleconnect-25e1c"
+  },
+  "targets": {
+    "styleconnect-25e1c": {
+      "hosting": {
+        "client": [
+          "styleconnect"
+        ],
+        "admin": [
+          "styleconnect-admin"
+        ]
+      }
+    }
   }
 }

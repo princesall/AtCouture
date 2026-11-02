@@ -8,6 +8,7 @@ import '../../core/utils/plan_guard.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/platform_config_service.dart';
 import '../company/company_customization_screen.dart';
 import '../company/company_data_export_screen.dart';
 import '../company/company_dedicated_manager_screen.dart';
@@ -26,6 +27,7 @@ class ProfileTabContent extends StatelessWidget {
     final user = context.watch<AuthProvider>().user!;
     final auth = context.read<AuthProvider>();
     final theme = context.watch<ThemeProvider>();
+    final platformConfig = context.watch<PlatformConfigService>();
     final c = context.colors;
 
     return SafeArea(
@@ -111,13 +113,15 @@ class ProfileTabContent extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          ListTile(
-            leading: Icon(Icons.support_agent_outlined, color: c.secondary),
-            title: Text('Signaler un problème', style: AppTextStyles.labelCaps.copyWith(color: c.onSurface)),
-            onTap: () => ContactSupportScreen.show(context),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd), side: BorderSide(color: c.outlineVariant)),
-          ),
+          if (platformConfig.isEnabled('supportMessaging')) ...[
+            const SizedBox(height: AppSpacing.sm),
+            ListTile(
+              leading: Icon(Icons.support_agent_outlined, color: c.secondary),
+              title: Text('Signaler un problème', style: AppTextStyles.labelCaps.copyWith(color: c.onSurface)),
+              onTap: () => ContactSupportScreen.show(context),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd), side: BorderSide(color: c.outlineVariant)),
+            ),
+          ],
           const SizedBox(height: AppSpacing.sm),
           ListTile(
             leading: Icon(Icons.logout, color: c.error),

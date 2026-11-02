@@ -13,6 +13,7 @@ import '../../models/atelier.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/company_service.dart';
+import '../../services/platform_config_service.dart';
 import '../../services/subscription_service.dart';
 import '../shared/contact_support_screen.dart';
 import '../shared/system_notifications_screen.dart';
@@ -232,19 +233,21 @@ class _TailorProfileState extends State<_TailorProfile> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            ListTile(
-              leading: Icon(Icons.support_agent_outlined, color: c.secondary),
-              title: Text(
-                'Signaler un problème',
-                style: AppTextStyles.labelCaps.copyWith(color: c.onSurface),
+            if (PlatformConfigService.instance.isEnabled('supportMessaging')) ...[
+              const SizedBox(height: AppSpacing.sm),
+              ListTile(
+                leading: Icon(Icons.support_agent_outlined, color: c.secondary),
+                title: Text(
+                  'Signaler un problème',
+                  style: AppTextStyles.labelCaps.copyWith(color: c.onSurface),
+                ),
+                onTap: () => ContactSupportScreen.show(context),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  side: BorderSide(color: c.outlineVariant),
+                ),
               ),
-              onTap: () => ContactSupportScreen.show(context),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                side: BorderSide(color: c.outlineVariant),
-              ),
-            ),
+            ],
             const SizedBox(height: AppSpacing.sm),
             ListTile(
               leading: Icon(Icons.logout, color: c.error),

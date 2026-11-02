@@ -7,7 +7,7 @@ import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/admin_demo_data.dart';
 import '../../services/company_service.dart';
-import 'admin_dashboard.dart' show StylistAvatar;
+import '../widgets/admin_kit.dart';
 
 /// Vue Admin : chaque compte Entreprise (plan Entreprise) avec sa structure
 /// complète d'ateliers. L'Admin peut consulter (lecture) toute la hiérarchie
@@ -30,12 +30,8 @@ class AdminCompaniesScreen extends StatelessWidget {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+      padding: const EdgeInsets.fromLTRB(0, 4, 0, 24),
       children: [
-        Text('Entreprises', style: AppTextStyles.titleMd.copyWith(color: c.primary)),
-        const SizedBox(height: 4),
-        Text('Comptes plan Entreprise — vue lecture seule de la structure', style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant)),
-        const SizedBox(height: 20),
         ...companies.asMap().entries.map((e) => Padding(
           padding: const EdgeInsets.only(bottom: 14),
           child: _CompanyCard(company: e.value, index: e.key),
@@ -137,7 +133,7 @@ class _CompanyCardState extends State<_CompanyCard> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: c.surfaceContainerLowest, borderRadius: BorderRadius.circular(12), border: Border.all(color: c.outlineVariant.withValues(alpha: 0.3))),
             child: Row(children: [
-              StylistAvatar(name: a.headStylistName as String, isOnline: false, size: 32),
+              AdminAvatar.fromName(a.headStylistName as String, size: 32),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(a.name as String, style: AppTextStyles.titleSm.copyWith(fontSize: 13)),
