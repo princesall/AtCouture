@@ -1,4 +1,4 @@
-# Script de lancement StyleConnect (contourne le bug Windows + espaces dans le chemin)
+﻿# Script de lancement StyleConnect (contourne le bug Windows + espaces dans le chemin)
 # Usage : .\scripts\run.ps1
 #         .\scripts\run.ps1 -Device windows
 

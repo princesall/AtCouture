@@ -1,4 +1,4 @@
-# Déploiement de la CONSOLE ADMIN — usage : .\scripts\deploy_admin_web.ps1
+﻿# Déploiement de la CONSOLE ADMIN — usage : .\scripts\deploy_admin_web.ps1
 #
 # Prérequis unique (une seule fois par projet) : créer le site Hosting dédié.
 #   firebase hosting:sites:create styleconnect-admin --project styleconnect-25e1c

@@ -1,4 +1,4 @@
-# Déploiement web StyleConnect — usage : .\scripts\deploy_web.ps1
+﻿# Déploiement web StyleConnect — usage : .\scripts\deploy_web.ps1
 #
 # Deux détails volontairement encodés ici, appris à la dure :
 #

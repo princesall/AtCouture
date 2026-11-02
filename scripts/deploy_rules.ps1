@@ -1,4 +1,4 @@
-# Déploiement des règles Firestore + Storage — usage : .\scripts\deploy_rules.ps1
+﻿# Déploiement des règles Firestore + Storage — usage : .\scripts\deploy_rules.ps1
 #
 # À lancer après toute modification de firestore.rules ou storage.rules.
 # Les nouvelles fonctionnalités de la console admin en dépendent :
