@@ -122,7 +122,11 @@ Future<void> sendAccountResetLink(BuildContext context, AppUser account) async {
     await AuthService().sendPasswordResetEmail(account.email);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Lien envoyé à ${account.email}')),
+      SnackBar(
+        content: Text(
+          'Demande envoyée à ${account.email}. Vérifiez aussi les spams.',
+        ),
+      ),
     );
   } on AuthException catch (e) {
     if (!context.mounted) return;

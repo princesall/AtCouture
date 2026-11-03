@@ -66,7 +66,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     showAdminSnack(
       context,
       ok
-          ? 'Email de réinitialisation envoyé à $email.'
+          ? 'Demande envoyée à $email. Vérifiez aussi les spams.'
           : (auth.errorMessage ?? 'Envoi impossible.'),
       error: !ok,
     );

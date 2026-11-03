@@ -374,18 +374,18 @@ class _ActionsMenu extends StatelessWidget {
           );
           return;
         case 'renew':
-          final confirmed = await adminConfirm(
+          final months = await adminPickRenewalMonths(
             context,
-            title: 'Renouveler l\'abonnement ?',
-            message:
-                'Le plan ${user.plan.name} de ${user.fullName} sera prolongé de 12 mois et le compte sera notifié.',
-            confirmLabel: 'Renouveler 12 mois',
+            userFullName: user.fullName,
+            plan: user.plan,
+            currentExpiry: user.planExpiresAt,
           );
-          if (!confirmed || !context.mounted) return;
+          if (months == null || !context.mounted) return;
           await runAdminAction(
             context,
-            action: () => AdminDemoData.renewSubscription(user.id),
-            successMessage: 'Abonnement renouvelé pour 12 mois.',
+            action: () =>
+                AdminDemoData.renewSubscription(user.id, months: months),
+            successMessage: 'Abonnement renouvelé pour $months mois.',
           );
           return;
         case 'approve':
@@ -416,7 +416,7 @@ class _ActionsMenu extends StatelessWidget {
       itemBuilder: (context) => [
         _menuItem(context, 'details', Icons.person_outline_rounded, 'Voir la fiche'),
         _menuItem(context, 'plan', Icons.workspace_premium_outlined, 'Changer de plan'),
-        _menuItem(context, 'renew', Icons.autorenew_rounded, 'Renouveler 12 mois'),
+        _menuItem(context, 'renew', Icons.autorenew_rounded, 'Renouveler l\'abonnement'),
         if (pending) ...[
           _menuItem(context, 'approve', Icons.check_circle_outline_rounded, 'Approuver la demande'),
           _menuItem(context, 'reject', Icons.cancel_outlined, 'Refuser la demande'),

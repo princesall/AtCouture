@@ -129,7 +129,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Consultez votre boîte mail pour réinitialiser votre mot de passe.',
+          'Consultez votre boîte mail (et le dossier Spam) pour réinitialiser '
+          'votre mot de passe.',
           style: AppTextStyles.bodyLg.copyWith(color: c.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),

@@ -186,7 +186,7 @@ void main() {
     );
     await AdminDemoData.addStylist(user);
 
-    await AdminDemoData.renewSubscription(user.id);
+    await AdminDemoData.renewSubscription(user.id, months: 12);
 
     final updated = AdminDemoData.findAnyUserById('demo_360_renew')!;
     // 12 mois ajoutés AU-delà des 180 jours restants (et non 365 jours à
@@ -194,6 +194,35 @@ void main() {
     expect(
       updated.planExpiresAt!.difference(expiry).inDays,
       closeTo(365, 1),
+    );
+  });
+
+  test('le renouvellement par défaut dure 1 mois (et non 12)', () async {
+    SharedPreferences.setMockInitialValues({});
+    AuthService.seedDebugAdmin();
+
+    final expiry = DateTime.now().add(const Duration(days: 10));
+    final user = AppUser(
+      id: 'demo_360_renew_one_month',
+      email: 'renew1@demo.ml',
+      fullName: 'Fanta Traoré',
+      phone: '+223 70 00 66 66',
+      role: UserRole.stylist,
+      atelierId: 'atelier_renew_one',
+      atelierName: 'Traoré Couture',
+      plan: SubscriptionPlan.starter,
+      planExpiresAt: expiry,
+      createdAt: DateTime.now().subtract(const Duration(days: 20)),
+    );
+    await AdminDemoData.addStylist(user);
+
+    await AdminDemoData.renewSubscription(user.id);
+
+    final updated = AdminDemoData.findAnyUserById('demo_360_renew_one_month')!;
+    // Un mois calendaire depuis l'échéance restante, pas un an.
+    expect(
+      updated.planExpiresAt!.difference(expiry).inDays,
+      closeTo(31, 3),
     );
   });
 }

@@ -317,17 +317,16 @@ class _AdminAccount360PageState extends State<AdminAccount360Page> {
   Future<void> _renew() async {
     final data = _data;
     if (data == null) return;
-    final confirmed = await adminConfirm(
+    final months = await adminPickRenewalMonths(
       context,
-      title: 'Renouveler 12 mois ?',
-      message:
-          'L\'abonnement ${data.user.plan.name} de ${data.user.fullName} sera prolongé de 12 mois.',
-      confirmLabel: 'Renouveler',
+      userFullName: data.user.fullName,
+      plan: data.user.plan,
+      currentExpiry: data.user.planExpiresAt,
     );
-    if (!confirmed) return;
+    if (months == null) return;
     await _runAction(
-      () => AdminDemoData.renewSubscription(data.user.id),
-      success: 'Abonnement renouvelé pour 12 mois.',
+      () => AdminDemoData.renewSubscription(data.user.id, months: months),
+      success: 'Abonnement renouvelé pour $months mois.',
     );
   }
 
@@ -400,7 +399,7 @@ class _AdminAccount360PageState extends State<AdminAccount360Page> {
     try {
       await AuthService().sendPasswordResetEmail(data.user.email);
       if (!mounted) return;
-      showAdminSnack(context, 'Email de réinitialisation envoyé.');
+      await showPasswordResetDiagnosticDialog(context, email: data.user.email);
     } catch (error) {
       if (!mounted) return;
       showAdminSnack(context, '$error', error: true);
@@ -756,7 +755,7 @@ class _AccountHeader extends StatelessWidget {
                       _menuItem('plan', Icons.workspace_premium_rounded,
                           'Changer de plan'),
                       _menuItem('renew', Icons.autorenew_rounded,
-                          'Renouveler 12 mois'),
+                          'Renouveler l\'abonnement'),
                       if (data.pendingRequest != null) ...[
                         _menuItem('approve', Icons.check_circle_outline_rounded,
                             'Approuver la demande'),
@@ -1117,7 +1116,7 @@ class _SubscriptionCard extends StatelessWidget {
                     onTap: onPayment,
                   ),
                   AdminButton(
-                    label: 'Renouveler 12 mois',
+                    label: 'Renouveler l\'abonnement',
                     icon: Icons.autorenew_rounded,
                     small: true,
                     onTap: onRenew,

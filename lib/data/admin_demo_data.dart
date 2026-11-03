@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import '../core/utils/subscription_periods.dart';
 import '../models/app_user.dart';
 import '../models/atelier.dart';
 import '../models/platform_health.dart';
@@ -409,21 +410,26 @@ abstract final class AdminDemoData {
     _bump();
   }
 
-  /// Renouvelle l'abonnement d'un compte (prolonge planExpiresAt), utilisé
-  /// depuis la fiche 360 et l'onglet "Expirant" de la gestion des abonnements.
+  /// Renouvellement d'un abonnement (fiche 360, liste stylistes et onglet
+  /// « Expirant » des abonnements).
+  ///
+  /// [months] est choisi par l'admin (1 à 12) : un renouvellement n'est plus
+  /// imposé à 12 mois alors que les plans sont facturés au mois.
   ///
   /// La prolongation part de la date d'expiration encore valide, pas de
   /// maintenant : renouveler un compte à qui il reste 6 mois ne doit pas lui
-  /// faire perdre ces 6 mois (l'ancien calcul ramenait l'échéance à J+365).
-  static Future<void> renewSubscription(String userId, {int days = 365}) async {
+  /// faire perdre ces 6 mois.
+  static Future<void> renewSubscription(String userId, {int months = 1}) async {
     final index = _stylists.indexWhere((s) => s.user.id == userId);
     if (index == -1) return;
     final entry = _stylists[index];
-    final now = DateTime.now();
-    final currentExpiry = entry.user.planExpiresAt;
-    final start =
-        currentExpiry != null && currentExpiry.isAfter(now) ? currentExpiry : now;
-    final newExpiry = start.add(Duration(days: days));
+    final safeMonths = months
+        .clamp(SubscriptionPeriods.minMonths, SubscriptionPeriods.maxMonths)
+        .toInt();
+    final newExpiry = SubscriptionPeriods.renewalEnd(
+      entry.user.planExpiresAt,
+      safeMonths,
+    );
 
     await SubscriptionService.instance.renewSubscription(
       userId: entry.user.id,
@@ -439,7 +445,8 @@ abstract final class AdminDemoData {
       targetType: 'user',
       targetId: userId,
       targetName: entry.user.fullName,
-      details: 'Abonnement ${entry.user.plan.name} renouvelé de $days jours',
+      details:
+          'Abonnement ${entry.user.plan.name} renouvelé de ${SubscriptionPeriods.monthsLabel(safeMonths)}',
     );
     _bump();
   }

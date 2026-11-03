@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/foundation.dart';
 
 import '../core/utils/formatters.dart';
+import '../core/utils/subscription_periods.dart';
 import '../data/admin_demo_data.dart';
 import '../models/admin_account.dart';
 import '../models/app_user.dart';
@@ -59,7 +60,7 @@ class SubscriptionPaymentService {
     final currentExpiry = user.planExpiresAt;
     final periodStart =
         currentExpiry != null && currentExpiry.isAfter(now) ? currentExpiry : now;
-    final periodEnd = _addMonths(periodStart, periodMonths);
+    final periodEnd = SubscriptionPeriods.addMonths(periodStart, periodMonths);
     final actor = await _actor();
 
     final payment = SubscriptionPayment(
@@ -178,22 +179,6 @@ class SubscriptionPaymentService {
 
   List<SubscriptionPayment> localPaymentsFor(String userId) =>
       _localPayments.where((payment) => payment.userId == userId).toList();
-
-  static DateTime _addMonths(DateTime date, int months) {
-    final rawMonth = date.month + months;
-    final year = date.year + (rawMonth - 1) ~/ 12;
-    final month = (rawMonth - 1) % 12 + 1;
-    final lastDay = DateTime(year, month + 1, 0).day;
-    final day = date.day > lastDay ? lastDay : date.day;
-    return DateTime(
-      year,
-      month,
-      day,
-      date.hour,
-      date.minute,
-      date.second,
-    );
-  }
 
   static String? _clean(String? value) {
     final trimmed = value?.trim();

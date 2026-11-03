@@ -335,7 +335,7 @@ class _ExpiringPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Renouveler prolonge le plan actuel de 12 mois et notifie le compte.',
+                        'Renouveler prolonge le plan actuel de 1 à 12 mois et notifie le compte.',
                         style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
                       ),
                     ],
@@ -424,22 +424,22 @@ class _ExpiringPanel extends StatelessWidget {
         alignment: Alignment.centerRight,
         child: AdminIconAction(
           icon: Icons.autorenew_rounded,
-          tooltip: 'Renouveler 12 mois',
+          tooltip: 'Renouveler l\'abonnement',
           color: c.onSurface,
           background: c.surfaceContainerLow,
           onTap: () async {
-            final confirmed = await adminConfirm(
+            final months = await adminPickRenewalMonths(
               context,
-              title: 'Renouveler cet abonnement ?',
-              message:
-                  'Le plan ${user.plan.name} de ${user.fullName} sera prolongé de 12 mois.',
-              confirmLabel: 'Renouveler',
+              userFullName: user.fullName,
+              plan: user.plan,
+              currentExpiry: expiry,
             );
-            if (!confirmed || !context.mounted) return;
+            if (months == null || !context.mounted) return;
             await runAdminAction(
               context,
-              action: () => AdminDemoData.renewSubscription(user.id),
-              successMessage: 'Abonnement renouvelé pour 12 mois.',
+              action: () =>
+                  AdminDemoData.renewSubscription(user.id, months: months),
+              successMessage: 'Abonnement renouvelé pour $months mois.',
             );
           },
         ),

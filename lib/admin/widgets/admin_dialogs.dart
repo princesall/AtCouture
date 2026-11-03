@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
+import '../../core/utils/formatters.dart';
+import '../../core/utils/subscription_periods.dart';
 import '../../models/subscription_plan.dart';
 import 'admin_kit.dart';
 
@@ -153,6 +155,219 @@ Future<SubscriptionPlan?> adminPickPlan(
   return result;
 }
 
+/// Sélection de la durée d'un renouvellement d'abonnement (1 à 12 mois).
+///
+/// Les plans sont facturés au mois : imposer « 12 mois » à chaque clic ne
+/// correspondait ni au prix affiché ni à l'approbation d'un plan (30 jours).
+/// L'admin choisit ici la période réellement accordée au compte.
+Future<int?> adminPickRenewalMonths(
+  BuildContext context, {
+  required String userFullName,
+  required SubscriptionPlan plan,
+  DateTime? currentExpiry,
+}) {
+  return showDialog<int>(
+    context: context,
+    builder: (_) => _RenewalMonthsDialog(
+      userFullName: userFullName,
+      plan: plan,
+      currentExpiry: currentExpiry,
+    ),
+  );
+}
+
+class _RenewalMonthsDialog extends StatefulWidget {
+  const _RenewalMonthsDialog({
+    required this.userFullName,
+    required this.plan,
+    this.currentExpiry,
+  });
+
+  final String userFullName;
+  final SubscriptionPlan plan;
+  final DateTime? currentExpiry;
+
+  @override
+  State<_RenewalMonthsDialog> createState() => _RenewalMonthsDialogState();
+}
+
+class _RenewalMonthsDialogState extends State<_RenewalMonthsDialog> {
+  int _months = SubscriptionPeriods.minMonths;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final start = SubscriptionPeriods.renewalStart(widget.currentExpiry);
+    final end = SubscriptionPeriods.renewalEnd(widget.currentExpiry, _months);
+    final continuesFromExpiry = widget.currentExpiry != null &&
+        widget.currentExpiry!.isAfter(DateTime.now());
+
+    return Dialog(
+      backgroundColor: c.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: c.outlineVariant),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Renouveler l\'abonnement',
+                  style: AppTextStyles.titleMd.copyWith(
+                    fontSize: 17,
+                    color: c.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${widget.userFullName} — plan ${widget.plan.name}. '
+                  'Choisissez la durée à accorder : de 1 à 12 mois.',
+                  style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'DURÉE',
+                  style: AppTextStyles.labelCaps.copyWith(
+                    fontSize: 9,
+                    color: c.goldInk,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (var months = SubscriptionPeriods.minMonths;
+                        months <= SubscriptionPeriods.maxMonths;
+                        months++)
+                      _MonthChip(
+                        months: months,
+                        selected: months == _months,
+                        onTap: () => setState(() => _months = months),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: c.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: c.outlineVariant),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'NOUVELLE ÉCHÉANCE',
+                        style: AppTextStyles.labelCaps.copyWith(
+                          fontSize: 9,
+                          color: c.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        Formatters.date.format(end),
+                        style: AppTextStyles.titleMd.copyWith(
+                          fontSize: 16,
+                          color: c.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        continuesFromExpiry
+                            ? 'Prolongation depuis l\'échéance actuelle '
+                                '(${Formatters.date.format(start)}), sans perdre '
+                                'les jours restants.'
+                            : 'Point de départ : aujourd\'hui '
+                                '(${Formatters.date.format(start)}).',
+                        style: AppTextStyles.bodySm.copyWith(
+                          fontSize: 11.5,
+                          color: c.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    AdminButton(
+                      label: 'Annuler',
+                      onTap: () => Navigator.of(context).pop(),
+                    ),
+                    const SizedBox(width: 10),
+                    AdminButton(
+                      label:
+                          'Renouveler ${SubscriptionPeriods.monthsLabel(_months)}',
+                      primary: true,
+                      onTap: () => Navigator.of(context).pop(_months),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MonthChip extends StatelessWidget {
+  const _MonthChip({
+    required this.months,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final int months;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Material(
+      color: selected ? c.tertiaryContainer : c.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(9),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(9),
+        onTap: onTap,
+        child: Container(
+          width: 46,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(
+              color: selected
+                  ? c.goldInk
+                  : c.outlineVariant.withValues(alpha: 0.8),
+              width: selected ? 1.4 : 1,
+            ),
+          ),
+          child: Text(
+            '$months',
+            style: AppTextStyles.titleSm.copyWith(
+              fontSize: 13,
+              color: c.onSurface,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PlanOption extends StatefulWidget {
   const _PlanOption({
     required this.plan,
@@ -259,6 +474,163 @@ class _PlanOptionState extends State<_PlanOption> {
         SubscriptionPlan.pro => '20 couturiers · calendrier · PDF',
         SubscriptionPlan.enterprise => 'Ateliers illimités · multi-sites',
       };
+}
+
+/// Affiche le diagnostic à faire quand Firebase accepte la demande de
+/// réinitialisation mais que l'email n'arrive pas.
+///
+/// `sendPasswordResetEmail` peut réussir sans qu'aucun email ne soit envoyé :
+/// avec la protection contre l'énumération des comptes, Firebase renvoie un
+/// succès générique même si l'adresse n'existe pas dans Auth. Et même quand
+/// le compte existe, les emails Firebase par défaut finissent très souvent en
+/// spam. Ce dialogue donne donc les vérifications concrètes à l'admin.
+Future<void> showPasswordResetDiagnosticDialog(
+  BuildContext context, {
+  required String email,
+}) {
+  final c = context.colorsRead;
+  return showDialog<void>(
+    context: context,
+    builder: (context) => Dialog(
+      backgroundColor: c.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: c.outlineVariant),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: c.tertiaryContainer,
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Icon(
+                        Icons.mark_email_read_outlined,
+                        size: 19,
+                        color: c.onTertiaryContainer,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Demande acceptée par Firebase',
+                        style: AppTextStyles.titleMd.copyWith(
+                          fontSize: 16,
+                          color: c.onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Firebase a accepté d\'envoyer un lien à $email. '
+                  'Aucun email reçu ? Voici les causes réelles, dans l\'ordre :',
+                  style: AppTextStyles.bodySm.copyWith(
+                    color: c.onSurfaceVariant,
+                    height: 1.55,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _DiagnosticLine(
+                  number: '1',
+                  text: 'Vérifiez le dossier Spam / Indésirables. Les emails '
+                      'Firebase partent de noreply@<projet>.firebaseapp.com et '
+                      'sont souvent filtrés.',
+                ),
+                _DiagnosticLine(
+                  number: '2',
+                  text: 'Vérifiez que $email existe dans Firebase Console → '
+                      'Authentication → Users. Avec la protection contre '
+                      'l\'énumération, Firebase répond « succès » même si '
+                      'l\'adresse est inconnue.',
+                ),
+                _DiagnosticLine(
+                  number: '3',
+                  text: 'L\'adresse du document users/{uid} doit être la même '
+                      'que celle du compte Auth. Si elle a été modifiée dans '
+                      'l\'application, le lien part à l\'ancienne adresse.',
+                ),
+                _DiagnosticLine(
+                  number: '4',
+                  text: 'Configurez Authentication → Templates → SMTP avec un '
+                      'vrai serveur d\'envoi : c\'est ce qui règle la majorité '
+                      'des emails qui n\'arrivent jamais.',
+                ),
+                const SizedBox(height: 22),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: AdminButton(
+                    label: 'Compris',
+                    primary: true,
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _DiagnosticLine extends StatelessWidget {
+  const _DiagnosticLine({required this.number, required this.text});
+
+  final String number;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: c.surfaceContainerHigh,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              number,
+              style: AppTextStyles.labelCaps.copyWith(
+                fontSize: 9,
+                color: c.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTextStyles.bodySm.copyWith(
+                fontSize: 12,
+                color: c.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Snackbar cohérente avec la charte (et lisible en clair comme en sombre).
