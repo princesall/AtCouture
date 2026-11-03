@@ -135,7 +135,12 @@ class AuthProvider extends ChangeNotifier {
   Future<GoogleSignInResult?> signInWithGoogle() async {
     _setLoading();
     try {
-      final result = await _authService.signInWithGoogle();
+      // Borne volontairement large : le temps que l'utilisateur choisisse son
+      // compte et saisisse son mot de passe dans la fenêtre Google. Sans
+      // borne, un popup resté ouvert/bloqué laissait l'écran de connexion en
+      // « chargement » indéfiniment.
+      final result =
+          await _authService.signInWithGoogle().timeout(const Duration(minutes: 2));
       if (result is GoogleSignInExisting) {
         _user = result.user;
         _status = AuthStatus.authenticated;
@@ -149,6 +154,11 @@ class AuthProvider extends ChangeNotifier {
       }
       notifyListeners();
       return result;
+    } on TimeoutException {
+      _setError(
+        'La fenêtre Google ne répond pas. Fermez-la puis réessayez.',
+      );
+      return null;
     } on AuthException catch (e) {
       _setError(e.message);
       return null;

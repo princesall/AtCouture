@@ -4,8 +4,10 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart' as google;
 
+import '../core/constants/google_auth_config.dart';
 import '../models/app_user.dart';
 import '../models/atelier.dart';
 import '../data/admin_demo_data.dart';
@@ -331,9 +333,22 @@ class AuthService {
   /// `GoogleSignIn.initialize()` doit être appelé une seule fois avant tout
   /// autre appel — voir la doc du package. Sans effet sur Web (branche
   /// jamais utilisée là, voir signInWithGoogle).
+  ///
+  /// Les identifiants OAuth sont passés explicitement :
+  /// - iOS : il n'y a pas de GoogleService-Info.plist dans le bundle (Firebase
+  ///   est configuré via DefaultFirebaseOptions), donc sans `clientId` le SDK
+  ///   Google ne peut pas construire sa configuration et `initialize()`
+  ///   échouait (clientConfigurationError) avant même d'ouvrir la fenêtre.
+  /// - Android/iOS : `serverClientId` (client OAuth « Web ») est indispensable
+  ///   pour que Google renvoie un idToken dont l'audience est acceptée par
+  ///   Firebase Auth ; sans lui `account.authentication.idToken` est null.
   Future<void> _ensureGoogleSignInInitialized() async {
     if (_googleSignInInitialized) return;
-    await google.GoogleSignIn.instance.initialize();
+    await google.GoogleSignIn.instance.initialize(
+      clientId:
+          defaultTargetPlatform == TargetPlatform.iOS ? GoogleAuthConfig.iosClientId : null,
+      serverClientId: GoogleAuthConfig.webClientId,
+    );
     _googleSignInInitialized = true;
   }
 
@@ -344,33 +359,13 @@ class AuthService {
   ///   de complétion puis appeler [completeGoogleSignUp].
   Future<GoogleSignInResult> signInWithGoogle() async {
     if (!FirebaseService.isAvailable) {
-      throw AuthException('Connexion Google indisponible en mode démo.');
+      throw AuthException(
+        'Connexion Google indisponible : Firebase n\'a pas pu démarrer. '
+        'Vérifiez votre connexion internet puis relancez l\'application.',
+      );
     }
 
-    fb_auth.UserCredential credential;
-    try {
-      if (kIsWeb) {
-        credential = await fb_auth.FirebaseAuth.instance
-            .signInWithPopup(fb_auth.GoogleAuthProvider());
-      } else {
-        await _ensureGoogleSignInInitialized();
-        late final google.GoogleSignInAccount account;
-        try {
-          account = await google.GoogleSignIn.instance.authenticate();
-        } on google.GoogleSignInException catch (e) {
-          if (e.code == google.GoogleSignInExceptionCode.canceled) {
-            throw AuthException('Connexion annulée');
-          }
-          throw AuthException('Connexion Google impossible. Réessayez.');
-        }
-        final idToken = account.authentication.idToken;
-        credential = await fb_auth.FirebaseAuth.instance.signInWithCredential(
-          fb_auth.GoogleAuthProvider.credential(idToken: idToken),
-        );
-      }
-    } on fb_auth.FirebaseAuthException catch (e) {
-      throw AuthException(_firebaseAuthErrorMessage(e));
-    }
+    final credential = await _googleFirebaseCredential();
 
     await credential.user!.getIdToken(true);
     final uid = credential.user!.uid;
@@ -393,6 +388,118 @@ class AuthService {
       fullName: credential.user!.displayName ?? '',
       photoUrl: credential.user!.photoURL,
     );
+  }
+
+  /// Obtient un credential Firebase Auth auprès de Google, en traduisant
+  /// CHAQUE échec en message actionnable (et en le traçant pour l'admin).
+  ///
+  /// Auparavant, seul `authenticate()` était intercepté : une erreur de
+  /// configuration — domaine non autorisé, `initialize()` en échec, idToken
+  /// absent — remontait brute jusqu'au `catch (_)` de AuthProvider et
+  /// s'affichait comme « Connexion Google impossible. Réessayez. », sans
+  /// aucune indication de la vraie cause.
+  Future<fb_auth.UserCredential> _googleFirebaseCredential() async {
+    try {
+      if (kIsWeb) {
+        // Web : le SDK Firebase gère lui-même la fenêtre Google, le plugin
+        // google_sign_in n'est pas utilisé (pas d'initialize() ici).
+        return await fb_auth.FirebaseAuth.instance
+            .signInWithPopup(fb_auth.GoogleAuthProvider());
+      }
+
+      await _ensureGoogleSignInInitialized();
+      final account = await google.GoogleSignIn.instance.authenticate();
+      final idToken = account.authentication.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw AuthException(
+          'Google n\'a pas renvoyé de jeton d\'identité. Vérifiez le client '
+          'OAuth « Web » du projet dans Firebase Console → Authentication → '
+          'Google, puis réessayez.',
+        );
+      }
+      return await fb_auth.FirebaseAuth.instance.signInWithCredential(
+        fb_auth.GoogleAuthProvider.credential(idToken: idToken),
+      );
+    } on AuthException {
+      rethrow;
+    } on fb_auth.FirebaseAuthException catch (e) {
+      _reportGoogleFailure(e);
+      throw AuthException(_googleSignInErrorMessage(e));
+    } on google.GoogleSignInException catch (e) {
+      _reportGoogleFailure(e);
+      throw AuthException(_googleSignInExceptionMessage(e));
+    } on PlatformException catch (e) {
+      _reportGoogleFailure(e);
+      throw AuthException('Connexion Google impossible (${e.code}). Réessayez.');
+    }
+  }
+
+  /// Trace l'échec côté télémétrie : sans cela, un refus de connexion Google
+  /// en production (domaine, fournisseur désactivé, clé OAuth révoquée) ne
+  /// laissait aucune trace exploitable côté admin.
+  void _reportGoogleFailure(Object error) {
+    debugPrint('⚠ Connexion Google refusée : $error');
+    PlatformTelemetryService.instance.recordError(
+      error,
+      StackTrace.current,
+      context: 'google sign-in',
+    );
+  }
+
+  /// Message utilisateur pour un refus du SDK Firebase Auth (web notamment).
+  /// Le code Firebase est conservé quand il n'est pas connu : c'est le seul
+  /// moyen de diagnostiquer une configuration sans les logs natifs.
+  String _googleSignInErrorMessage(fb_auth.FirebaseAuthException e) {
+    switch (e.code) {
+      case 'unauthorized-domain':
+        final host = kIsWeb ? Uri.base.host : '';
+        final domaine = host.isEmpty ? 'ce domaine' : '« $host »';
+        return 'Domaine $domaine non autorisé pour la connexion Google. '
+            'Ajoutez-le dans Firebase Console → Authentication → Paramètres → '
+            'Domaines autorisés.';
+      case 'operation-not-allowed':
+        return 'La connexion Google est désactivée. Activez-la dans Firebase '
+            'Console → Authentication → Méthode de connexion → Google.';
+      case 'popup-blocked':
+        return 'La fenêtre Google a été bloquée par le navigateur. Autorisez '
+            'les pop-ups pour ce site puis réessayez.';
+      case 'popup-closed-by-user':
+      case 'cancelled-popup-request':
+      case 'user-cancelled':
+        return 'Connexion annulée';
+      case 'account-exists-with-different-credential':
+        return 'Un compte existe déjà avec cet email via une autre méthode de '
+            'connexion. Connectez-vous avec votre mot de passe.';
+      case 'network-request-failed':
+        return 'Connexion impossible. Vérifiez votre réseau puis réessayez.';
+      case 'web-storage-unsupported':
+        return 'Votre navigateur bloque le stockage local nécessaire à la '
+            'connexion Google (navigation privée ?).';
+      default:
+        return 'Connexion Google impossible (${e.code}). Réessayez.';
+    }
+  }
+
+  /// Message utilisateur pour un échec du plugin natif google_sign_in.
+  String _googleSignInExceptionMessage(google.GoogleSignInException e) {
+    final details = e.description == null ? '' : ' (${e.description})';
+    switch (e.code) {
+      case google.GoogleSignInExceptionCode.canceled:
+        return 'Connexion annulée';
+      case google.GoogleSignInExceptionCode.interrupted:
+        return 'Connexion interrompue. Réessayez.';
+      case google.GoogleSignInExceptionCode.uiUnavailable:
+        return 'Connexion Google impossible pour le moment. Réessayez.';
+      case google.GoogleSignInExceptionCode.userMismatch:
+        return 'Un autre compte Google est déjà connecté sur cet appareil. '
+            'Déconnectez-le puis réessayez.';
+      case google.GoogleSignInExceptionCode.clientConfigurationError:
+      case google.GoogleSignInExceptionCode.providerConfigurationError:
+        return 'Google Sign-In n\'est pas correctement configuré sur cette '
+            'plateforme$details.';
+      case google.GoogleSignInExceptionCode.unknownError:
+        return 'Connexion Google impossible. Réessayez.';
+    }
   }
 
   /// Finalise un compte démarré via Google (voir [GoogleSignInNeedsProfile])
@@ -489,17 +596,48 @@ class AuthService {
     return updatedUser;
   }
 
+  /// Email de réinitialisation.
+  ///
+  /// IMPORTANT (diagnostic) : `sendPasswordResetEmail` peut très bien réussir
+  /// sans qu'aucun email ne parte. Avec la protection contre l'énumération
+  /// des comptes (activée par défaut sur les projets récents), Firebase
+  /// renvoie un succès générique même quand l'adresse n'existe pas dans
+  /// Authentication. On journalise donc le résultat et on traduit CHAQUE
+  /// code d'erreur Firebase, au lieu d'un « Réessayez » qui masquait la
+  /// vraie cause (domaine non autorisé, SMTP absent, quota atteint...).
   Future<void> sendPasswordResetEmail(String email) async {
     final normalizedEmail = email.trim().toLowerCase();
 
+    if (!_emailPattern.hasMatch(normalizedEmail)) {
+      throw AuthException('Adresse email invalide');
+    }
+
     if (FirebaseService.isAvailable) {
+      final auth = fb_auth.FirebaseAuth.instance;
+      // Les modèles d'email Firebase sont localisés : sans cela, un compte
+      // francophone peut recevoir (ou filtrer) un email en anglais.
+      auth.setLanguageCode('fr');
       try {
-        await fb_auth.FirebaseAuth.instance.sendPasswordResetEmail(email: normalizedEmail);
+        await auth.sendPasswordResetEmail(email: normalizedEmail);
+        // Visible dans la console (flutter run) ET dans les logs de release :
+        // c'est le seul moyen de distinguer « Firebase a accepté » de
+        // « l'email est réellement parti ».
+        debugPrint(
+          '✓ Réinitialisation acceptée par Firebase pour $normalizedEmail '
+          '(si aucun email n\'arrive : spam, compte absent de Authentication, '
+          'ou SMTP non configuré).',
+        );
       } on fb_auth.FirebaseAuthException catch (e) {
-        if (e.code == 'user-not-found') {
-          throw AuthException('Aucun compte trouvé avec cet email');
-        }
-        throw AuthException('Impossible d\'envoyer l\'email. Réessayez.');
+        debugPrint(
+          '⚠ Réinitialisation refusée pour $normalizedEmail : '
+          '${e.code} — ${e.message}',
+        );
+        PlatformTelemetryService.instance.recordError(
+          e,
+          StackTrace.current,
+          context: 'password reset',
+        );
+        throw AuthException(_passwordResetErrorMessage(e));
       }
       return;
     }
@@ -511,6 +649,34 @@ class AuthService {
     if (!exists) {
       throw AuthException('Aucun compte trouvé avec cet email');
     }
+  }
+
+  static final RegExp _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+  /// Message actionnable pour l'admin/utilisateur, avec le code Firebase
+  /// conservé quand il n'est pas connu : sans lui, impossible de diagnostiquer
+  /// une configuration (SMTP, domaine, provider désactivé) côté console.
+  static String _passwordResetErrorMessage(fb_auth.FirebaseAuthException e) {
+    return switch (e.code) {
+      'invalid-email' => 'Adresse email invalide.',
+      'user-not-found' =>
+        'Aucun compte Firebase Auth ne correspond à cet email. '
+            'Vérifiez l\'adresse dans Authentication → Users.',
+      'too-many-requests' =>
+        'Trop de demandes en peu de temps. Réessayez dans quelques minutes.',
+      'network-request-failed' =>
+        'Connexion impossible. Vérifiez votre réseau puis réessayez.',
+      'unauthorized-domain' || 'unauthorized-continue-uri' =>
+        'Domaine non autorisé dans Firebase '
+            '(Authentication → Settings → Authorized domains).',
+      'operation-not-allowed' =>
+        'La connexion par email/mot de passe est désactivée dans '
+            'Firebase Authentication.',
+      'internal-error' =>
+        'Firebase n\'a pas pu envoyer l\'email. Vérifiez '
+            'Authentication → Templates / SMTP.',
+      _ => 'Impossible d\'envoyer l\'email (${e.code}).',
+    };
   }
 
   Future<void> signOut() async {
