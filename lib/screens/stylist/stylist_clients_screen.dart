@@ -257,15 +257,17 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                                                       notes:
                                                           notesController.text,
                                                     );
-                                                if (!dialogContext.mounted)
+                                                if (!dialogContext.mounted) {
                                                   return;
+                                                }
                                                 Navigator.pop(
                                                   dialogContext,
                                                   true,
                                                 );
                                               } catch (_) {
-                                                if (!dialogContext.mounted)
+                                                if (!dialogContext.mounted) {
                                                   return;
+                                                }
                                                 setDialogState(() {
                                                   isSaving = false;
                                                   error =
@@ -836,8 +838,9 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                   child: TextButton.icon(
                     onPressed: () async {
                       final label = await promptCustomMeasurementLabel(context);
-                      if (label == null || controllers.containsKey(label))
+                      if (label == null || controllers.containsKey(label)) {
                         return;
+                      }
                       await MeasurementFieldsService.instance.addCustomField(
                         atelierId,
                         label,
@@ -864,8 +867,9 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                 final updated = <String, double>{};
                 for (final key in controllers.keys) {
                   final text = controllers[key]!.text.trim();
-                  if (text.isNotEmpty)
+                  if (text.isNotEmpty) {
                     updated[key] = double.tryParse(text) ?? 0;
+                  }
                 }
                 await OrderService.instance.updateClientMeasurements(
                   widget.client.id,

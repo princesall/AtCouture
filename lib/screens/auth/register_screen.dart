@@ -286,8 +286,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
                               validator: (v) {
-                                if (v == null || v.isEmpty)
+                                if (v == null || v.isEmpty) {
                                   return 'Email requis';
+                                }
                                 if (!v.contains('@')) return 'Email invalide';
                                 return null;
                               },
@@ -300,8 +301,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               prefixIcon: Icons.lock_outline_rounded,
                               textInputAction: TextInputAction.next,
                               validator: (v) {
-                                if (v == null || v.length < 6)
+                                if (v == null || v.length < 6) {
                                   return 'Minimum 6 caractères';
+                                }
                                 return null;
                               },
                             ),
