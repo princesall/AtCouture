@@ -38,8 +38,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _pickLogo() async {
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 800,
+      // Un logo s'affiche au maximum en 80–100 px : 512 px laisse de la marge
+      // pour les écrans haute densité tout en gardant un fichier de quelques
+      // dizaines de Ko (utile quand le logo est stocké en base64, voir
+      // ProfileLogoService).
+      imageQuality: 80,
+      maxWidth: 512,
+      maxHeight: 512,
     );
     if (picked == null) return;
     setState(() => _logoFile = picked);

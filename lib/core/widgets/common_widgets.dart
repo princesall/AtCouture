@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -216,13 +217,44 @@ class UserAvatar extends StatelessWidget {
   }
 }
 
-/// Affiche l'image d'un avatar/logo depuis une URL réseau ou un chemin de
-/// fichier local (celui renvoyé par image_picker), avec repli discret sur les
-/// initiales si le fichier n'existe plus (ex : démo réinstallée, cache vidé).
+/// Affiche l'image d'un avatar/logo depuis une URL réseau, une image encodée
+/// en base64 (data-URL), ou un chemin de fichier local (celui renvoyé par
+/// image_picker), avec repli discret sur l'icône d'atelier si le fichier
+/// n'existe plus (ex : démo réinstallée, cache vidé).
 class _AvatarImage extends StatelessWidget {
   const _AvatarImage({required this.url, required this.size});
   final String url;
   final double size;
+
+  /// Cache des images base64 déjà décodées, indexé par la data-URL complète.
+  ///
+  /// Sans lui, `Image.memory` recevrait un nouveau `Uint8List` à chaque
+  /// reconstruction de l'avatar : `MemoryImage` ne reconnaîtrait pas l'image
+  /// comme déjà chargée et la redécoderait à chaque fois. On garde les
+  /// dernières entrées seulement (un écran n'affiche qu'un logo à la fois).
+  static final Map<String, Uint8List> _decodedCache = <String, Uint8List>{};
+  static const int _decodedCacheLimit = 8;
+
+  static Uint8List? _decodeDataUrl(String url) {
+    final cached = _decodedCache[url];
+    if (cached != null) return cached;
+
+    final comma = url.indexOf(',');
+    if (comma == -1 || comma + 1 >= url.length) return null;
+
+    try {
+      final bytes = base64Decode(url.substring(comma + 1));
+      if (bytes.isEmpty) return null;
+      if (_decodedCache.length >= _decodedCacheLimit) {
+        _decodedCache.remove(_decodedCache.keys.first);
+      }
+      _decodedCache[url] = bytes;
+      return bytes;
+    } catch (_) {
+      // Data-URL corrompue : on retombe sur l'icône plutôt que de planter.
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -233,6 +265,22 @@ class _AvatarImage extends StatelessWidget {
         url.startsWith('https://') ||
         url.startsWith('blob:');
     final errorFallback = Icon(PhosphorIconsRegular.storefront, color: Colors.white, size: size * 0.4);
+
+    // Repli sans Firebase Storage : le logo est stocké en base64 dans
+    // users.photoUrl (voir ProfileLogoService). `Image.file` ne saurait pas
+    // l'ouvrir, il faut décoder les octets et passer par `Image.memory`.
+    if (url.startsWith('data:')) {
+      final bytes = _decodeDataUrl(url);
+      if (bytes == null) return errorFallback;
+      return Image.memory(
+        bytes,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, _, _) => errorFallback,
+      );
+    }
 
     if (isRemote) {
       return Image.network(

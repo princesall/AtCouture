@@ -295,8 +295,12 @@ class _EditableProfileLogoState extends State<_EditableProfileLogo> {
     try {
       picked = await ImagePicker().pickImage(
         source: action == 'camera' ? ImageSource.camera : ImageSource.gallery,
-        imageQuality: 85,
-        maxWidth: 1024,
+        // 512 px suffisent pour un logo affiché en 80–120 px, et gardent le
+        // fichier à quelques dizaines de Ko — indispensable quand il est
+        // stocké en base64 dans users.photoUrl (voir ProfileLogoService).
+        imageQuality: 80,
+        maxWidth: 512,
+        maxHeight: 512,
       );
     } catch (_) {
       if (!mounted) return;

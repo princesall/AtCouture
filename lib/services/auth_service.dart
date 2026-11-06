@@ -308,10 +308,11 @@ class AuthService {
   /// les deux chemins d'inscription produisent EXACTEMENT la même structure
   /// de données.
   ///
-  /// Le logo choisi à l'inscription est envoyé dans Firebase Storage AVANT
-  /// l'écriture du document (voir ProfileLogoService) : on enregistre une URL
-  /// téléchargeable, pas le chemin local de l'appareil, sinon le logo
-  /// n'apparaissait que sur le téléphone qui avait créé le compte.
+  /// Le logo choisi à l'inscription est enregistré AVANT l'écriture du
+  /// document (voir ProfileLogoService) : on stocke une URL téléchargeable
+  /// (Firebase Storage) ou, si Storage est indisponible, l'image encodée en
+  /// base64. Dans les deux cas, jamais le chemin local de l'appareil, sinon le
+  /// logo n'apparaissait que sur le téléphone qui avait créé le compte.
   Future<AppUser> _createStylistAccount({
     required String uid,
     required String email,
@@ -584,8 +585,9 @@ class AuthService {
 
   /// Ajoute / remplace / supprime le logo de l'atelier du compte connecté.
   ///
-  /// [photoFile] null signifie « supprimer le logo ». L'image est envoyée dans
-  /// Firebase Storage puis l'URL de téléchargement est écrite dans
+  /// [photoFile] null signifie « supprimer le logo ». L'image part vers
+  /// Firebase Storage (URL de téléchargement) ou, si Storage est
+  /// indisponible, y est encodée en base64, puis le résultat est écrit dans
   /// users/{uid}.photoUrl — un seul chemin d'écriture, partagé par le profil
   /// et l'inscription, pour éviter que le champ ne contienne parfois un chemin
   /// local et parfois une URL.
