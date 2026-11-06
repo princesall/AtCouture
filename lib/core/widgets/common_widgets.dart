@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 
+import '../../services/image_payload_service.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/build_context_colors.dart';
@@ -230,8 +230,7 @@ class _AvatarImage extends StatelessWidget {
   ///
   /// Sans lui, `Image.memory` recevrait un nouveau `Uint8List` à chaque
   /// reconstruction de l'avatar : `MemoryImage` ne reconnaîtrait pas l'image
-  /// comme déjà chargée et la redécoderait à chaque fois. On garde les
-  /// dernières entrées seulement (un écran n'affiche qu'un logo à la fois).
+  /// comme déjà chargée et la redécoderait à chaque fois.
   static final Map<String, Uint8List> _decodedCache = <String, Uint8List>{};
   static const int _decodedCacheLimit = 8;
 
@@ -239,21 +238,14 @@ class _AvatarImage extends StatelessWidget {
     final cached = _decodedCache[url];
     if (cached != null) return cached;
 
-    final comma = url.indexOf(',');
-    if (comma == -1 || comma + 1 >= url.length) return null;
+    final bytes = ImagePayloadService.decodeDataUrl(url);
+    if (bytes == null) return null; // data-URL corrompue : icône de secours.
 
-    try {
-      final bytes = base64Decode(url.substring(comma + 1));
-      if (bytes.isEmpty) return null;
-      if (_decodedCache.length >= _decodedCacheLimit) {
-        _decodedCache.remove(_decodedCache.keys.first);
-      }
-      _decodedCache[url] = bytes;
-      return bytes;
-    } catch (_) {
-      // Data-URL corrompue : on retombe sur l'icône plutôt que de planter.
-      return null;
+    if (_decodedCache.length >= _decodedCacheLimit) {
+      _decodedCache.remove(_decodedCache.keys.first);
     }
+    _decodedCache[url] = bytes;
+    return bytes;
   }
 
   @override

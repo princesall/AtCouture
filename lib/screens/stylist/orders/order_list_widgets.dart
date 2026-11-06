@@ -22,6 +22,7 @@ import '../../../models/order.dart';
 import '../../../models/order_status.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/company_service.dart';
+import '../../../services/image_payload_service.dart';
 import '../../../services/order_service.dart';
 import '../../../services/platform_config_service.dart';
 import 'edit_order_dialog.dart';
@@ -240,7 +241,15 @@ class PhotoPickerSection extends StatelessWidget {
       );
       return;
     }
-    final picked = await ImagePicker().pickMultiImage();
+    // 512 px suffisent pour une vignette de 88 px et l'aperçu plein écran
+    // (300 px), tout en gardant chaque photo à quelques dizaines de Ko —
+    // indispensable quand elle est stockée en base64 dans le document de la
+    // commande (voir ImagePayloadService).
+    final picked = await ImagePicker().pickMultiImage(
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 70,
+    );
     if (picked.isEmpty) return;
     onAdd(limit == null ? picked : picked.take(limit).toList());
   }
@@ -394,10 +403,10 @@ class SavedPhotoThumbnail extends StatelessWidget {
   }
 }
 
-/// Affiche une photo depuis une URL réseau ou un chemin de fichier local
-/// (celui renvoyé par image_picker à la création de la commande), avec un
-/// repli discret si le fichier n'existe plus (ex: démo réinstallée, cache
-/// vidé, ou commande créée sur un autre appareil).
+/// Affiche une photo depuis une URL réseau, une image encodée en base64
+/// (data-URL, voir ImagePayloadService), ou un chemin de fichier local, avec un
+/// repli discret si l'image est introuvable (ex: démo réinstallée, cache vidé,
+/// ou commande créée sur un autre appareil).
 class _SavedPhotoImage extends StatelessWidget {
   const _SavedPhotoImage({required this.url, required this.width, required this.height});
   final String url;
@@ -420,6 +429,22 @@ class _SavedPhotoImage extends StatelessWidget {
       alignment: Alignment.center,
       child: Icon(Icons.broken_image_outlined, color: c.onSurfaceVariant),
     );
+
+    // Repli sans Firebase Storage : la photo est stockée en base64 dans le
+    // document de la commande. `Image.file` ne saurait pas l'ouvrir, il faut
+    // décoder les octets et passer par `Image.memory`.
+    if (url.startsWith(ImagePayloadService.dataUrlMarker)) {
+      final bytes = ImagePayloadService.decodeDataUrl(url);
+      if (bytes == null) return errorFallback;
+      return Image.memory(
+        bytes,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, _, _) => errorFallback,
+      );
+    }
 
     if (isRemote) {
       return Image.network(

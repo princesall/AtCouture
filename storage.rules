@@ -69,6 +69,22 @@ service firebase.storage {
       allow delete: if isSignedIn() && request.auth.uid == userId;
     }
 
+    // ── order_photos/{atelierId}/{fileName} — photos d'une commande ───────
+    // Photos du modèle et du tissu choisies par le styliste à la création de
+    // la commande (voir create_order_dialog.dart + ImagePayloadService).
+    // Écriture réservée aux comptes qui gèrent l'atelier ; lecture ouverte à
+    // tout utilisateur connecté, car le couturier assigné (qui n'est pas
+    // forcément rattaché à l'atelier dans Firestore) doit voir les photos sur
+    // son propre appareil.
+    match /order_photos/{atelierId}/{fileName} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && managesAtelier(atelierId)
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isSignedIn() && managesAtelier(atelierId);
+    }
+
     // Tout le reste est fermé par défaut.
     match /{allPaths=**} {
       allow read, write: if false;

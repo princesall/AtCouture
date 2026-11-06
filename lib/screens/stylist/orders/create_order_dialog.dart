@@ -16,6 +16,7 @@ import '../../../models/app_user.dart';
 import '../../../models/client.dart';
 import '../../../models/order.dart';
 import '../../../services/company_service.dart';
+import '../../../services/image_payload_service.dart';
 import '../../../services/measurement_fields_service.dart';
 import '../../../services/order_service.dart';
 import 'order_list_widgets.dart';
@@ -267,6 +268,12 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
     setState(() => _isSubmitting = true);
 
     try {
+      // Les photos sont envoyées AVANT la création de la commande : le
+      // document doit contenir des références affichables partout (URL
+      // Storage, ou data-URL base64 en repli), jamais un chemin local qui ne
+      // désignerait un fichier que sur cet appareil.
+      final (modelPhotos, fabricPhotos) = await _storePhotos();
+
       final result = await OrderService.instance.createOrder(
         clientName: _nameController.text.trim(),
         clientPhone: _phoneController.text.trim(),
@@ -277,12 +284,8 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
         atelierId: widget.user.atelierId!,
         atelierName: widget.user.atelierName!,
         measurements: measurements,
-        modelPhotos: _modelPhotos.isEmpty
-            ? null
-            : _modelPhotos.map((f) => f.path).toList(),
-        fabricPhotos: _fabricPhotos.isEmpty
-            ? null
-            : _fabricPhotos.map((f) => f.path).toList(),
+        modelPhotos: modelPhotos.isEmpty ? null : modelPhotos,
+        fabricPhotos: fabricPhotos.isEmpty ? null : fabricPhotos,
         description: _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
@@ -295,11 +298,58 @@ class _CreateOrderDialogState extends State<CreateOrderDialog> {
 
       if (!mounted) return;
       Navigator.pop(context, result);
+    } on ImagePayloadException catch (e) {
+      // Message déjà rédigé pour l'utilisateur : surtout ne pas le passer par
+      // friendlyFirebaseError, qui le remplacerait par un texte générique.
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      _showMessage(e.message);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       _showMessage(friendlyFirebaseError(e));
     }
+  }
+
+  /// Envoie les photos choisies et retourne les références à enregistrer dans
+  /// la commande : URL Firebase Storage, ou data-URL base64 quand Storage est
+  /// indisponible (voir ImagePayloadService).
+  ///
+  /// Le budget de taille ne s'applique qu'au repli base64 : les photos vivent
+  /// alors dans le document `orders/{id}`, plafonné à 1 Mio par Firestore.
+  /// Avec Storage, chaque photo a son propre fichier et aucune limite de ce
+  /// type ne s'applique.
+  Future<(List<String>, List<String>)> _storePhotos() async {
+    final atelierId = widget.user.atelierId!;
+    var budget = ImagePayloadService.maxOrderPhotosLength;
+
+    Future<List<String>> store(List<XFile> files, String kind) async {
+      final refs = <String>[];
+      for (var i = 0; i < files.length; i++) {
+        final value = await ImagePayloadService.store(
+          // L'idempotencyKey évite d'écraser les photos d'une autre commande
+          // créée au même instant dans le même atelier.
+          storagePath:
+              'order_photos/$atelierId/${_idempotencyKey}_${kind}_$i.jpg',
+          file: files[i],
+        );
+        if (ImagePayloadService.isDataUrl(value)) {
+          budget -= value.length;
+          if (budget < 0) {
+            throw const ImagePayloadException(
+              'Trop de photos (ou photos trop lourdes) pour être enregistrées '
+              'sans Firebase Storage. Retirez quelques photos puis réessayez.',
+            );
+          }
+        }
+        refs.add(value);
+      }
+      return refs;
+    }
+
+    final modelPhotos = await store(_modelPhotos, 'modele');
+    final fabricPhotos = await store(_fabricPhotos, 'tissu');
+    return (modelPhotos, fabricPhotos);
   }
 
   @override
