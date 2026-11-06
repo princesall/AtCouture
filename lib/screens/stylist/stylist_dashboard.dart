@@ -9,6 +9,7 @@ import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/plan_guard.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/widgets/skeleton.dart';
 import '../../core/widgets/stitch_widgets.dart';
 import '../../models/order_status.dart';
 import '../../providers/auth_provider.dart';
@@ -26,33 +27,55 @@ class StylistDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
     final c = context.colors;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
-      children: [
-        _buildGreeting(c, user.firstName, user.atelierName),
-        const SizedBox(height: 24),
-        _buildBentoGrid(context),
-        const SizedBox(height: 28),
-        _buildSectionHeader(c, 'Urgences & Priorités'),
-        const SizedBox(height: 14),
-        _buildUrgentOrders(context),
-        const SizedBox(height: 28),
-        _buildSectionHeader(c, 'Actions d\'Atelier'),
-        const SizedBox(height: 14),
-        _buildQuickActions(context),
-        const SizedBox(height: 28),
-        _buildSectionHeader(
-          c,
-          'Commandes Récentes',
-          onSeeAll: () => onNavTap?.call(2),
-        ),
-        const SizedBox(height: 14),
-        _buildRecentOrders(context),
-      ],
+    final atelierId = user.atelierId!;
+
+    // Écoute le service : sans cela, les compteurs et les listes restaient
+    // figés sur « 0 » tant que l'utilisateur ne changeait pas d'onglet.
+    return ListenableBuilder(
+      listenable: OrderService.instance,
+      builder: (context, _) {
+        final isLoading = OrderService.instance.ordersLoading(atelierId);
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+          children: [
+            _buildGreeting(c, user.firstName, user.atelierName),
+            const SizedBox(height: 24),
+            // Les données métier arrivent après le premier snapshot Firestore :
+            // on montre des squelettes plutôt que des compteurs à zéro, qui
+            // laisseraient croire à un atelier vide.
+            if (isLoading)
+              const DashboardSkeleton()
+            else ...[
+              _buildBentoGrid(context),
+              const SizedBox(height: 28),
+              _buildSectionHeader(c, 'Urgences & Priorités'),
+              const SizedBox(height: 14),
+              _buildUrgentOrders(context),
+              const SizedBox(height: 28),
+              _buildSectionHeader(c, 'Actions d\'Atelier'),
+              const SizedBox(height: 14),
+              _buildQuickActions(context),
+              const SizedBox(height: 28),
+              _buildSectionHeader(
+                c,
+                'Commandes Récentes',
+                onSeeAll: () => onNavTap?.call(2),
+              ),
+              const SizedBox(height: 14),
+              _buildRecentOrders(context),
+            ],
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildGreeting(AppColorPalette c, String firstName, String? atelierName) {
+  Widget _buildGreeting(
+    AppColorPalette c,
+    String firstName,
+    String? atelierName,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -78,82 +101,99 @@ class StylistDashboard extends StatelessWidget {
     final user = context.watch<AuthProvider>().user!;
     final c = context.colors;
     final orders = OrderService.instance.ordersOfAtelier(user.atelierId!);
-    final inProgress = orders.where((o) => o.status == OrderStatus.inProgress).length;
-    final completed = orders.where((o) => o.status == OrderStatus.completed).length;
+    final inProgress = orders
+        .where((o) => o.status == OrderStatus.inProgress)
+        .length;
+    final completed = orders
+        .where((o) => o.status == OrderStatus.completed)
+        .length;
     final urgent = orders.where((o) => o.status == OrderStatus.problem).length;
 
     return Column(
-      children: [
-        Row(
           children: [
-            Expanded(
-              child: SizedBox(
-                height: 120,
-                child: StatCard(
-                  label: 'EN COURS',
-                  value: inProgress.toString(),
-                  icon: PhosphorIconsRegular.hourglassSimple,
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 120,
+                    child: StatCard(
+                      label: 'EN COURS',
+                      value: inProgress.toString(),
+                      icon: PhosphorIconsRegular.hourglassSimple,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: SizedBox(
+                    height: 120,
+                    child: StatCard(
+                      label: 'LIVRÉES',
+                      value: completed.toString(),
+                      icon: PhosphorIconsRegular.checkCircle,
+                      valueColor: c.statusDone,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: SizedBox(
-                height: 120,
-                child: StatCard(
-                  label: 'LIVRÉES',
-                  value: completed.toString(),
-                  icon: PhosphorIconsRegular.checkCircle,
-                  valueColor: c.statusDone,
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 120,
+                    child: StatCard(
+                      label: 'ENCAISSÉ',
+                      value: Formatters.compactCurrency(
+                        OrderService.instance.cashCollected(user.atelierId!),
+                      ),
+                      icon: PhosphorIconsRegular.wallet,
+                      valueColor: c.statusDone,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: SizedBox(
+                    height: 120,
+                    child: StatCard(
+                      label: 'RESTE À RECEVOIR',
+                      value: Formatters.compactCurrency(
+                        OrderService.instance.outstandingBalance(
+                          user.atelierId!,
+                        ),
+                      ),
+                      icon: PhosphorIconsRegular.receipt,
+                      valueColor:
+                          OrderService.instance.outstandingBalance(
+                                user.atelierId!,
+                              ) >
+                              0
+                          ? c.statusInProgress
+                          : c.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: UrgentStatCard(count: urgent),
             ),
           ],
-        ),
-        const SizedBox(height: 14),
-        Row(
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 120,
-                child: StatCard(
-                  label: 'ENCAISSÉ',
-                  value: Formatters.compactCurrency(
-                    OrderService.instance.cashCollected(user.atelierId!),
-                  ),
-                  icon: PhosphorIconsRegular.wallet,
-                  valueColor: c.statusDone,
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: SizedBox(
-                height: 120,
-                child: StatCard(
-                  label: 'RESTE À RECEVOIR',
-                  value: Formatters.compactCurrency(
-                    OrderService.instance.outstandingBalance(user.atelierId!),
-                  ),
-                  icon: PhosphorIconsRegular.receipt,
-                  valueColor: OrderService.instance.outstandingBalance(user.atelierId!) > 0
-                      ? c.statusInProgress
-                      : c.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        SizedBox(
-          width: double.infinity,
-          child: UrgentStatCard(count: urgent),
-        ),
-      ],
-    ).animate().fadeIn(delay: 150.ms, duration: 500.ms).slideY(begin: 0.05, end: 0);
+        )
+        .animate()
+        .fadeIn(delay: 150.ms, duration: 500.ms)
+        .slideY(begin: 0.05, end: 0);
   }
 
-  Widget _buildSectionHeader(AppColorPalette c, String title, {VoidCallback? onSeeAll}) {
+  Widget _buildSectionHeader(
+    AppColorPalette c,
+    String title, {
+    VoidCallback? onSeeAll,
+  }) {
     return Row(
       children: [
         Text(title, style: AppTextStyles.titleMd.copyWith(color: c.onSurface)),
@@ -178,7 +218,9 @@ class StylistDashboard extends StatelessWidget {
     final user = context.watch<AuthProvider>().user!;
     final c = context.colors;
     final orders = OrderService.instance.ordersOfAtelier(user.atelierId!);
-    final urgentOrders = orders.where((o) => o.status == OrderStatus.problem).toList();
+    final urgentOrders = orders
+        .where((o) => o.status == OrderStatus.problem)
+        .toList();
 
     if (urgentOrders.isEmpty) {
       return Container(
@@ -191,7 +233,11 @@ class StylistDashboard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(PhosphorIconsRegular.shieldCheck, color: c.statusDone, size: 20),
+            Icon(
+              PhosphorIconsRegular.shieldCheck,
+              color: c.statusDone,
+              size: 20,
+            ),
             const SizedBox(width: 10),
             Text(
               'Aucune alerte en attente dans l\'atelier',
@@ -203,15 +249,20 @@ class StylistDashboard extends StatelessWidget {
     }
 
     return Column(
-      children: urgentOrders.take(3).map((o) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: UrgentOrderCard(
-          clientName: o.clientName,
-          garmentType: o.description ?? 'Sans description',
-          urgencyLabel: 'PRIORITAIRE',
-          onTap: () => showOrderDetailSheet(context, o, onChanged: () {}),
-        ),
-      )).toList(),
+      children: urgentOrders
+          .take(3)
+          .map(
+            (o) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: UrgentOrderCard(
+                clientName: o.clientName,
+                garmentType: o.description ?? 'Sans description',
+                urgencyLabel: 'PRIORITAIRE',
+                onTap: () => showOrderDetailSheet(context, o, onChanged: () {}),
+              ),
+            ),
+          )
+          .toList(),
     ).animate().fadeIn(delay: 200.ms, duration: 400.ms);
   }
 
@@ -247,14 +298,20 @@ class StylistDashboard extends StatelessWidget {
                 label: 'Calendrier des Livraisons',
                 icon: PhosphorIconsRegular.calendarBlank,
                 onTap: () {
-                  final permissions = context.read<AuthProvider>().user!.permissions;
+                  final permissions = context
+                      .read<AuthProvider>()
+                      .user!
+                      .permissions;
                   if (PlanGuard.requireFeature(
                     context: context,
                     isAllowed: permissions.hasCalendar,
                     featureName: 'Calendrier des livraisons',
                     lockedMessage: permissions.calendarLockedMessage,
                   )) {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const CalendarScreen()));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CalendarScreen()),
+                    );
                   }
                 },
                 isPrimary: false,
@@ -309,7 +366,12 @@ class StylistDashboard extends StatelessWidget {
           return Column(
             children: [
               if (i > 0)
-                Divider(height: 1, color: c.outlineVariant, indent: 16, endIndent: 16),
+                Divider(
+                  height: 1,
+                  color: c.outlineVariant,
+                  indent: 16,
+                  endIndent: 16,
+                ),
               OrderListItem(
                 clientName: o.clientName,
                 garmentType: o.description ?? 'Sans description',

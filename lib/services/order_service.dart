@@ -74,6 +74,22 @@ class OrderService extends ChangeNotifier {
   final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>
   _subscriptions = [];
 
+  // ── États de chargement (pour les squelettes de l'interface) ─────────────
+  // Un scope reste dans ces ensembles tant que sa PREMIÈRE émission Firestore
+  // n'est pas arrivée. Les getters isLoading... ci-dessous permettent aux
+  // écrans de distinguer « pas encore de données » de « vraiment vide » :
+  // sans cette distinction, une liste affichait « Aucune commande » pendant la
+  // synchronisation, comme si les données avaient disparu.
+  //
+  // On n'appelle volontairement PAS notifyListeners à l'ajout : ces méthodes
+  // sont déclenchées pendant build() (via ordersOfAtelier & co), et notifier
+  // à ce moment-là lèverait « setState() or markNeedsBuild() called during
+  // build ». L'écran lit déjà l'état de chargement au moment où il se
+  // construit ; seule la FIN du chargement doit réveiller l'interface.
+  final Set<String> _ordersAwaitingFirstSnapshot = {};
+  final Set<String> _clientsAwaitingFirstSnapshot = {};
+  final Set<String> _tailorOrdersAwaitingFirstSnapshot = {};
+
   /// Écoute dédiée pour un Couturier : contrairement à _ensureAtelierSynced
   /// (qui ne filtre QUE par atelierId), cette requête filtre AUSSI par
   /// tailorId côté serveur. C'est indispensable : firestore.rules n'autorise
@@ -87,6 +103,7 @@ class OrderService extends ChangeNotifier {
     if (!FirebaseService.isAvailable) return;
     final scopeKey = '$atelierId|$tailorId';
     if (!_syncedTailorScopes.add(scopeKey)) return;
+    _tailorOrdersAwaitingFirstSnapshot.add(scopeKey);
 
     _subscriptions.add(
       FirebaseFirestore.instance
@@ -102,6 +119,9 @@ class OrderService extends ChangeNotifier {
               _orders.addAll(
                 snap.docs.map((d) => Order.fromMap(d.data(), d.id)),
               );
+              // Retiré AVANT la notification pour que les écrans qui se
+              // reconstruisent voient bien la fin du chargement.
+              _tailorOrdersAwaitingFirstSnapshot.remove(scopeKey);
               notifyListeners();
             },
             // Une écoute refusée par les règles laissait le couturier devant un
@@ -115,6 +135,10 @@ class OrderService extends ChangeNotifier {
               debugPrint(
                 '⚠️ sync commandes couturier ($scopeKey) interrompue : $error',
               );
+              // Sortir de l'état de chargement : sinon le squelette resterait
+              // affiché indéfiniment après un refus des règles Firestore.
+              _tailorOrdersAwaitingFirstSnapshot.remove(scopeKey);
+              notifyListeners();
             },
           ),
     );
@@ -123,6 +147,8 @@ class OrderService extends ChangeNotifier {
   void _ensureAtelierSynced(String atelierId) {
     if (!FirebaseService.isAvailable) return;
     if (!_syncedAteliers.add(atelierId)) return;
+    _ordersAwaitingFirstSnapshot.add(atelierId);
+    _clientsAwaitingFirstSnapshot.add(atelierId);
 
     final firestore = FirebaseFirestore.instance;
     _subscriptions.add(
@@ -136,6 +162,7 @@ class OrderService extends ChangeNotifier {
               _orders.addAll(
                 snap.docs.map((d) => Order.fromMap(d.data(), d.id)),
               );
+              _ordersAwaitingFirstSnapshot.remove(atelierId);
               notifyListeners();
             },
             onError: (Object error, StackTrace stack) {
@@ -147,6 +174,10 @@ class OrderService extends ChangeNotifier {
               debugPrint(
                 '⚠️ sync commandes atelier $atelierId interrompue : $error',
               );
+              // Sortir de l'état de chargement : sinon le squelette resterait
+              // affiché indéfiniment après un refus des règles Firestore.
+              _ordersAwaitingFirstSnapshot.remove(atelierId);
+              notifyListeners();
             },
           ),
     );
@@ -161,6 +192,7 @@ class OrderService extends ChangeNotifier {
               _clients.addAll(
                 snap.docs.map((d) => Client.fromMap(d.data(), d.id)),
               );
+              _clientsAwaitingFirstSnapshot.remove(atelierId);
               notifyListeners();
             },
             onError: (Object error, StackTrace stack) {
@@ -172,12 +204,32 @@ class OrderService extends ChangeNotifier {
               debugPrint(
                 '⚠️ sync clients atelier $atelierId interrompue : $error',
               );
+              // Voir la note ci-dessus pour les commandes.
+              _clientsAwaitingFirstSnapshot.remove(atelierId);
+              notifyListeners();
             },
           ),
     );
   }
 
   // ── Lectures ──────────────────────────────────────────────────────────────
+
+  /// Vrai tant que la première émission Firestore des commandes de cet atelier
+  /// n'est pas arrivée — sert à afficher un squelette au lieu de « Aucune
+  /// commande ». Toujours `false` en mode démo, où les données sont déjà en
+  /// mémoire, et après un `notifyListeners` déclenché par le snapshot.
+  bool ordersLoading(String atelierId) =>
+      _ordersAwaitingFirstSnapshot.contains(atelierId);
+
+  /// Équivalent de [ordersLoading] pour les clients d'un atelier.
+  bool clientsLoading(String atelierId) =>
+      _clientsAwaitingFirstSnapshot.contains(atelierId);
+
+  /// Équivalent de [ordersLoading] pour les commandes d'un couturier.
+  bool tailorOrdersLoading({
+    required String atelierId,
+    required String tailorId,
+  }) => _tailorOrdersAwaitingFirstSnapshot.contains('$atelierId|$tailorId');
 
   /// Toutes les commandes d'un atelier
   /// Toutes les commandes connues du cache local (mode démo) ou des ateliers

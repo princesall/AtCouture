@@ -8,6 +8,7 @@ import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/order_messages.dart';
 import '../../core/utils/whatsapp_launcher.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/widgets/skeleton.dart';
 import '../../models/order.dart';
 import '../../models/order_status.dart';
 import '../../providers/auth_provider.dart';
@@ -34,8 +35,10 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
   void _showCreateOrderDialog() async {
     final user = context.read<AuthProvider>().user!;
     final permissions = user.permissions;
-    final currentOrders = OrderService.instance.ordersOfAtelier(user.atelierId!).length;
-    
+    final currentOrders = OrderService.instance
+        .ordersOfAtelier(user.atelierId!)
+        .length;
+
     // Vérifier si l'utilisateur peut créer des commandes
     if (!permissions.canAddOrder(currentOrders)) {
       showDialog(
@@ -90,94 +93,133 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
     final c = context.colors;
-    final orders = _getFilteredOrders(user.atelierId!);
+    final atelierId = user.atelierId!;
 
     return Stack(
       children: [
         SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  children: [
-                    Row(
+          // Écoute le service : c'est l'arrivée du snapshot Firestore qui doit
+          // faire disparaître le squelette et afficher les commandes, sans
+          // attendre un changement d'onglet ni une action de l'utilisateur.
+          child: ListenableBuilder(
+            listenable: OrderService.instance,
+            builder: (context, _) {
+              final orders = _getFilteredOrders(atelierId);
+              final isLoading = OrderService.instance.ordersLoading(atelierId);
+
+              return Column(
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
                       children: [
-                        Text(
-                          'Commandes',
-                          style: AppTextStyles.headlineLgMobile,
+                        Row(
+                          children: [
+                            Text(
+                              'Commandes',
+                              style: AppTextStyles.headlineLgMobile,
+                            ),
+                            const Spacer(),
+                            // Pas de compteur pendant le chargement : afficher
+                            // « 0 commande » alors que la synchronisation est en
+                            // cours laisserait croire que tout a disparu.
+                            if (!isLoading)
+                              Text(
+                                '${orders.length} commande${orders.length > 1 ? 's' : ''}',
+                                style: AppTextStyles.bodySm.copyWith(
+                                  color: c.onSurfaceVariant,
+                                ),
+                              ),
+                          ],
                         ),
-                        const Spacer(),
-                        Text(
-                          '${orders.length} commande${orders.length > 1 ? 's' : ''}',
-                          style: AppTextStyles.bodySm.copyWith(
-                            color: c.onSurfaceVariant,
+                        const SizedBox(height: AppSpacing.md),
+                        // Filter chips
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              OrderFilterChip(
+                                label: 'Toutes',
+                                isSelected: _selectedStatus == null,
+                                onTap: () =>
+                                    setState(() => _selectedStatus = null),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              ...OrderStatus.values.map((status) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(
+                                    right: AppSpacing.sm,
+                                  ),
+                                  child: OrderFilterChip(
+                                    label: status.label,
+                                    isSelected: _selectedStatus == status,
+                                    onTap: () => setState(
+                                      () => _selectedStatus = status,
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    // Filter chips
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          OrderFilterChip(
-                            label: 'Toutes',
-                            isSelected: _selectedStatus == null,
-                            onTap: () => setState(() => _selectedStatus = null),
+                  ),
+                  // Liste des commandes
+                  Expanded(
+                    child: isLoading
+                        // Squelette tant que la première synchronisation n'a pas
+                        // répondu, plutôt qu'un « Aucune commande » trompeur.
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.lg,
+                            ).copyWith(bottom: 100),
+                            child: const OrderListSkeleton(),
+                          )
+                        : orders.isEmpty
+                        ? Center(
+                            child: EmptyState(
+                              title: 'Aucune commande',
+                              subtitle: _selectedStatus == null
+                                  ? 'Créez votre première commande'
+                                  : 'Aucune commande avec ce statut',
+                              icon: Icons.receipt_long_outlined,
+                              action: _selectedStatus == null
+                                  ? ElevatedButton.icon(
+                                      onPressed: _showCreateOrderDialog,
+                                      icon: const Icon(Icons.add, size: 18),
+                                      label: const Text('Créer une commande'),
+                                    )
+                                  : null,
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.lg,
+                            ).copyWith(bottom: 100),
+                            itemCount: orders.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: AppSpacing.sm),
+                            itemBuilder: (context, index) {
+                              final order = orders[index];
+                              return OrderCard(
+                                    order: order,
+                                    onTap: () => showOrderDetailSheet(
+                                      context,
+                                      order,
+                                      onChanged: () => setState(() {}),
+                                    ),
+                                  )
+                                  .animate()
+                                  .fadeIn(delay: (index * 50).ms)
+                                  .slideY();
+                            },
                           ),
-                          const SizedBox(width: AppSpacing.sm),
-                          ...OrderStatus.values.map((status) {
-                            return Padding(
-                              padding: const EdgeInsets.only(right: AppSpacing.sm),
-                              child: OrderFilterChip(
-                                label: status.label,
-                                isSelected: _selectedStatus == status,
-                                onTap: () => setState(() => _selectedStatus = status),
-                              ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Liste des commandes
-              Expanded(
-                child: orders.isEmpty
-                    ? Center(
-                        child: EmptyState(
-                          title: 'Aucune commande',
-                          subtitle: _selectedStatus == null
-                              ? 'Créez votre première commande'
-                              : 'Aucune commande avec ce statut',
-                          icon: Icons.receipt_long_outlined,
-                          action: _selectedStatus == null
-                              ? ElevatedButton.icon(
-                                  onPressed: _showCreateOrderDialog,
-                                  icon: const Icon(Icons.add, size: 18),
-                                  label: const Text('Créer une commande'),
-                                )
-                              : null,
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg).copyWith(bottom: 100),
-                        itemCount: orders.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-                        itemBuilder: (context, index) {
-                          final order = orders[index];
-                          return OrderCard(
-                            order: order,
-                            onTap: () => showOrderDetailSheet(context, order, onChanged: () => setState(() {})),
-                          ).animate().fadeIn(delay: (index * 50).ms).slideY();
-                        },
-                      ),
-              ),
-            ],
+                  ),
+                ],
+              );
+            },
           ),
         ),
         // FAB — bottom:92 pour rester au-dessus de la GlassNavBar flottante
@@ -190,13 +232,17 @@ class _StylistOrdersScreenState extends State<StylistOrdersScreen> {
             onPressed: _showCreateOrderDialog,
             backgroundColor: c.secondary,
             foregroundColor: c.onSecondary,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             icon: const Icon(Icons.add),
-            label: Text('Commande', style: AppTextStyles.labelCaps.copyWith(color: c.onSecondary)),
+            label: Text(
+              'Commande',
+              style: AppTextStyles.labelCaps.copyWith(color: c.onSecondary),
+            ),
           ),
         ),
       ],
     );
   }
 }
-

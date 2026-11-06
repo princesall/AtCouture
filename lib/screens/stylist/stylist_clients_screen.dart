@@ -10,6 +10,7 @@ import '../../core/theme/build_context_colors.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/measurement_field_prompt.dart';
 import '../../core/widgets/common_widgets.dart';
+import '../../core/widgets/skeleton.dart';
 import '../../models/client.dart';
 import '../../models/order.dart';
 import '../../models/order_status.dart';
@@ -528,87 +529,109 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user!;
-    final clients = _getFilteredClients(user.atelierId!);
+    final atelierId = user.atelierId!;
 
+    // Écoute le service : c'est l'arrivée du snapshot Firestore qui doit
+    // remplacer le squelette par la liste des clients, sans attendre un
+    // changement d'onglet.
     return SafeArea(
-      child: Column(
-        children: [
-          // Header avec recherche
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              children: [
-                Row(
+      child: ListenableBuilder(
+        listenable: OrderService.instance,
+        builder: (context, _) {
+          final clients = _getFilteredClients(atelierId);
+          final isLoading = OrderService.instance.clientsLoading(atelierId);
+
+          return Column(
+            children: [
+              // Header avec recherche
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
                   children: [
-                    Text('Clients', style: AppTextStyles.headlineLgMobile),
-                    const Spacer(),
-                    Text(
-                      '${clients.length} client${clients.length > 1 ? 's' : ''}',
-                      style: AppTextStyles.bodySm.copyWith(
-                        color: context.colors.onSurfaceVariant,
-                      ),
+                    Row(
+                      children: [
+                        Text('Clients', style: AppTextStyles.headlineLgMobile),
+                        const Spacer(),
+                        // Pas de compteur pendant le chargement (voir Commandes).
+                        if (!isLoading)
+                          Text(
+                            '${clients.length} client${clients.length > 1 ? 's' : ''}',
+                            style: AppTextStyles.bodySm.copyWith(
+                              color: context.colors.onSurfaceVariant,
+                            ),
+                          ),
+                        const SizedBox(width: AppSpacing.sm),
+                        IconButton(
+                          icon: const Icon(Icons.add),
+                          onPressed: _showAddClientDialog,
+                          tooltip: 'Ajouter un client',
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    IconButton(
-                      icon: const Icon(Icons.add),
-                      onPressed: _showAddClientDialog,
-                      tooltip: 'Ajouter un client',
+                    const SizedBox(height: AppSpacing.md),
+                    TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: 'Rechercher par nom ou téléphone',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged: (value) {
+                        setState(() => _searchQuery = value);
+                      },
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-                TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    hintText: 'Rechercher par nom ou téléphone',
-                    prefixIcon: Icon(Icons.search),
-                  ),
-                  onChanged: (value) {
-                    setState(() => _searchQuery = value);
-                  },
-                ),
-              ],
-            ),
-          ),
-          // Liste des clients
-          Expanded(
-            child: clients.isEmpty
-                ? Center(
-                    child: EmptyState(
-                      title: 'Aucun client',
-                      subtitle: _searchQuery.isEmpty
-                          ? 'Commencez par ajouter votre premier client'
-                          : 'Aucun client ne correspond à votre recherche',
-                      icon: Icons.people_outline,
-                      action: _searchQuery.isEmpty
-                          ? ElevatedButton.icon(
-                              onPressed: _showAddClientDialog,
-                              icon: const Icon(
-                                Icons.person_add_rounded,
-                                size: 18,
-                              ),
-                              label: const Text('Ajouter un client'),
-                            )
-                          : null,
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg,
-                    ),
-                    itemCount: clients.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(height: AppSpacing.sm),
-                    itemBuilder: (context, index) {
-                      final client = clients[index];
-                      return _ClientCard(
-                        client: client,
-                        onTap: () => _showClientDetails(client),
-                      ).animate().fadeIn(delay: (index * 50).ms).slideX();
-                    },
-                  ),
-          ),
-        ],
+              ),
+              // Liste des clients
+              Expanded(
+                child: isLoading
+                    // Squelette tant que la première synchronisation n'a pas
+                    // répondu, plutôt qu'un « Aucun client » trompeur.
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                        ),
+                        child: ClientListSkeleton(),
+                      )
+                    : clients.isEmpty
+                    ? Center(
+                        child: EmptyState(
+                          title: 'Aucun client',
+                          subtitle: _searchQuery.isEmpty
+                              ? 'Commencez par ajouter votre premier client'
+                              : 'Aucun client ne correspond à votre recherche',
+                          icon: Icons.people_outline,
+                          action: _searchQuery.isEmpty
+                              ? ElevatedButton.icon(
+                                  onPressed: _showAddClientDialog,
+                                  icon: const Icon(
+                                    Icons.person_add_rounded,
+                                    size: 18,
+                                  ),
+                                  label: const Text('Ajouter un client'),
+                                )
+                              : null,
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                        ),
+                        itemCount: clients.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(height: AppSpacing.sm),
+                        itemBuilder: (context, index) {
+                          final client = clients[index];
+                          return _ClientCard(
+                            client: client,
+                            onTap: () => _showClientDetails(client),
+                          ).animate().fadeIn(delay: (index * 50).ms).slideX();
+                        },
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
