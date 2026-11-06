@@ -57,7 +57,8 @@ class AppUser extends Equatable {
   PlanPermissions get permissions =>
       PlanPermissions.forUser(plan: plan, planExpiresAt: planExpiresAt);
   bool get isCompanyOwner => role == UserRole.companyOwner;
-  bool get isStylist => role == UserRole.stylist || role == UserRole.companyOwner;
+  bool get isStylist =>
+      role == UserRole.stylist || role == UserRole.companyOwner;
   bool get isTailor => role == UserRole.tailor;
 
   /// True si ce styliste gère un atelier rattaché à une Entreprise
@@ -93,6 +94,7 @@ class AppUser extends Equatable {
     bool? mustChangePassword,
     DateTime? createdAt,
     DateTime? lastLoginAt,
+    bool clearPhotoUrl = false,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -103,7 +105,7 @@ class AppUser extends Equatable {
       atelierId: atelierId ?? this.atelierId,
       atelierName: atelierName ?? this.atelierName,
       companyId: companyId ?? this.companyId,
-      photoUrl: photoUrl ?? this.photoUrl,
+      photoUrl: clearPhotoUrl ? null : (photoUrl ?? this.photoUrl),
       plan: plan ?? this.plan,
       planExpiresAt: planExpiresAt ?? this.planExpiresAt,
       isActive: isActive ?? this.isActive,
@@ -165,5 +167,18 @@ class AppUser extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, email, role, plan];
+  List<Object?> get props => [
+    id,
+    email,
+    fullName,
+    phone,
+    role,
+    atelierId,
+    atelierName,
+    companyId,
+    photoUrl,
+    plan,
+    isActive,
+    mustChangePassword,
+  ];
 }

@@ -55,6 +55,20 @@ service firebase.storage {
         && request.resource.contentType.matches('audio/.*');
     }
 
+    // ── profile_logos/{userId}/logo — logo d'atelier / photo de profil ────
+    // Écrit à l'inscription puis modifiable depuis le profil (voir
+    // ProfileLogoService). Chaque compte ne peut écrire que SON logo ; la
+    // lecture est ouverte à tout utilisateur connecté pour que l'avatar
+    // s'affiche aussi chez les membres du même atelier / de la console admin.
+    match /profile_logos/{userId}/{fileName} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
     // Tout le reste est fermé par défaut.
     match /{allPaths=**} {
       allow read, write: if false;

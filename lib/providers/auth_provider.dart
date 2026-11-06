@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
@@ -9,7 +10,7 @@ enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
 
 class AuthProvider extends ChangeNotifier {
   AuthProvider({AuthService? authService})
-      : _authService = authService ?? AuthService();
+    : _authService = authService ?? AuthService();
 
   final AuthService _authService;
 
@@ -38,7 +39,8 @@ class AuthProvider extends ChangeNotifier {
     } on TimeoutException {
       _user = null;
       _status = AuthStatus.unauthenticated;
-      _errorMessage = 'La connexion au serveur a expiré. Vérifiez votre réseau.';
+      _errorMessage =
+          'La connexion au serveur a expiré. Vérifiez votre réseau.';
       notifyListeners();
       return;
     }
@@ -100,7 +102,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String phone,
     required String password,
-    String? logoPath,
+    XFile? logoFile,
   }) async {
     _setLoading();
     try {
@@ -110,7 +112,7 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         phone: phone,
         password: password,
-        logoPath: logoPath,
+        logoFile: logoFile,
       );
       _status = AuthStatus.authenticated;
       _errorMessage = null;
@@ -139,8 +141,9 @@ class AuthProvider extends ChangeNotifier {
       // compte et saisisse son mot de passe dans la fenêtre Google. Sans
       // borne, un popup resté ouvert/bloqué laissait l'écran de connexion en
       // « chargement » indéfiniment.
-      final result =
-          await _authService.signInWithGoogle().timeout(const Duration(minutes: 2));
+      final result = await _authService.signInWithGoogle().timeout(
+        const Duration(minutes: 2),
+      );
       if (result is GoogleSignInExisting) {
         _user = result.user;
         _status = AuthStatus.authenticated;
@@ -155,9 +158,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return result;
     } on TimeoutException {
-      _setError(
-        'La fenêtre Google ne répond pas. Fermez-la puis réessayez.',
-      );
+      _setError('La fenêtre Google ne répond pas. Fermez-la puis réessayez.');
       return null;
     } on AuthException catch (e) {
       _setError(e.message);
@@ -177,6 +178,7 @@ class AuthProvider extends ChangeNotifier {
     required String fullName,
     required String atelierName,
     required String phone,
+    XFile? logoFile,
     String? photoUrl,
   }) async {
     _setLoading();
@@ -187,6 +189,7 @@ class AuthProvider extends ChangeNotifier {
         fullName: fullName,
         atelierName: atelierName,
         phone: phone,
+        logoFile: logoFile,
         photoUrl: photoUrl,
       );
       _status = AuthStatus.authenticated;
@@ -199,6 +202,41 @@ class AuthProvider extends ChangeNotifier {
       return false;
     } catch (_) {
       _setError('Impossible de finaliser votre compte. Réessayez.');
+      return false;
+    }
+  }
+
+  bool _isUpdatingLogo = false;
+  bool get isUpdatingLogo => _isUpdatingLogo;
+
+  /// Met à jour le logo de l'atelier / la photo de profil du compte connecté.
+  /// [file] null supprime le logo existant.
+  ///
+  /// N'utilise PAS _setLoading() : changer de logo ne doit jamais repasser
+  /// AuthStatus à `loading`, sinon AppRouter.redirect renvoie l'utilisateur à
+  /// l'écran de connexion en pleine action (même raison que changePassword).
+  Future<bool> updateLogo(XFile? file) async {
+    if (_user == null) return false;
+    _isUpdatingLogo = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      _user = await _authService.updateProfilePhoto(
+        userId: _user!.id,
+        photoFile: file,
+      );
+      _isUpdatingLogo = false;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      _isUpdatingLogo = false;
+      _errorMessage = e.message;
+      notifyListeners();
+      return false;
+    } catch (_) {
+      _isUpdatingLogo = false;
+      _errorMessage = 'Impossible de mettre à jour le logo. Réessayez.';
+      notifyListeners();
       return false;
     }
   }

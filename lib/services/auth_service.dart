@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart' as google;
+import 'package:image_picker/image_picker.dart';
 
 import '../core/constants/google_auth_config.dart';
 import '../models/app_user.dart';
@@ -18,6 +19,7 @@ import 'company_service.dart';
 import 'feature_usage_service.dart';
 import 'firebase_service.dart';
 import 'platform_telemetry_service.dart';
+import 'profile_logo_service.dart';
 import 'subscription_service.dart';
 
 /// Service d'authentification unique pour TOUS les types de comptes :
@@ -49,7 +51,10 @@ class AuthService {
     final fbUser = fb_auth.FirebaseAuth.instance.currentUser;
     if (fbUser == null) return;
 
-    final doc = await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(fbUser.uid)
+        .get();
     if (doc.exists) {
       _currentUser = AppUser.fromMap(doc.data()!, fbUser.uid);
     }
@@ -69,7 +74,9 @@ class AuthService {
 
     // 1. Cherche d'abord parmi les comptes "principaux" (admin, stylistes
     //    solo, companyOwner, inscriptions directes).
-    var user = _demoUsers.where((u) => u.email.toLowerCase() == normalizedEmail).firstOrNull;
+    var user = _demoUsers
+        .where((u) => u.email.toLowerCase() == normalizedEmail)
+        .firstOrNull;
 
     // 2. Si non trouvé, cherche parmi les comptes créés dynamiquement par un
     //    Chef d'Entreprise (Chefs d'atelier et Couturiers) — c'est cette
@@ -121,7 +128,10 @@ class AuthService {
     await credential.user!.getIdToken(true);
 
     final uid = credential.user!.uid;
-    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
     if (!doc.exists) {
       await fb_auth.FirebaseAuth.instance.signOut();
       throw AuthException('Compte introuvable. Contactez le support.');
@@ -191,12 +201,14 @@ class AuthService {
     required String email,
     required String phone,
     required String password,
-    String? logoPath,
+    XFile? logoFile,
   }) async {
     final normalizedEmail = email.trim().toLowerCase();
 
     if (password.length < 6) {
-      throw AuthException('Le mot de passe doit contenir au moins 6 caractères');
+      throw AuthException(
+        'Le mot de passe doit contenir au moins 6 caractères',
+      );
     }
 
     if (FirebaseService.isAvailable) {
@@ -206,7 +218,7 @@ class AuthService {
         email: normalizedEmail,
         phone: phone,
         password: password,
-        logoPath: logoPath,
+        logoFile: logoFile,
       );
       FeatureUsageService.instance.track(FeatureKeys.authRegister);
       return user;
@@ -214,7 +226,8 @@ class AuthService {
 
     await Future<void>.delayed(const Duration(milliseconds: 1000));
 
-    final exists = _demoUsers.any((u) => u.email.toLowerCase() == normalizedEmail) ||
+    final exists =
+        _demoUsers.any((u) => u.email.toLowerCase() == normalizedEmail) ||
         CompanyService.instance.findAccountByEmail(normalizedEmail) != null;
     if (exists) {
       throw AuthException('Un compte existe déjà avec cet email');
@@ -229,7 +242,7 @@ class AuthService {
       role: UserRole.stylist,
       atelierId: 'atelier_${now.millisecondsSinceEpoch}',
       atelierName: atelierName.trim(),
-      photoUrl: logoPath,
+      photoUrl: logoFile?.path,
       plan: SubscriptionPlan.free,
       createdAt: now,
     );
@@ -253,7 +266,7 @@ class AuthService {
     required String email,
     required String phone,
     required String password,
-    String? logoPath,
+    XFile? logoFile,
   }) async {
     fb_auth.UserCredential credential;
     try {
@@ -266,14 +279,27 @@ class AuthService {
       throw AuthException(_firebaseAuthErrorMessage(e));
     }
 
-    return _createStylistAccount(
-      uid: credential.user!.uid,
-      email: email,
-      fullName: fullName,
-      phone: phone,
-      atelierName: atelierName,
-      photoUrl: logoPath,
-    );
+    try {
+      return await _createStylistAccount(
+        uid: credential.user!.uid,
+        email: email,
+        fullName: fullName,
+        phone: phone,
+        atelierName: atelierName,
+        logoFile: logoFile,
+      );
+    } catch (_) {
+      // Le compte Firebase Auth vient d'être créé mais son document
+      // users/{uid} n'existe pas encore (upload du logo ou écriture Firestore
+      // en échec). Sans ce nettoyage, la personne restait avec un compte
+      // « fantôme » : la connexion suivante échouait sur « Compte
+      // introuvable », sans aucun moyen de réessayer l'inscription avec le
+      // même email.
+      try {
+        await credential.user?.delete();
+      } catch (_) {}
+      rethrow;
+    }
   }
 
   /// Écrit users/{uid} + ateliers/{id} pour un nouveau compte styliste, une
@@ -281,12 +307,18 @@ class AuthService {
   /// voir _registerStylistFirebase et completeGoogleSignUp). Partagé pour que
   /// les deux chemins d'inscription produisent EXACTEMENT la même structure
   /// de données.
+  ///
+  /// Le logo choisi à l'inscription est envoyé dans Firebase Storage AVANT
+  /// l'écriture du document (voir ProfileLogoService) : on enregistre une URL
+  /// téléchargeable, pas le chemin local de l'appareil, sinon le logo
+  /// n'apparaissait que sur le téléphone qui avait créé le compte.
   Future<AppUser> _createStylistAccount({
     required String uid,
     required String email,
     required String fullName,
     required String phone,
     required String atelierName,
+    XFile? logoFile,
     String? photoUrl,
   }) async {
     // Voir _signInFirebase : sans ce rafraîchissement, l'écriture Firestore
@@ -294,6 +326,25 @@ class AuthService {
     // faire rejeter par les règles (permission-denied) alors que le compte
     // Firebase Auth vient tout juste d'être créé avec succès.
     await fb_auth.FirebaseAuth.instance.currentUser?.getIdToken(true);
+
+    String? resolvedPhotoUrl = photoUrl;
+    if (logoFile != null) {
+      try {
+        resolvedPhotoUrl = await ProfileLogoService.upload(
+          userId: uid,
+          file: logoFile,
+        );
+      } catch (e, stack) {
+        PlatformTelemetryService.instance.recordError(
+          e,
+          stack,
+          context: 'profile logo upload (inscription)',
+        );
+        throw AuthException(
+          "Le logo n'a pas pu être envoyé. Vérifiez votre connexion puis réessayez.",
+        );
+      }
+    }
 
     final now = DateTime.now();
     final atelierId = 'atelier_${now.millisecondsSinceEpoch}';
@@ -306,7 +357,7 @@ class AuthService {
       role: UserRole.stylist,
       atelierId: atelierId,
       atelierName: atelierName.trim(),
-      photoUrl: photoUrl,
+      photoUrl: resolvedPhotoUrl,
       plan: SubscriptionPlan.free,
       createdAt: now,
     );
@@ -345,8 +396,9 @@ class AuthService {
   Future<void> _ensureGoogleSignInInitialized() async {
     if (_googleSignInInitialized) return;
     await google.GoogleSignIn.instance.initialize(
-      clientId:
-          defaultTargetPlatform == TargetPlatform.iOS ? GoogleAuthConfig.iosClientId : null,
+      clientId: defaultTargetPlatform == TargetPlatform.iOS
+          ? GoogleAuthConfig.iosClientId
+          : null,
       serverClientId: GoogleAuthConfig.webClientId,
     );
     _googleSignInInitialized = true;
@@ -370,7 +422,10 @@ class AuthService {
     await credential.user!.getIdToken(true);
     final uid = credential.user!.uid;
 
-    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
     if (doc.exists) {
       final user = AppUser.fromMap(doc.data()!, uid);
       if (!user.isActive) {
@@ -403,8 +458,9 @@ class AuthService {
       if (kIsWeb) {
         // Web : le SDK Firebase gère lui-même la fenêtre Google, le plugin
         // google_sign_in n'est pas utilisé (pas d'initialize() ici).
-        return await fb_auth.FirebaseAuth.instance
-            .signInWithPopup(fb_auth.GoogleAuthProvider());
+        return await fb_auth.FirebaseAuth.instance.signInWithPopup(
+          fb_auth.GoogleAuthProvider(),
+        );
       }
 
       await _ensureGoogleSignInInitialized();
@@ -430,7 +486,9 @@ class AuthService {
       throw AuthException(_googleSignInExceptionMessage(e));
     } on PlatformException catch (e) {
       _reportGoogleFailure(e);
-      throw AuthException('Connexion Google impossible (${e.code}). Réessayez.');
+      throw AuthException(
+        'Connexion Google impossible (${e.code}). Réessayez.',
+      );
     }
   }
 
@@ -510,6 +568,7 @@ class AuthService {
     required String fullName,
     required String atelierName,
     required String phone,
+    XFile? logoFile,
     String? photoUrl,
   }) {
     return _createStylistAccount(
@@ -518,8 +577,81 @@ class AuthService {
       fullName: fullName,
       phone: phone,
       atelierName: atelierName,
+      logoFile: logoFile,
       photoUrl: photoUrl,
     );
+  }
+
+  /// Ajoute / remplace / supprime le logo de l'atelier du compte connecté.
+  ///
+  /// [photoFile] null signifie « supprimer le logo ». L'image est envoyée dans
+  /// Firebase Storage puis l'URL de téléchargement est écrite dans
+  /// users/{uid}.photoUrl — un seul chemin d'écriture, partagé par le profil
+  /// et l'inscription, pour éviter que le champ ne contienne parfois un chemin
+  /// local et parfois une URL.
+  Future<AppUser> updateProfilePhoto({
+    required String userId,
+    XFile? photoFile,
+  }) async {
+    final current = _currentUser;
+    if (current == null || current.id != userId) {
+      throw AuthException('Session expirée, reconnectez-vous.');
+    }
+
+    String? newPhotoUrl;
+    if (photoFile != null) {
+      try {
+        newPhotoUrl = await ProfileLogoService.upload(
+          userId: userId,
+          file: photoFile,
+        );
+      } catch (e, stack) {
+        PlatformTelemetryService.instance.recordError(
+          e,
+          stack,
+          context: 'profile logo upload (profil)',
+        );
+        throw AuthException(
+          "Le logo n'a pas pu être envoyé. Vérifiez votre connexion puis réessayez.",
+        );
+      }
+    }
+
+    if (FirebaseService.isAvailable) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(userId).update(
+          {'photoUrl': newPhotoUrl},
+        );
+      } catch (e, stack) {
+        PlatformTelemetryService.instance.recordError(
+          e,
+          stack,
+          context: 'profile logo firestore (profil)',
+        );
+        throw AuthException(
+          "Impossible d'enregistrer le logo. Vérifiez votre connexion puis réessayez.",
+        );
+      }
+    }
+
+    final updated = current.copyWith(
+      photoUrl: newPhotoUrl,
+      clearPhotoUrl: newPhotoUrl == null,
+    );
+    _currentUser = updated;
+
+    if (!FirebaseService.isAvailable) {
+      final index = _demoUsers.indexWhere((u) => u.id == userId);
+      if (index != -1) _demoUsers[index] = updated;
+      // Couvre les comptes créés par un Chef d'Entreprise, qui vivent dans
+      // CompanyService plutôt que dans _demoUsers.
+      CompanyService.instance.updateUser(updated);
+    }
+
+    if (newPhotoUrl == null) {
+      await ProfileLogoService.delete(userId);
+    }
+    return updated;
   }
 
   /// Change le mot de passe du compte connecté et, s'il s'agissait encore
@@ -534,11 +666,16 @@ class AuthService {
     required String newPassword,
   }) async {
     if (newPassword.length < 6) {
-      throw AuthException('Le nouveau mot de passe doit contenir au moins 6 caractères');
+      throw AuthException(
+        'Le nouveau mot de passe doit contenir au moins 6 caractères',
+      );
     }
 
     if (FirebaseService.isAvailable) {
-      return _changePasswordFirebase(currentPassword: currentPassword, newPassword: newPassword);
+      return _changePasswordFirebase(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
     }
 
     await Future<void>.delayed(const Duration(milliseconds: 500));
@@ -587,9 +724,9 @@ class AuthService {
       throw AuthException('Impossible de changer le mot de passe. Réessayez.');
     }
 
-    await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).update({
-      'mustChangePassword': false,
-    });
+    await FirebaseFirestore.instance.collection('users').doc(fbUser.uid).update(
+      {'mustChangePassword': false},
+    );
 
     final updatedUser = _currentUser!.copyWith(mustChangePassword: false);
     _currentUser = updatedUser;
@@ -644,7 +781,8 @@ class AuthService {
 
     await Future<void>.delayed(const Duration(milliseconds: 600));
 
-    final exists = _demoUsers.any((u) => u.email.toLowerCase() == normalizedEmail) ||
+    final exists =
+        _demoUsers.any((u) => u.email.toLowerCase() == normalizedEmail) ||
         CompanyService.instance.findAccountByEmail(normalizedEmail) != null;
     if (!exists) {
       throw AuthException('Aucun compte trouvé avec cet email');
@@ -692,7 +830,8 @@ class AuthService {
     _currentUser = null;
   }
 
-  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _ownUserSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _ownUserSubscription;
 
   /// Surveille en continu le document Firestore du compte connecté et
   /// notifie l'appelant à CHAQUE changement, pas seulement isActive : un
@@ -716,19 +855,23 @@ class AuthService {
         .doc(user.id)
         .snapshots()
         .listen(
-      (doc) {
-        if (!doc.exists) return;
-        onUpdate(AppUser.fromMap(doc.data()!, doc.id));
-      },
-      // Sans handler, une écoute refusée (règles Firestore, coupure réseau)
-      // remontait en exception NON gérée et laissait l'application sur un état
-      // périmé — un compte suspendu en direct ou un plan validé par l'admin
-      // n'était alors jamais détecté, sans le moindre message.
-      onError: (Object error, StackTrace stack) {
-        PlatformTelemetryService.instance.recordError(error, stack, context: 'auth firestore');
-        debugPrint('⚠️ watchOwnUserDoc interrompu : $error');
-      },
-    );
+          (doc) {
+            if (!doc.exists) return;
+            onUpdate(AppUser.fromMap(doc.data()!, doc.id));
+          },
+          // Sans handler, une écoute refusée (règles Firestore, coupure réseau)
+          // remontait en exception NON gérée et laissait l'application sur un état
+          // périmé — un compte suspendu en direct ou un plan validé par l'admin
+          // n'était alors jamais détecté, sans le moindre message.
+          onError: (Object error, StackTrace stack) {
+            PlatformTelemetryService.instance.recordError(
+              error,
+              stack,
+              context: 'auth firestore',
+            );
+            debugPrint('⚠️ watchOwnUserDoc interrompu : $error');
+          },
+        );
   }
 
   void stopWatchingOwnUserDoc() {
@@ -765,7 +908,10 @@ class AuthService {
   /// refléter les changements faits côté admin.
   Future<AppUser?> getUserById(String userId) async {
     if (FirebaseService.isAvailable) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
       if (!doc.exists) return null;
       final user = AppUser.fromMap(doc.data()!, userId);
       if (_currentUser?.id == userId) _currentUser = user;
@@ -794,7 +940,10 @@ class AuthService {
     // facile à relire/retaper pour la personne qui le reçoit.
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
     final random = Random.secure();
-    final password = List.generate(8, (_) => chars[random.nextInt(chars.length)]).join();
+    final password = List.generate(
+      8,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
     _demoPasswords[email.trim().toLowerCase()] = password;
     return password;
   }

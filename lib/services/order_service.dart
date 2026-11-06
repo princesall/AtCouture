@@ -45,7 +45,8 @@ class OrderService extends ChangeNotifier {
   // no-op au lieu d'un doublon, et l'ID n'est pas devinable (contrairement à
   // l'ancien compteur séquentiel), ce qui sera nécessaire le jour où l'écran
   // de suivi public lira une commande par son ID.
-  final Map<String, ({Order order, bool isNewClient, Client? existingClient})> _orderIdempotencyCache = {};
+  final Map<String, ({Order order, bool isNewClient, Client? existingClient})>
+  _orderIdempotencyCache = {};
   final Map<String, Client> _addClientIdempotencyCache = {};
 
   // ── Compteurs pour génération d'IDs démo ─────────────────────────────────
@@ -70,7 +71,8 @@ class OrderService extends ChangeNotifier {
   // toute façon refusée par firestore.rules (list scopé par atelierId).
   final Set<String> _syncedAteliers = {};
   final Set<String> _syncedTailorScopes = {};
-  final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>> _subscriptions = [];
+  final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>
+  _subscriptions = [];
 
   /// Écoute dédiée pour un Couturier : contrairement à _ensureAtelierSynced
   /// (qui ne filtre QUE par atelierId), cette requête filtre AUSSI par
@@ -93,18 +95,28 @@ class OrderService extends ChangeNotifier {
           .where('tailorId', isEqualTo: tailorId)
           .snapshots()
           .listen(
-        (snap) {
-          _orders.removeWhere((o) => o.atelierId == atelierId && o.tailorId == tailorId);
-          _orders.addAll(snap.docs.map((d) => Order.fromMap(d.data(), d.id)));
-          notifyListeners();
-        },
-        // Une écoute refusée par les règles laissait le couturier devant un
-        // tableau de bord définitivement vide, sans aucune erreur visible.
-        onError: (Object error, StackTrace stack) {
-          PlatformTelemetryService.instance.recordError(error, stack, context: 'order firestore sync');
-          debugPrint('⚠️ sync commandes couturier ($scopeKey) interrompue : $error');
-        },
-      ),
+            (snap) {
+              _orders.removeWhere(
+                (o) => o.atelierId == atelierId && o.tailorId == tailorId,
+              );
+              _orders.addAll(
+                snap.docs.map((d) => Order.fromMap(d.data(), d.id)),
+              );
+              notifyListeners();
+            },
+            // Une écoute refusée par les règles laissait le couturier devant un
+            // tableau de bord définitivement vide, sans aucune erreur visible.
+            onError: (Object error, StackTrace stack) {
+              PlatformTelemetryService.instance.recordError(
+                error,
+                stack,
+                context: 'order firestore sync',
+              );
+              debugPrint(
+                '⚠️ sync commandes couturier ($scopeKey) interrompue : $error',
+              );
+            },
+          ),
     );
   }
 
@@ -114,30 +126,54 @@ class OrderService extends ChangeNotifier {
 
     final firestore = FirebaseFirestore.instance;
     _subscriptions.add(
-      firestore.collection('orders').where('atelierId', isEqualTo: atelierId).snapshots().listen(
-        (snap) {
-          _orders.removeWhere((o) => o.atelierId == atelierId);
-          _orders.addAll(snap.docs.map((d) => Order.fromMap(d.data(), d.id)));
-          notifyListeners();
-        },
-        onError: (Object error, StackTrace stack) {
-          PlatformTelemetryService.instance.recordError(error, stack, context: 'order firestore sync');
-          debugPrint('⚠️ sync commandes atelier $atelierId interrompue : $error');
-        },
-      ),
+      firestore
+          .collection('orders')
+          .where('atelierId', isEqualTo: atelierId)
+          .snapshots()
+          .listen(
+            (snap) {
+              _orders.removeWhere((o) => o.atelierId == atelierId);
+              _orders.addAll(
+                snap.docs.map((d) => Order.fromMap(d.data(), d.id)),
+              );
+              notifyListeners();
+            },
+            onError: (Object error, StackTrace stack) {
+              PlatformTelemetryService.instance.recordError(
+                error,
+                stack,
+                context: 'order firestore sync',
+              );
+              debugPrint(
+                '⚠️ sync commandes atelier $atelierId interrompue : $error',
+              );
+            },
+          ),
     );
     _subscriptions.add(
-      firestore.collection('clients').where('atelierId', isEqualTo: atelierId).snapshots().listen(
-        (snap) {
-          _clients.removeWhere((c) => c.atelierId == atelierId);
-          _clients.addAll(snap.docs.map((d) => Client.fromMap(d.data(), d.id)));
-          notifyListeners();
-        },
-        onError: (Object error, StackTrace stack) {
-          PlatformTelemetryService.instance.recordError(error, stack, context: 'order firestore sync');
-          debugPrint('⚠️ sync clients atelier $atelierId interrompue : $error');
-        },
-      ),
+      firestore
+          .collection('clients')
+          .where('atelierId', isEqualTo: atelierId)
+          .snapshots()
+          .listen(
+            (snap) {
+              _clients.removeWhere((c) => c.atelierId == atelierId);
+              _clients.addAll(
+                snap.docs.map((d) => Client.fromMap(d.data(), d.id)),
+              );
+              notifyListeners();
+            },
+            onError: (Object error, StackTrace stack) {
+              PlatformTelemetryService.instance.recordError(
+                error,
+                stack,
+                context: 'order firestore sync',
+              );
+              debugPrint(
+                '⚠️ sync clients atelier $atelierId interrompue : $error',
+              );
+            },
+          ),
     );
   }
 
@@ -159,9 +195,14 @@ class OrderService extends ChangeNotifier {
   /// _ensureTailorOrdersSynced), pas _ensureAtelierSynced : un couturier n'a
   /// pas le droit de lister toutes les commandes de l'atelier, seulement les
   /// siennes. Utilisable même si aucun autre écran n'a encore rien chargé.
-  List<Order> ordersOfTailor({required String atelierId, required String tailorId}) {
+  List<Order> ordersOfTailor({
+    required String atelierId,
+    required String tailorId,
+  }) {
     _ensureTailorOrdersSynced(atelierId, tailorId);
-    return _orders.where((o) => o.atelierId == atelierId && o.tailorId == tailorId).toList();
+    return _orders
+        .where((o) => o.atelierId == atelierId && o.tailorId == tailorId)
+        .toList();
   }
 
   /// Toutes les commandes d'un client — suppose que l'atelier de ce client a
@@ -188,15 +229,25 @@ class OrderService extends ChangeNotifier {
     required String fullName,
     required String phone,
     String? email,
+    String? notes,
   }) async {
-    final trimmedEmail = (email == null || email.trim().isEmpty) ? null : email.trim();
+    final trimmedEmail = (email == null || email.trim().isEmpty)
+        ? null
+        : email.trim();
+    final trimmedNotes = (notes == null || notes.trim().isEmpty)
+        ? null
+        : notes.trim();
 
     if (FirebaseService.isAvailable) {
-      await FirebaseFirestore.instance.collection('clients').doc(clientId).update({
-        'fullName': fullName.trim(),
-        'phone': phone.trim(),
-        'email': trimmedEmail,
-      });
+      await FirebaseFirestore.instance
+          .collection('clients')
+          .doc(clientId)
+          .update({
+            'fullName': fullName.trim(),
+            'phone': phone.trim(),
+            'email': trimmedEmail,
+            'notes': trimmedNotes,
+          });
       return;
     }
 
@@ -208,6 +259,8 @@ class OrderService extends ChangeNotifier {
       fullName: fullName.trim(),
       phone: phone.trim(),
       email: trimmedEmail,
+      notes: trimmedNotes,
+      clearNotes: true,
     );
   }
 
@@ -228,7 +281,10 @@ class OrderService extends ChangeNotifier {
           .get();
       if (orderSnap.docs.isNotEmpty) return false;
 
-      await FirebaseFirestore.instance.collection('clients').doc(clientId).delete();
+      await FirebaseFirestore.instance
+          .collection('clients')
+          .doc(clientId)
+          .delete();
       return true;
     }
 
@@ -258,11 +314,14 @@ class OrderService extends ChangeNotifier {
 
   /// Recherche un client par nom et téléphone (pour éviter les doublons)
   Client? findClient(String fullName, String phone, String atelierId) {
-    return _clients.where((c) =>
-        c.fullName.toLowerCase() == fullName.toLowerCase() &&
-        c.phone == phone &&
-        c.atelierId == atelierId
-    ).firstOrNull;
+    return _clients
+        .where(
+          (c) =>
+              c.fullName.toLowerCase() == fullName.toLowerCase() &&
+              c.phone == phone &&
+              c.atelierId == atelierId,
+        )
+        .firstOrNull;
   }
 
   /// Recherche un client par nom OU téléphone (plus flexible pour l'UI)
@@ -271,36 +330,42 @@ class OrderService extends ChangeNotifier {
     final normalizedQuery = query.toLowerCase().trim();
     if (normalizedQuery.isEmpty) return [];
 
-    return _clients.where((c) =>
-        c.atelierId == atelierId &&
-        (c.fullName.toLowerCase().contains(normalizedQuery) ||
-         c.phone.contains(normalizedQuery))
-    ).toList();
+    return _clients
+        .where(
+          (c) =>
+              c.atelierId == atelierId &&
+              (c.fullName.toLowerCase().contains(normalizedQuery) ||
+                  c.phone.contains(normalizedQuery)),
+        )
+        .toList();
   }
 
   /// Vérifie si un client existe déjà par nom OU téléphone
   bool clientExists(String fullName, String phone, String atelierId) {
-    return _clients.any((c) =>
-        c.atelierId == atelierId &&
-        (c.fullName.toLowerCase() == fullName.toLowerCase() ||
-         c.phone == phone)
+    return _clients.any(
+      (c) =>
+          c.atelierId == atelierId &&
+          (c.fullName.toLowerCase() == fullName.toLowerCase() ||
+              c.phone == phone),
     );
   }
 
   /// Trouve un client par téléphone exact
   Client? findClientByPhone(String phone, String atelierId) {
-    return _clients.where((c) =>
-        c.phone == phone &&
-        c.atelierId == atelierId
-    ).firstOrNull;
+    return _clients
+        .where((c) => c.phone == phone && c.atelierId == atelierId)
+        .firstOrNull;
   }
 
   /// Trouve un client par nom exact (insensible à la casse)
   Client? findClientByName(String fullName, String atelierId) {
-    return _clients.where((c) =>
-        c.fullName.toLowerCase() == fullName.toLowerCase() &&
-        c.atelierId == atelierId
-    ).firstOrNull;
+    return _clients
+        .where(
+          (c) =>
+              c.fullName.toLowerCase() == fullName.toLowerCase() &&
+              c.atelierId == atelierId,
+        )
+        .firstOrNull;
   }
 
   // ── Écritures ─────────────────────────────────────────────────────────────
@@ -310,7 +375,8 @@ class OrderService extends ChangeNotifier {
   /// - Sinon, on crée un nouveau client automatiquement
   /// - La commande est liée au client via clientId
   /// - Retourne un tuple (order, isNewClient, existingClient) pour informer l'UI
-  Future<({Order order, bool isNewClient, Client? existingClient})> createOrder({
+  Future<({Order order, bool isNewClient, Client? existingClient})>
+  createOrder({
     required String clientName,
     required String clientPhone,
     required String atelierId,
@@ -327,7 +393,8 @@ class OrderService extends ChangeNotifier {
     String? createdByName,
     String? idempotencyKey,
   }) async {
-    if (idempotencyKey != null && _orderIdempotencyCache.containsKey(idempotencyKey)) {
+    if (idempotencyKey != null &&
+        _orderIdempotencyCache.containsKey(idempotencyKey)) {
       return _orderIdempotencyCache[idempotencyKey]!;
     }
 
@@ -348,7 +415,9 @@ class OrderService extends ChangeNotifier {
         deposit: deposit,
         dueDate: dueDate,
         createdByName: createdByName,
-        orderDocId: idempotencyKey ?? FirebaseFirestore.instance.collection('orders').doc().id,
+        orderDocId:
+            idempotencyKey ??
+            FirebaseFirestore.instance.collection('orders').doc().id,
       );
       if (idempotencyKey != null) {
         _orderIdempotencyCache[idempotencyKey] = result;
@@ -427,12 +496,14 @@ class OrderService extends ChangeNotifier {
     // historique horodaté si les mesures ont réellement changé).
     final clientIndex = _clients.indexWhere((c) => c.id == client?.id);
     if (clientIndex != -1) {
-      final hasNewMeasurements = measurements != null && measurements.isNotEmpty;
+      final hasNewMeasurements =
+          measurements != null && measurements.isNotEmpty;
       final mergedMeasurements = hasNewMeasurements
           ? {...?client.savedMeasurements, ...measurements}
           : client.savedMeasurements;
       final measurementsChanged =
-          hasNewMeasurements && !_measurementsEqual(client.savedMeasurements, mergedMeasurements);
+          hasNewMeasurements &&
+          !_measurementsEqual(client.savedMeasurements, mergedMeasurements);
 
       final updatedClient = client.copyWith(
         orderIds: [...client.orderIds, orderId],
@@ -442,14 +513,21 @@ class OrderService extends ChangeNotifier {
         measurementHistory: measurementsChanged
             ? [
                 ...client.measurementHistory,
-                MeasurementSnapshot(measurements: mergedMeasurements!, recordedAt: now),
+                MeasurementSnapshot(
+                  measurements: mergedMeasurements!,
+                  recordedAt: now,
+                ),
               ]
             : client.measurementHistory,
       );
       _clients[clientIndex] = updatedClient;
     }
 
-    final result = (order: order, isNewClient: isNewClient, existingClient: existingClient);
+    final result = (
+      order: order,
+      isNewClient: isNewClient,
+      existingClient: existingClient,
+    );
     if (idempotencyKey != null) {
       _orderIdempotencyCache[idempotencyKey] = result;
     }
@@ -464,7 +542,8 @@ class OrderService extends ChangeNotifier {
   /// existant se fait par une requête serveur directe (pas via le cache
   /// local _clients, qui peut ne pas encore être synchronisé au moment de
   /// cet appel) pour éviter de créer un doublon.
-  Future<({Order order, bool isNewClient, Client? existingClient})> _createOrderFirebase({
+  Future<({Order order, bool isNewClient, Client? existingClient})>
+  _createOrderFirebase({
     required String clientName,
     required String clientPhone,
     required String atelierId,
@@ -486,7 +565,10 @@ class OrderService extends ChangeNotifier {
     final trimmedName = clientName.trim();
     final trimmedPhone = clientPhone.trim();
 
-    Future<QueryDocumentSnapshot<Map<String, dynamic>>?> search(String field, String value) async {
+    Future<QueryDocumentSnapshot<Map<String, dynamic>>?> search(
+      String field,
+      String value,
+    ) async {
       final snap = await clientsRef
           .where('atelierId', isEqualTo: atelierId)
           .where(field, isEqualTo: value)
@@ -500,10 +582,13 @@ class OrderService extends ChangeNotifier {
 
     final now = DateTime.now();
     final isNewClient = clientDoc == null;
-    final existingClient = clientDoc != null ? Client.fromMap(clientDoc.data(), clientDoc.id) : null;
+    final existingClient = clientDoc != null
+        ? Client.fromMap(clientDoc.data(), clientDoc.id)
+        : null;
 
     final clientRef = clientDoc?.reference ?? clientsRef.doc();
-    final client = existingClient ??
+    final client =
+        existingClient ??
         Client(
           id: clientRef.id,
           fullName: trimmedName,
@@ -534,15 +619,21 @@ class OrderService extends ChangeNotifier {
       dueDate: dueDate,
       createdAt: now,
       statusHistory: [
-        OrderStatusChange(status: OrderStatus.pending, changedAt: now, changedByName: createdByName ?? 'Styliste'),
+        OrderStatusChange(
+          status: OrderStatus.pending,
+          changedAt: now,
+          changedByName: createdByName ?? 'Styliste',
+        ),
       ],
     );
 
     final hasNewMeasurements = measurements != null && measurements.isNotEmpty;
-    final mergedMeasurements =
-        hasNewMeasurements ? {...?client.savedMeasurements, ...measurements} : client.savedMeasurements;
+    final mergedMeasurements = hasNewMeasurements
+        ? {...?client.savedMeasurements, ...measurements}
+        : client.savedMeasurements;
     final measurementsChanged =
-        hasNewMeasurements && !_measurementsEqual(client.savedMeasurements, mergedMeasurements);
+        hasNewMeasurements &&
+        !_measurementsEqual(client.savedMeasurements, mergedMeasurements);
 
     final updatedClient = client.copyWith(
       orderIds: [...client.orderIds, orderDocId],
@@ -552,7 +643,10 @@ class OrderService extends ChangeNotifier {
       measurementHistory: measurementsChanged
           ? [
               ...client.measurementHistory,
-              MeasurementSnapshot(measurements: mergedMeasurements!, recordedAt: now),
+              MeasurementSnapshot(
+                measurements: mergedMeasurements!,
+                recordedAt: now,
+              ),
             ]
           : client.measurementHistory,
     );
@@ -562,7 +656,11 @@ class OrderService extends ChangeNotifier {
     batch.set(clientRef, updatedClient.toMap());
     await batch.commit();
 
-    return (order: order, isNewClient: isNewClient, existingClient: existingClient);
+    return (
+      order: order,
+      isNewClient: isNewClient,
+      existingClient: existingClient,
+    );
   }
 
   /// Met à jour (fusionne) les mesures enregistrées d'un client, que ce soit
@@ -577,7 +675,9 @@ class OrderService extends ChangeNotifier {
     Set<String> removedKeys = const {},
   }) async {
     if (FirebaseService.isAvailable) {
-      final ref = FirebaseFirestore.instance.collection('clients').doc(clientId);
+      final ref = FirebaseFirestore.instance
+          .collection('clients')
+          .doc(clientId);
       final snap = await ref.get();
       if (!snap.exists) return;
       final client = Client.fromMap(snap.data()!, clientId);
@@ -587,7 +687,10 @@ class OrderService extends ChangeNotifier {
       final updates = <String, dynamic>{'savedMeasurements': merged};
       if (changed) {
         updates['measurementHistory'] = FieldValue.arrayUnion([
-          MeasurementSnapshot(measurements: merged, recordedAt: DateTime.now()).toMap(),
+          MeasurementSnapshot(
+            measurements: merged,
+            recordedAt: DateTime.now(),
+          ).toMap(),
         ]);
       }
       await ref.update(updates);
@@ -610,7 +713,10 @@ class OrderService extends ChangeNotifier {
       measurementHistory: changed
           ? [
               ...client.measurementHistory,
-              MeasurementSnapshot(measurements: merged, recordedAt: DateTime.now()),
+              MeasurementSnapshot(
+                measurements: merged,
+                recordedAt: DateTime.now(),
+              ),
             ]
           : client.measurementHistory,
     );
@@ -627,7 +733,8 @@ class OrderService extends ChangeNotifier {
     String? notes,
     String? idempotencyKey,
   }) async {
-    if (idempotencyKey != null && _addClientIdempotencyCache.containsKey(idempotencyKey)) {
+    if (idempotencyKey != null &&
+        _addClientIdempotencyCache.containsKey(idempotencyKey)) {
       return _addClientIdempotencyCache[idempotencyKey]!;
     }
 
@@ -700,10 +807,12 @@ class OrderService extends ChangeNotifier {
         note: note,
         voiceNoteUrl: voiceNoteUrl,
       );
-      await FirebaseFirestore.instance.collection('orders').doc(orderId).update({
-        'status': newStatus.name,
-        'statusHistory': FieldValue.arrayUnion([change.toMap()]),
-      });
+      await FirebaseFirestore.instance.collection('orders').doc(orderId).update(
+        {
+          'status': newStatus.name,
+          'statusHistory': FieldValue.arrayUnion([change.toMap()]),
+        },
+      );
       FeatureUsageService.instance.track(FeatureKeys.ordersStatus);
       return;
     }
@@ -744,7 +853,10 @@ class OrderService extends ChangeNotifier {
     // Explicite plutôt que déduit de l'extension : le SDK ne détecte pas le
     // type de façon fiable sur toutes les plateformes, et storage.rules
     // exige un contentType 'audio/.*' pour accepter l'upload.
-    await ref.putFile(File(localFilePath), SettableMetadata(contentType: 'audio/mp4'));
+    await ref.putFile(
+      File(localFilePath),
+      SettableMetadata(contentType: 'audio/mp4'),
+    );
     return ref.getDownloadURL();
   }
 
@@ -754,7 +866,9 @@ class OrderService extends ChangeNotifier {
   /// actuelle (commande "non assignée").
   Future<void> assignTailor(String orderId, String? tailorId) async {
     if (FirebaseService.isAvailable) {
-      await FirebaseFirestore.instance.collection('orders').doc(orderId).update({'tailorId': tailorId});
+      await FirebaseFirestore.instance.collection('orders').doc(orderId).update(
+        {'tailorId': tailorId},
+      );
       return;
     }
 
@@ -764,7 +878,10 @@ class OrderService extends ChangeNotifier {
     if (index == -1) return;
 
     final order = _orders[index];
-    _orders[index] = order.copyWith(tailorId: tailorId, clearTailor: tailorId == null);
+    _orders[index] = order.copyWith(
+      tailorId: tailorId,
+      clearTailor: tailorId == null,
+    );
   }
 
   /// Met à jour les détails d'une commande
@@ -797,11 +914,14 @@ class OrderService extends ChangeNotifier {
 
       if (price != null && order.clientId != null) {
         final oldPrice = order.price ?? 0;
-        await FirebaseFirestore.instance.collection('clients').doc(order.clientId).update({
-          'totalSpent': FieldValue.increment(price - oldPrice),
-        });
+        await FirebaseFirestore.instance
+            .collection('clients')
+            .doc(order.clientId)
+            .update({'totalSpent': FieldValue.increment(price - oldPrice)});
       }
-      if (measurements != null && measurements.isNotEmpty && order.clientId != null) {
+      if (measurements != null &&
+          measurements.isNotEmpty &&
+          order.clientId != null) {
         await updateClientMeasurements(order.clientId!, measurements);
       }
       return;
@@ -837,7 +957,9 @@ class OrderService extends ChangeNotifier {
     }
 
     // Si les mesures changent, les mémoriser aussi sur la fiche client.
-    if (measurements != null && measurements.isNotEmpty && order.clientId != null) {
+    if (measurements != null &&
+        measurements.isNotEmpty &&
+        order.clientId != null) {
       await updateClientMeasurements(order.clientId!, measurements);
     }
   }
@@ -851,11 +973,14 @@ class OrderService extends ChangeNotifier {
       final order = Order.fromMap(snap.data()!, orderId);
       await ref.delete();
       if (order.clientId != null) {
-        await FirebaseFirestore.instance.collection('clients').doc(order.clientId).update({
-          'orderIds': FieldValue.arrayRemove([orderId]),
-          'orderCount': FieldValue.increment(-1),
-          'totalSpent': FieldValue.increment(-(order.price ?? 0)),
-        });
+        await FirebaseFirestore.instance
+            .collection('clients')
+            .doc(order.clientId)
+            .update({
+              'orderIds': FieldValue.arrayRemove([orderId]),
+              'orderCount': FieldValue.increment(-1),
+              'totalSpent': FieldValue.increment(-(order.price ?? 0)),
+            });
       }
       return;
     }
@@ -884,14 +1009,25 @@ class OrderService extends ChangeNotifier {
   // ── Stats ─────────────────────────────────────────────────────────────────
 
   /// KPIs pour un atelier
-  ({int totalOrders, int pendingOrders, int inProgressOrders, int completedOrders})
-      atelierStats(String atelierId) {
+  ({
+    int totalOrders,
+    int pendingOrders,
+    int inProgressOrders,
+    int completedOrders,
+  })
+  atelierStats(String atelierId) {
     final orders = ordersOfAtelier(atelierId);
     return (
       totalOrders: orders.length,
-      pendingOrders: orders.where((o) => o.status == OrderStatus.pending).length,
-      inProgressOrders: orders.where((o) => o.status == OrderStatus.inProgress).length,
-      completedOrders: orders.where((o) => o.status == OrderStatus.completed).length,
+      pendingOrders: orders
+          .where((o) => o.status == OrderStatus.pending)
+          .length,
+      inProgressOrders: orders
+          .where((o) => o.status == OrderStatus.inProgress)
+          .length,
+      completedOrders: orders
+          .where((o) => o.status == OrderStatus.completed)
+          .length,
     );
   }
 
@@ -966,8 +1102,7 @@ class OrderService extends ChangeNotifier {
       final snap = await ref.get();
       if (!snap.exists) return;
       final order = Order.fromMap(snap.data()!, orderId);
-      final remaining =
-          order.payments.where((p) => p.id != paymentId).toList();
+      final remaining = order.payments.where((p) => p.id != paymentId).toList();
       await ref.update({
         'payments': remaining.map((p) => p.toMap()).toList(),
         'deposit': remaining.fold<int>(0, (acc, p) => acc + p.amount),
@@ -990,11 +1125,7 @@ class OrderService extends ChangeNotifier {
   }
 
   /// Argent réellement encaissé sur une période (par défaut : tout l'historique).
-  int cashCollected(
-    String atelierId, {
-    DateTime? from,
-    DateTime? to,
-  }) {
+  int cashCollected(String atelierId, {DateTime? from, DateTime? to}) {
     var total = 0;
     for (final order in ordersOfAtelier(atelierId)) {
       for (final payment in order.payments) {
@@ -1009,8 +1140,9 @@ class OrderService extends ChangeNotifier {
   /// Somme des soldes restant à encaisser sur un atelier (hors commandes
   /// livrées ? non : un solde reste dû même après livraison).
   int outstandingBalance(String atelierId) {
-    return ordersOfAtelier(atelierId)
-        .fold(0, (total, o) => total + o.balanceDue);
+    return ordersOfAtelier(
+      atelierId,
+    ).fold(0, (total, o) => total + o.balanceDue);
   }
 
   /// Convertit l'acompte saisi à la création en premier versement daté, pour

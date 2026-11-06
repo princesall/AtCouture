@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:phosphor_glyphs/phosphor_glyphs.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../core/theme/app_color_palette.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/build_context_colors.dart';
-import '../../core/utils/firebase_error_messages.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/measurement_field_prompt.dart';
 import '../../core/widgets/common_widgets.dart';
@@ -18,6 +16,7 @@ import '../../models/order_status.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/measurement_fields_service.dart';
 import '../../services/order_service.dart';
+import 'clients/create_client_dialog.dart';
 
 class StylistClientsScreen extends StatefulWidget {
   const StylistClientsScreen({super.key});
@@ -39,7 +38,7 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
   List<Client> _getFilteredClients(String atelierId) {
     final clients = OrderService.instance.clientsOfAtelier(atelierId);
     if (_searchQuery.isEmpty) return clients;
-    
+
     return OrderService.instance.searchClients(_searchQuery, atelierId);
   }
 
@@ -84,7 +83,10 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(client.fullName, style: AppTextStyles.headlineMd),
+                          Text(
+                            client.fullName,
+                            style: AppTextStyles.headlineMd,
+                          ),
                           const SizedBox(height: 4),
                           Text(
                             client.phone,
@@ -110,16 +112,31 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                     // commande restait donc définitivement dans la base.
                     PopupMenuButton<String>(
                       tooltip: 'Gérer cette fiche client',
-                      icon: Icon(Icons.more_vert_rounded, color: c.onSurfaceVariant),
+                      icon: Icon(
+                        Icons.more_vert_rounded,
+                        color: c.onSurfaceVariant,
+                      ),
                       itemBuilder: (_) => const [
                         PopupMenuItem(value: 'edit', child: Text('Modifier')),
-                        PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Supprimer'),
+                        ),
                       ],
                       onSelected: (action) async {
                         if (action == 'edit') {
-                          final nameController = TextEditingController(text: client.fullName);
-                          final phoneController = TextEditingController(text: client.phone);
-                          final emailController = TextEditingController(text: client.email ?? '');
+                          final nameController = TextEditingController(
+                            text: client.fullName,
+                          );
+                          final phoneController = TextEditingController(
+                            text: client.phone,
+                          );
+                          final emailController = TextEditingController(
+                            text: client.email ?? '',
+                          );
+                          final notesController = TextEditingController(
+                            text: client.notes ?? '',
+                          );
 
                           final saved = await showDialog<bool>(
                             context: context,
@@ -138,7 +155,9 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                                           enabled: !isSaving,
                                           decoration: const InputDecoration(
                                             labelText: 'Nom complet',
-                                            prefixIcon: Icon(Icons.person_outline),
+                                            prefixIcon: Icon(
+                                              Icons.person_outline,
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(height: AppSpacing.sm),
@@ -148,26 +167,48 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                                           keyboardType: TextInputType.phone,
                                           decoration: const InputDecoration(
                                             labelText: 'Téléphone',
-                                            prefixIcon: Icon(Icons.phone_outlined),
+                                            prefixIcon: Icon(
+                                              Icons.phone_outlined,
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(height: AppSpacing.sm),
                                         TextField(
                                           controller: emailController,
                                           enabled: !isSaving,
-                                          keyboardType: TextInputType.emailAddress,
+                                          keyboardType:
+                                              TextInputType.emailAddress,
                                           decoration: const InputDecoration(
                                             labelText: 'Email (optionnel)',
-                                            prefixIcon: Icon(Icons.mail_outline),
+                                            prefixIcon: Icon(
+                                              Icons.mail_outline,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: AppSpacing.sm),
+                                        TextField(
+                                          controller: notesController,
+                                          enabled: !isSaving,
+                                          maxLines: 3,
+                                          decoration: const InputDecoration(
+                                            labelText:
+                                                'Notes internes (optionnel)',
+                                            prefixIcon: Icon(
+                                              Icons.notes_rounded,
+                                            ),
+                                            alignLabelWithHint: true,
                                           ),
                                         ),
                                         if (error != null) ...[
                                           const SizedBox(height: AppSpacing.sm),
                                           Text(
                                             error!,
-                                            style: AppTextStyles.bodySm.copyWith(
-                                              color: Theme.of(dialogContext).colorScheme.error,
-                                            ),
+                                            style: AppTextStyles.bodySm
+                                                .copyWith(
+                                                  color: Theme.of(
+                                                    dialogContext,
+                                                  ).colorScheme.error,
+                                                ),
                                           ),
                                         ],
                                       ],
@@ -175,16 +216,28 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                                   ),
                                   actions: [
                                     TextButton(
-                                      onPressed: isSaving ? null : () => Navigator.pop(dialogContext, false),
+                                      onPressed: isSaving
+                                          ? null
+                                          : () => Navigator.pop(
+                                              dialogContext,
+                                              false,
+                                            ),
                                       child: const Text('Annuler'),
                                     ),
                                     ElevatedButton(
                                       onPressed: isSaving
                                           ? null
                                           : () async {
-                                              if (nameController.text.trim().isEmpty ||
-                                                  phoneController.text.trim().isEmpty) {
-                                                setDialogState(() => error = 'Le nom et le téléphone sont obligatoires.');
+                                              if (nameController.text
+                                                      .trim()
+                                                      .isEmpty ||
+                                                  phoneController.text
+                                                      .trim()
+                                                      .isEmpty) {
+                                                setDialogState(
+                                                  () => error =
+                                                      'Le nom et le téléphone sont obligatoires.',
+                                                );
                                                 return;
                                               }
                                               setDialogState(() {
@@ -192,24 +245,42 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                                                 error = null;
                                               });
                                               try {
-                                                await OrderService.instance.updateClient(
-                                                  clientId: client.id,
-                                                  fullName: nameController.text,
-                                                  phone: phoneController.text,
-                                                  email: emailController.text,
+                                                await OrderService.instance
+                                                    .updateClient(
+                                                      clientId: client.id,
+                                                      fullName:
+                                                          nameController.text,
+                                                      phone:
+                                                          phoneController.text,
+                                                      email:
+                                                          emailController.text,
+                                                      notes:
+                                                          notesController.text,
+                                                    );
+                                                if (!dialogContext.mounted)
+                                                  return;
+                                                Navigator.pop(
+                                                  dialogContext,
+                                                  true,
                                                 );
-                                                if (!dialogContext.mounted) return;
-                                                Navigator.pop(dialogContext, true);
                                               } catch (_) {
-                                                if (!dialogContext.mounted) return;
+                                                if (!dialogContext.mounted)
+                                                  return;
                                                 setDialogState(() {
                                                   isSaving = false;
-                                                  error = 'Enregistrement impossible. Vérifiez votre connexion et réessayez.';
+                                                  error =
+                                                      'Enregistrement impossible. Vérifiez votre connexion et réessayez.';
                                                 });
                                               }
                                             },
                                       child: isSaving
-                                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                                          ? const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            )
                                           : const Text('Enregistrer'),
                                     ),
                                   ],
@@ -221,6 +292,7 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                           nameController.dispose();
                           phoneController.dispose();
                           emailController.dispose();
+                          notesController.dispose();
 
                           if (saved == true && context.mounted) setState(() {});
                         } else if (action == 'delete') {
@@ -234,13 +306,17 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                               ),
                               actions: [
                                 TextButton(
-                                  onPressed: () => Navigator.pop(dialogContext, false),
+                                  onPressed: () =>
+                                      Navigator.pop(dialogContext, false),
                                   child: const Text('Annuler'),
                                 ),
                                 ElevatedButton(
-                                  onPressed: () => Navigator.pop(dialogContext, true),
+                                  onPressed: () =>
+                                      Navigator.pop(dialogContext, true),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                                    backgroundColor: Theme.of(
+                                      dialogContext,
+                                    ).colorScheme.error,
                                   ),
                                   child: const Text('Supprimer'),
                                 ),
@@ -251,11 +327,17 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
 
                           bool deleted;
                           try {
-                            deleted = await OrderService.instance.deleteClient(client.id);
+                            deleted = await OrderService.instance.deleteClient(
+                              client.id,
+                            );
                           } catch (_) {
                             if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Suppression impossible. Vérifiez votre connexion et réessayez.')),
+                              const SnackBar(
+                                content: Text(
+                                  'Suppression impossible. Vérifiez votre connexion et réessayez.',
+                                ),
+                              ),
                             );
                             return;
                           }
@@ -263,7 +345,9 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                           if (!deleted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Ce client a encore des commandes : supprimez-les d\'abord depuis l\'onglet Commandes.'),
+                                content: Text(
+                                  'Ce client a encore des commandes : supprimez-les d\'abord depuis l\'onglet Commandes.',
+                                ),
                               ),
                             );
                             return;
@@ -308,11 +392,59 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
               ),
               if (permissions.hasSavedMeasurements) ...[
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    0,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                  ),
                   child: _MeasurementsCard(client: client),
                 ),
                 const Divider(height: 1),
               ],
+              if (client.notes != null && client.notes!.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.md,
+                    AppSpacing.lg,
+                    AppSpacing.md,
+                  ),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: c.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.sticky_note_2_outlined,
+                              size: 16,
+                              color: c.secondary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Notes internes',
+                              style: AppTextStyles.titleSm,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          client.notes!,
+                          style: AppTextStyles.bodySm.copyWith(
+                            color: c.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               // Commandes du client
               Expanded(
                 child: orders.isEmpty
@@ -327,7 +459,8 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                         controller: scrollController,
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         itemCount: orders.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(height: AppSpacing.sm),
                         itemBuilder: (context, index) {
                           final order = orders[index];
                           return _OrderCard(order: order);
@@ -341,14 +474,16 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
     );
   }
 
-  void _showAddClientDialog() {
+  Future<void> _showAddClientDialog() async {
     final user = context.read<AuthProvider>().user!;
     final permissions = user.permissions;
-    final currentClients = OrderService.instance.clientsOfAtelier(user.atelierId!).length;
-    
+    final currentClients = OrderService.instance
+        .clientsOfAtelier(user.atelierId!)
+        .length;
+
     // Vérifier si l'utilisateur peut ajouter des clients
     if (!permissions.canAddClient(currentClients)) {
-      showDialog(
+      await showDialog(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Limite atteinte'),
@@ -364,102 +499,27 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
       return;
     }
 
-    final nameController = TextEditingController();
-    final phoneController = TextEditingController();
-    final emailController = TextEditingController();
-    // Voir OrderService (principe d'idempotence) : sans clé stable, un
-    // double-tap ou un réseau lent qui fait rejouer la requête créait un
-    // client en double. Générée une seule fois ici, avant tout rebuild du
-    // dialogue (StatefulBuilder), pour rester la MÊME à chaque tentative.
-    final idempotencyKey = const Uuid().v4();
-
-    showDialog(
+    final created = await showDialog<Client>(
       context: context,
-      builder: (dialogContext) {
-        var isSubmitting = false;
-        return StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            Future<void> submit() async {
-              if (isSubmitting ||
-                  nameController.text.trim().isEmpty ||
-                  phoneController.text.trim().isEmpty) {
-                return;
-              }
-              setDialogState(() => isSubmitting = true);
-              try {
-                await OrderService.instance.addClient(
-                  atelierId: user.atelierId!,
-                  atelierName: user.atelierName!,
-                  fullName: nameController.text.trim(),
-                  phone: phoneController.text.trim(),
-                  email: emailController.text.trim().isEmpty
-                      ? null
-                      : emailController.text.trim(),
-                  idempotencyKey: idempotencyKey,
-                );
-                if (!dialogContext.mounted) return;
-                Navigator.pop(dialogContext);
-                if (!mounted) return;
-                setState(() {}); // Refresh
-              } catch (e) {
-                if (!dialogContext.mounted) return;
-                setDialogState(() => isSubmitting = false);
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  SnackBar(content: Text(friendlyFirebaseError(e))),
-                );
-              }
-            }
+      // Une fiche à moitié remplie ne doit pas disparaître sur un tap à côté.
+      barrierDismissible: false,
+      builder: (_) => CreateClientDialog(user: user),
+    );
 
-            return AlertDialog(
-              title: const Text('Nouveau client'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nom complet',
-                        prefixIcon: Icon(Icons.person),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    TextField(
-                      controller: phoneController,
-                      decoration: const InputDecoration(
-                        labelText: 'Téléphone',
-                        prefixIcon: Icon(Icons.phone),
-                      ),
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    TextField(
-                      controller: emailController,
-                      decoration: const InputDecoration(
-                        labelText: 'Email (optionnel)',
-                        prefixIcon: Icon(Icons.email),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
-                  child: const Text('Annuler'),
-                ),
-                ElevatedButton(
-                  onPressed: isSubmitting ? null : submit,
-                  child: isSubmitting
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Créer'),
-                ),
-              ],
-            );
+    if (created == null || !mounted) return;
+    setState(() {});
+
+    final client = OrderService.instance.clientById(created.id) ?? created;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${client.fullName} a été ajouté à vos clients.'),
+        action: SnackBarAction(
+          label: 'VOIR',
+          onPressed: () {
+            if (mounted) _showClientDetails(client);
           },
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -478,10 +538,7 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
               children: [
                 Row(
                   children: [
-                    Text(
-                      'Clients',
-                      style: AppTextStyles.headlineLgMobile,
-                    ),
+                    Text('Clients', style: AppTextStyles.headlineLgMobile),
                     const Spacer(),
                     Text(
                       '${clients.length} client${clients.length > 1 ? 's' : ''}',
@@ -524,16 +581,22 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
                       action: _searchQuery.isEmpty
                           ? ElevatedButton.icon(
                               onPressed: _showAddClientDialog,
-                              icon: const Icon(Icons.person_add_rounded, size: 18),
+                              icon: const Icon(
+                                Icons.person_add_rounded,
+                                size: 18,
+                              ),
                               label: const Text('Ajouter un client'),
                             )
                           : null,
                     ),
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
                     itemCount: clients.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.sm),
                     itemBuilder: (context, index) {
                       final client = clients[index];
                       return _ClientCard(
@@ -550,10 +613,7 @@ class _StylistClientsScreenState extends State<StylistClientsScreen> {
 }
 
 class _ClientCard extends StatelessWidget {
-  const _ClientCard({
-    required this.client,
-    required this.onTap,
-  });
+  const _ClientCard({required this.client, required this.onTap});
 
   final Client client;
   final VoidCallback onTap;
@@ -603,19 +663,14 @@ class _ClientCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         '${client.orderCount} commande${client.orderCount > 1 ? 's' : ''}',
-                        style: AppTextStyles.labelXs.copyWith(
-                          color: c.primary,
-                        ),
+                        style: AppTextStyles.labelXs.copyWith(color: c.primary),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            Icon(
-              PhosphorIconsRegular.caretRight,
-              color: c.onSurfaceVariant,
-            ),
+            Icon(PhosphorIconsRegular.caretRight, color: c.onSurfaceVariant),
           ],
         ),
       ),
@@ -648,10 +703,7 @@ class _StatCard extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 24),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: AppTextStyles.headlineSm.copyWith(color: color),
-          ),
+          Text(value, style: AppTextStyles.headlineSm.copyWith(color: color)),
           const SizedBox(height: 4),
           Text(
             label,
@@ -687,8 +739,12 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
     'longueur': 'Longueur',
   };
 
-  late Map<String, double> _measurements = Map.of(widget.client.savedMeasurements ?? {});
-  late List<MeasurementSnapshot> _history = List.of(widget.client.measurementHistory);
+  late Map<String, double> _measurements = Map.of(
+    widget.client.savedMeasurements ?? {},
+  );
+  late List<MeasurementSnapshot> _history = List.of(
+    widget.client.measurementHistory,
+  );
   bool _showHistory = false;
 
   void _editMeasurements() {
@@ -697,7 +753,9 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
     // Champs personnalisés déjà définis pour l'atelier, plus tout label déjà
     // présent sur ce client mais pas encore connu de l'atelier (cas rare :
     // mesure ajoutée avant que ce compte n'ait rechargé la liste).
-    final customLabels = List<String>.of(MeasurementFieldsService.instance.customFieldsFor(atelierId));
+    final customLabels = List<String>.of(
+      MeasurementFieldsService.instance.customFieldsFor(atelierId),
+    );
     for (final key in _measurements.keys) {
       if (!_labels.containsKey(key) && !customLabels.contains(key)) {
         customLabels.add(key);
@@ -708,7 +766,9 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
       for (final key in _labels.keys)
         key: TextEditingController(text: _measurements[key]?.toString() ?? ''),
       for (final label in customLabels)
-        label: TextEditingController(text: _measurements[label]?.toString() ?? ''),
+        label: TextEditingController(
+          text: _measurements[label]?.toString() ?? '',
+        ),
     };
     // Labels dont la valeur doit être effacée chez ce client à l'enregistrement
     // (voir OrderService.updateClientMeasurements(removedKeys:)) — un merge
@@ -729,7 +789,10 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: TextField(
                       controller: controllers[entry.key],
-                      decoration: InputDecoration(labelText: '${entry.value} (cm)', suffixText: 'cm'),
+                      decoration: InputDecoration(
+                        labelText: '${entry.value} (cm)',
+                        suffixText: 'cm',
+                      ),
                       keyboardType: TextInputType.number,
                     ),
                   ),
@@ -742,7 +805,10 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                         Expanded(
                           child: TextField(
                             controller: controllers[label],
-                            decoration: InputDecoration(labelText: '$label (cm)', suffixText: 'cm'),
+                            decoration: InputDecoration(
+                              labelText: '$label (cm)',
+                              suffixText: 'cm',
+                            ),
                             keyboardType: TextInputType.number,
                           ),
                         ),
@@ -751,7 +817,8 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                             // Retire aussi du catalogue de l'atelier — même
                             // symétrie que "Ajouter une mesure", qui l'y
                             // avait inscrit.
-                            await MeasurementFieldsService.instance.removeCustomField(atelierId, label);
+                            await MeasurementFieldsService.instance
+                                .removeCustomField(atelierId, label);
                             setDialogState(() {
                               customLabels.remove(label);
                               removedLabels.add(label);
@@ -769,8 +836,12 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                   child: TextButton.icon(
                     onPressed: () async {
                       final label = await promptCustomMeasurementLabel(context);
-                      if (label == null || controllers.containsKey(label)) return;
-                      await MeasurementFieldsService.instance.addCustomField(atelierId, label);
+                      if (label == null || controllers.containsKey(label))
+                        return;
+                      await MeasurementFieldsService.instance.addCustomField(
+                        atelierId,
+                        label,
+                      );
                       setDialogState(() {
                         customLabels.add(label);
                         controllers[label] = TextEditingController();
@@ -784,22 +855,31 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
             ElevatedButton(
               onPressed: () async {
                 final updated = <String, double>{};
                 for (final key in controllers.keys) {
                   final text = controllers[key]!.text.trim();
-                  if (text.isNotEmpty) updated[key] = double.tryParse(text) ?? 0;
+                  if (text.isNotEmpty)
+                    updated[key] = double.tryParse(text) ?? 0;
                 }
                 await OrderService.instance.updateClientMeasurements(
                   widget.client.id,
                   updated,
                   removedKeys: removedLabels,
                 );
-                final refreshed = OrderService.instance.clientById(widget.client.id);
+                final refreshed = OrderService.instance.clientById(
+                  widget.client.id,
+                );
                 setState(() {
-                  _measurements = Map.of(refreshed?.savedMeasurements ?? {..._measurements, ...updated});
+                  _measurements = Map.of(
+                    refreshed?.savedMeasurements ??
+                        {..._measurements, ...updated},
+                  );
                   _history = List.of(refreshed?.measurementHistory ?? _history);
                 });
                 if (!context.mounted) return;
@@ -860,14 +940,18 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    _showHistory ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                    _showHistory
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
                     size: 16,
                     color: c.onSurfaceVariant,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     'Historique des mesures (${_history.length})',
-                    style: AppTextStyles.bodySm.copyWith(color: c.onSurfaceVariant),
+                    style: AppTextStyles.bodySm.copyWith(
+                      color: c.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -886,7 +970,9 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                           children: [
                             Text(
                               Formatters.dateTime.format(snapshot.recordedAt),
-                              style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant),
+                              style: AppTextStyles.labelXs.copyWith(
+                                color: c.onSurfaceVariant,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Wrap(
@@ -894,10 +980,14 @@ class _MeasurementsCardState extends State<_MeasurementsCard> {
                               runSpacing: 6,
                               children: snapshot.measurements.entries.map((e) {
                                 return Chip(
-                                  label: Text('${_labels[e.key] ?? e.key} : ${e.value}cm', style: AppTextStyles.labelXs),
+                                  label: Text(
+                                    '${_labels[e.key] ?? e.key} : ${e.value}cm',
+                                    style: AppTextStyles.labelXs,
+                                  ),
                                   backgroundColor: c.surfaceContainerHigh,
                                   visualDensity: VisualDensity.compact,
-                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 );
                               }).toList(),
                             ),
@@ -935,12 +1025,12 @@ class _OrderCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(c, order.status).withValues(alpha: 0.1),
+                  color: _getStatusColor(
+                    c,
+                    order.status,
+                  ).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -955,9 +1045,7 @@ class _OrderCard extends StatelessWidget {
               if (order.price != null)
                 Text(
                   Formatters.formatCurrency(order.price!),
-                  style: AppTextStyles.titleSm.copyWith(
-                    color: c.primary,
-                  ),
+                  style: AppTextStyles.titleSm.copyWith(color: c.primary),
                 ),
             ],
           ),
@@ -974,9 +1062,7 @@ class _OrderCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Créée le ${Formatters.date.format(order.createdAt!)}',
-              style: AppTextStyles.labelXs.copyWith(
-                color: c.onSurfaceVariant,
-              ),
+              style: AppTextStyles.labelXs.copyWith(color: c.onSurfaceVariant),
             ),
           ],
         ],

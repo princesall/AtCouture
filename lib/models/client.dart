@@ -13,17 +13,20 @@ class MeasurementSnapshot extends Equatable {
   final DateTime recordedAt;
 
   Map<String, dynamic> toMap() => {
-        'measurements': measurements,
-        'recordedAt': recordedAt.toIso8601String(),
-      };
+    'measurements': measurements,
+    'recordedAt': recordedAt.toIso8601String(),
+  };
 
-  factory MeasurementSnapshot.fromMap(Map<String, dynamic> map) => MeasurementSnapshot(
+  factory MeasurementSnapshot.fromMap(Map<String, dynamic> map) =>
+      MeasurementSnapshot(
         measurements: (map['measurements'] as Map).map(
           (key, value) => MapEntry(key as String, (value as num).toDouble()),
         ),
         // tryParse plutôt que parse : un historique de mesures avec une date
         // absente/corrompue ne doit jamais faire planter Client.fromMap.
-        recordedAt: DateTime.tryParse(map['recordedAt'] as String? ?? '') ?? DateTime.now(),
+        recordedAt:
+            DateTime.tryParse(map['recordedAt'] as String? ?? '') ??
+            DateTime.now(),
       );
 
   @override
@@ -84,6 +87,7 @@ class Client extends Equatable {
     Map<String, double>? savedMeasurements,
     List<MeasurementSnapshot>? measurementHistory,
     DateTime? createdAt,
+    bool clearNotes = false,
   }) {
     return Client(
       id: id ?? this.id,
@@ -92,7 +96,7 @@ class Client extends Equatable {
       atelierId: atelierId ?? this.atelierId,
       atelierName: atelierName ?? this.atelierName,
       email: email ?? this.email,
-      notes: notes ?? this.notes,
+      notes: clearNotes ? null : (notes ?? this.notes),
       orderCount: orderCount ?? this.orderCount,
       totalSpent: totalSpent ?? this.totalSpent,
       orderIds: orderIds ?? this.orderIds,
@@ -117,11 +121,18 @@ class Client extends Equatable {
       savedMeasurements: (map['savedMeasurements'] as Map?)?.map(
         (key, value) => MapEntry(key as String, (value as num).toDouble()),
       ),
-      measurementHistory: (map['measurementHistory'] as List?)
-              ?.map((e) => MeasurementSnapshot.fromMap(Map<String, dynamic>.from(e as Map)))
+      measurementHistory:
+          (map['measurementHistory'] as List?)
+              ?.map(
+                (e) => MeasurementSnapshot.fromMap(
+                  Map<String, dynamic>.from(e as Map),
+                ),
+              )
               .toList() ??
           const [],
-      createdAt: map['createdAt'] != null ? DateTime.tryParse(map['createdAt'] as String) : null,
+      createdAt: map['createdAt'] != null
+          ? DateTime.tryParse(map['createdAt'] as String)
+          : null,
     );
   }
 

@@ -66,7 +66,8 @@ class _GoogleProfileCompletionScreenState
       phone: _phoneController.text,
       // Logo de l'atelier choisi ici prioritaire sur la photo du compte
       // Google (qui n'est qu'un repli si le styliste n'ajoute pas de logo).
-      photoUrl: _logoFile?.path ?? widget.pending.photoUrl,
+      logoFile: _logoFile,
+      photoUrl: widget.pending.photoUrl,
     );
 
     if (!mounted) return;
