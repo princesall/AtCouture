@@ -716,6 +716,23 @@ class AuthService {
     if (FirebaseService.isAvailable) {
       final firestore = FirebaseFirestore.instance;
       try {
+        // L'identifiant du document companies n'est PAS l'uid du propriétaire
+        // (c'est un id aléatoire) : il faut donc le résoudre AVANT de
+        // construire le batch, une requête ne pouvant pas y être incluse. Le
+        // résultat rejoint ensuite le batch, donc les trois écritures restent
+        // atomiques.
+        DocumentReference<Map<String, dynamic>>? companyRef;
+        if (current.isCompanyOwner && newAtelierName != null) {
+          final companySnap = await firestore
+              .collection('companies')
+              .where('ownerId', isEqualTo: userId)
+              .limit(1)
+              .get();
+          if (companySnap.docs.isNotEmpty) {
+            companyRef = companySnap.docs.first.reference;
+          }
+        }
+
         final batch = firestore.batch();
         batch.update(firestore.collection('users').doc(userId), {
           'fullName': updated.fullName,
@@ -739,6 +756,17 @@ class AuthService {
           });
         }
 
+        // Chef d'Entreprise : le nom affiché comme « Entreprise » vient de
+        // users.atelierName, mais la vraie fiche companies/{id} gardait
+        // l'ancien nom (visible dans la console admin et les écrans
+        // Entreprise). On la met à jour dans le même batch.
+        if (companyRef != null) {
+          batch.update(companyRef, {
+            'name': newAtelierName,
+            'ownerName': updated.fullName,
+          });
+        }
+
         await batch.commit();
       } catch (e, stack) {
         PlatformTelemetryService.instance.recordError(
@@ -756,6 +784,11 @@ class AuthService {
       // Couvre les comptes créés par un Chef d'Entreprise, qui vivent dans
       // CompanyService plutôt que dans _demoUsers.
       CompanyService.instance.updateUser(updated);
+      // Parité avec le mode Firebase : le nom de l'Entreprise est stocké dans
+      // un document séparé, il ne suit pas tout seul users.atelierName.
+      if (current.isCompanyOwner && newAtelierName != null) {
+        CompanyService.instance.updateCompanyName(userId, newAtelierName);
+      }
     }
 
     _currentUser = updated;

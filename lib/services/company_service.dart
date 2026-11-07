@@ -1082,6 +1082,16 @@ class CompanyService extends ChangeNotifier {
     }
   }
 
+  /// Renomme l'Entreprise détenue par [ownerId]. Mode démo uniquement : en mode
+  /// Firebase, l'écriture part dans le batch d'AuthService.updateProfile pour
+  /// rester atomique avec users/{uid} et ateliers/{id}.
+  void updateCompanyName(String ownerId, String name) {
+    final index = _companies.indexWhere((c) => c.ownerId == ownerId);
+    if (index == -1) return;
+    _companies[index] = _companies[index].copyWith(name: name);
+    notifyListeners();
+  }
+
   /// Le nom du couturier assigné à une commande, ou null si aucun/non trouvé.
   String? tailorNameForOrder(Order order) {
     if (order.tailorId == null) return null;
