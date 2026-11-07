@@ -15,9 +15,24 @@ import '../company/company_customization_screen.dart';
 import '../company/company_data_export_screen.dart';
 import '../company/company_dedicated_manager_screen.dart';
 import '../shared/calendar_screen.dart';
+import '../shared/change_password_dialog.dart';
 import '../shared/contact_support_screen.dart';
 import '../shared/reminders_screen.dart';
 import '../shared/subscription_dialog.dart';
+import 'edit_profile_dialog.dart';
+
+/// Ouvre la fiche de modification du compte et confirme l'enregistrement.
+Future<void> _openEditProfile(BuildContext context, AppUser user) async {
+  final saved = await EditProfileDialog.show(context, user);
+  if (saved == true && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Informations mises à jour'),
+        backgroundColor: context.colors.success,
+      ),
+    );
+  }
+}
 
 /// Onglet Profil réutilisable — utilisé dans StylistShell ET CompanyShell.
 /// Affiche dynamiquement les infos adaptées au rôle (Atelier vs Entreprise).
@@ -60,17 +75,31 @@ class ProfileTabContent extends StatelessWidget {
                   : Icons.storefront_outlined,
               title: user.isCompanyOwner ? 'Entreprise' : 'Atelier',
               subtitle: user.atelierName ?? '—',
+              onTap: () => _openEditProfile(context, user),
             ),
             _ProfileTile(
               icon: Icons.phone_outlined,
               title: 'Téléphone',
               subtitle: user.phone,
+              onTap: () => _openEditProfile(context, user),
             ),
             _ProfileTile(
               icon: Icons.workspace_premium_outlined,
               title: 'Abonnement',
               subtitle: '${user.plan.priceLabel} — Voir les offres',
               onTap: () => SubscriptionDialog.show(context),
+            ),
+            _ProfileTile(
+              icon: Icons.edit_outlined,
+              title: 'Mes informations',
+              subtitle: 'Nom, téléphone, atelier, adresse',
+              onTap: () => _openEditProfile(context, user),
+            ),
+            _ProfileTile(
+              icon: Icons.lock_outline_rounded,
+              title: 'Mot de passe',
+              subtitle: 'Modifier votre mot de passe',
+              onTap: () => ChangePasswordDialog.show(context),
             ),
             const SizedBox(height: AppSpacing.xl),
             Align(

@@ -244,6 +244,51 @@ class AuthProvider extends ChangeNotifier {
   bool _isChangingPassword = false;
   bool get isChangingPassword => _isChangingPassword;
 
+  bool _isUpdatingProfile = false;
+  bool get isUpdatingProfile => _isUpdatingProfile;
+
+  /// Met à jour les informations du profil : nom complet, téléphone, nom et
+  /// adresse de l'atelier. Voir [AuthService.updateProfile] pour le détail des
+  /// écritures (users + ateliers en un seul batch).
+  ///
+  /// Ne passe pas par _setLoading()/_setError() pour la même raison que
+  /// [changePassword] : changer _status déconnecterait l'utilisateur en pleine
+  /// saisie (AppRouter.redirect).
+  Future<bool> updateProfile({
+    String? fullName,
+    String? phone,
+    String? atelierName,
+    String? atelierAddress,
+  }) async {
+    if (_user == null) return false;
+    _isUpdatingProfile = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      _user = await _authService.updateProfile(
+        userId: _user!.id,
+        fullName: fullName,
+        phone: phone,
+        atelierName: atelierName,
+        atelierAddress: atelierAddress,
+      );
+      _isUpdatingProfile = false;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      _isUpdatingProfile = false;
+      _errorMessage = e.message;
+      notifyListeners();
+      return false;
+    } catch (_) {
+      _isUpdatingProfile = false;
+      _errorMessage =
+          'Impossible de mettre à jour vos informations. Réessayez.';
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Change le mot de passe de l'utilisateur connecté. Ne passe PAS par
   /// _setLoading()/_setError() : ces méthodes changent _status, or
   /// AppRouter.redirect renvoie vers /auth/login dès que _status n'est plus

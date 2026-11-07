@@ -656,6 +656,112 @@ class AuthService {
     return updated;
   }
 
+  /// Met à jour les informations de profil du compte connecté : nom complet,
+  /// téléphone, nom et adresse de l'atelier.
+  ///
+  /// Le nom de l'atelier est volontairement écrit à DEUX endroits :
+  /// `users/{uid}.atelierName` (copie dénormalisée, lue partout pour
+  /// l'affichage — tableau de bord, commandes, profil) et
+  /// `ateliers/{atelierId}.name` (source de vérité partagée avec les autres
+  /// membres de l'atelier). Les deux sont écrites dans le MÊME batch : sans
+  /// ça, le styliste verrait son nouveau nom dans son profil pendant que ses
+  /// couturiers continueraient de voir l'ancien.
+  ///
+  /// L'email n'est pas modifiable ici : changer l'adresse de connexion exige
+  /// une réauthentification et une vérification par email (voir
+  /// FirebaseAuth.verifyBeforeUpdateEmail) ; une erreur en cours de route
+  /// peut enfermer l'utilisateur hors de son compte. Traité séparément.
+  Future<AppUser> updateProfile({
+    required String userId,
+    String? fullName,
+    String? phone,
+    String? atelierName,
+    String? atelierAddress,
+  }) async {
+    final current = _currentUser;
+    if (current == null || current.id != userId) {
+      throw AuthException('Session expirée, reconnectez-vous.');
+    }
+
+    final newFullName = fullName?.trim();
+    final newPhone = phone?.trim();
+    final newAtelierName = atelierName?.trim();
+    final newAddress = atelierAddress?.trim();
+
+    if (newFullName != null) {
+      if (newFullName.length < 2) {
+        throw AuthException('Indiquez votre nom complet.');
+      }
+    }
+    if (newPhone != null) {
+      // Même règle que la création de client : au moins 8 chiffres, pour
+      // éviter un numéro tronqué qui rendrait le contact WhatsApp inopérant.
+      final digits = newPhone.replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.length < 8) {
+        throw AuthException(
+          'Le numéro de téléphone doit contenir au moins 8 chiffres.',
+        );
+      }
+    }
+    if (newAtelierName != null && newAtelierName.isEmpty) {
+      throw AuthException("Le nom de l'atelier ne peut pas être vide.");
+    }
+
+    final updated = current.copyWith(
+      fullName: newFullName,
+      phone: newPhone,
+      atelierName: newAtelierName,
+    );
+
+    if (FirebaseService.isAvailable) {
+      final firestore = FirebaseFirestore.instance;
+      try {
+        final batch = firestore.batch();
+        batch.update(firestore.collection('users').doc(userId), {
+          'fullName': updated.fullName,
+          'phone': updated.phone,
+          'atelierName': updated.atelierName,
+        });
+
+        // L'atelier n'existe pas pour tous les comptes (un Chef d'Entreprise
+        // n'a pas forcément d'atelierId) : on ne l'écrit que s'il y en a un.
+        final atelierId = current.atelierId;
+        if (atelierId != null &&
+            (newAtelierName != null || newAddress != null)) {
+          batch.update(firestore.collection('ateliers').doc(atelierId), {
+            'name': ?newAtelierName,
+            'address': ?newAddress,
+            // headStylistName n'est modifiable QUE par le Chef d'Entreprise
+            // (voir firestore.rules : isAtelierHead n'a droit qu'à
+            // name/address/tailorIds). L'écrire pour un simple chef d'atelier
+            // ferait échouer TOUT le batch en permission-denied.
+            if (current.isCompanyOwner) 'headStylistName': updated.fullName,
+          });
+        }
+
+        await batch.commit();
+      } catch (e, stack) {
+        PlatformTelemetryService.instance.recordError(
+          e,
+          stack,
+          context: 'profile update (profil)',
+        );
+        throw AuthException(
+          "Impossible d'enregistrer vos informations. Vérifiez votre connexion puis réessayez.",
+        );
+      }
+    } else {
+      final index = _demoUsers.indexWhere((u) => u.id == userId);
+      if (index != -1) _demoUsers[index] = updated;
+      // Couvre les comptes créés par un Chef d'Entreprise, qui vivent dans
+      // CompanyService plutôt que dans _demoUsers.
+      CompanyService.instance.updateUser(updated);
+    }
+
+    _currentUser = updated;
+    return updated;
+  }
+
   /// Change le mot de passe du compte connecté et, s'il s'agissait encore
   /// d'un mot de passe temporaire (voir CompanyService.createTailor /
   /// createAtelierHead), lève l'obligation de le changer — voir

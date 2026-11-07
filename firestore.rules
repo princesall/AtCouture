@@ -149,8 +149,15 @@ service cloud.firestore {
         || (
           isOwnUser(userId)
           && isActiveUser()
+          // atelierName est la copie dénormalisée du nom de l'atelier,
+          // utilisée partout pour l'affichage (tableau de bord, commandes,
+          // profil). Le styliste peut la corriger lui-même — voir
+          // AuthService.updateProfile, qui met à jour AUSSI
+          // ateliers/{atelierId}.name (autorisé séparément plus bas). Le
+          // champ reste une simple étiquette : le modifier ne donne aucun
+          // droit supplémentaire et ne change ni atelierId ni role.
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['fullName', 'phone', 'photoUrl', 'mustChangePassword', 'lastLoginAt'])
+               .hasOnly(['fullName', 'phone', 'atelierName', 'photoUrl', 'mustChangePassword', 'lastLoginAt'])
           && (
             request.resource.data.mustChangePassword == false
             || request.resource.data.mustChangePassword == resource.data.mustChangePassword
